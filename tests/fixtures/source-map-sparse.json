@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "authoritative": true,
+  "authoritative_source": "tests/fixtures/sparse-outline.md",
+  "source_type": "md",
+  "source_sha256": "fixture",
+  "outline_mode": "sparse",
+  "mode_declared_by_user": true,
+  "requires_user_outline_mode": false,
+  "nodes": [
+    {"id": "n0001", "order": 1, "parent_id": null, "depth": 0, "kind": "heading", "text": "编码格式", "include": true},
+    {"id": "n0002", "order": 2, "parent_id": "n0001", "depth": 1, "kind": "heading", "text": "编码与格式的区别", "include": true}
+  ],
+  "images": [],
+  "warnings": []
+}

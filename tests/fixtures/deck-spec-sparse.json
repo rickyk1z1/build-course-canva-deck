@@ -1,0 +1,54 @@
+{
+  "course": {
+    "title": "编码格式",
+    "audience": "零基础自媒体创作者",
+    "outline_mode": "sparse",
+    "authoritative_source": "tests/fixtures/sparse-outline.md",
+    "template_design_id": "DAHM5fsVEB0",
+    "explicit_exclusions": ["剪辑软件操作", "软件按钮操作", "代理回连"]
+  },
+  "slides": [
+    {
+      "number": 1,
+      "section": "课程导入",
+      "title": "编码和格式描述视频的不同方面",
+      "layout": "roadmap",
+      "screen": {
+        "explanation": "理解编码与格式时，先把数据的整理方法和最终承装数据的文件类型分开。",
+        "bullets": ["编码描述整理方法", "格式描述文件容器", "两者可以形成不同组合"],
+        "caption": "",
+        "blocks": []
+      },
+      "speaker_notes": "先建立分类。",
+      "visuals": [],
+      "source_node_ids": ["n0001"],
+      "added_content": [
+        {"text": "编码描述数据整理方法", "source_node_id": "n0001", "kind": "definition", "relevance": "direct", "evidence_urls": ["https://www.loc.gov/preservation/digital/formats/intro/intro.shtml"]}
+      ],
+      "scope_check": {"status": "within-branch", "branch_node_id": "n0001"}
+    },
+    {
+      "number": 2,
+      "section": "编码格式",
+      "title": "编码是方法，格式是承装数据的容器",
+      "layout": "comparison",
+      "screen": {
+        "explanation": "编码决定视频数据按照什么规则整理，格式决定整理后的数据装进什么类型的文件，两者有关联但不是同一个概念。",
+        "bullets": [],
+        "caption": "对比时分别观察数据整理方法与文件容器。",
+        "blocks": [
+          {"heading": "编码", "items": ["整理数据", "压缩数据"]},
+          {"heading": "格式", "items": ["承装数据"]}
+        ]
+      },
+      "speaker_notes": "使用快递打包和箱子比喻。",
+      "visuals": [],
+      "source_node_ids": ["n0002"],
+      "added_content": [
+        {"text": "同一格式可能承装不同编码的数据", "source_node_id": "n0002", "kind": "relationship", "relevance": "direct", "evidence_urls": ["https://www.loc.gov/preservation/digital/formats/intro/intro.shtml"]},
+        {"text": "不要把扩展名直接当成编码名称", "source_node_id": "n0002", "kind": "misconception", "relevance": "direct", "evidence_urls": ["https://www.loc.gov/preservation/digital/formats/intro/intro.shtml"]}
+      ],
+      "scope_check": {"status": "within-branch", "branch_node_id": "n0002"}
+    }
+  ]
+}

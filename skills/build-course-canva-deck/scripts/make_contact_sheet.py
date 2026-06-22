@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Create a labeled contact sheet from rendered slide images."""
+
+from __future__ import annotations
+
+import argparse
+import math
+import re
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
+
+
+def natural_key(path: Path) -> list[object]:
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", path.name)]
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input-dir", required=True, type=Path)
+    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--cols", type=int, default=4)
+    parser.add_argument("--thumb-width", type=int, default=560)
+    parser.add_argument("--gap", type=int, default=20)
+    args = parser.parse_args()
+
+    files = sorted(
+        [
+            path for path in args.input_dir.iterdir()
+            if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+            and "montage" not in path.stem.lower()
+            and "contact-sheet" not in path.stem.lower()
+        ],
+        key=natural_key,
+    )
+    if not files:
+        raise SystemExit("no slide images found")
+    font = ImageFont.load_default()
+    cards: list[Image.Image] = []
+    for index, path in enumerate(files, start=1):
+        image = Image.open(path).convert("RGB")
+        height = round(image.height * args.thumb_width / image.width)
+        image = image.resize((args.thumb_width, height), Image.Resampling.LANCZOS)
+        card = Image.new("RGB", (args.thumb_width, height + 34), "white")
+        card.paste(image, (0, 34))
+        ImageDraw.Draw(card).text((10, 10), f"{index:02d}  {path.stem}", fill="#1C1C1C", font=font)
+        cards.append(card)
+    cols = max(1, args.cols)
+    rows = math.ceil(len(cards) / cols)
+    row_height = max(card.height for card in cards)
+    width = cols * args.thumb_width + (cols + 1) * args.gap
+    height = rows * row_height + (rows + 1) * args.gap
+    sheet = Image.new("RGB", (width, height), "#D8D2CC")
+    for index, card in enumerate(cards):
+        x = args.gap + (index % cols) * (args.thumb_width + args.gap)
+        y = args.gap + (index // cols) * (row_height + args.gap)
+        sheet.paste(card, (x, y))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(args.output, quality=92)
+    print(args.output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

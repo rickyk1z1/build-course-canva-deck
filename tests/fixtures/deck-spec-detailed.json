@@ -1,0 +1,63 @@
+{
+  "course": {
+    "title": "编码与格式",
+    "audience": "零基础自媒体创作者",
+    "outline_mode": "detailed",
+    "authoritative_source": "tests/fixtures/detailed-outline.md",
+    "template_design_id": "DAHM5fsVEB0",
+    "explicit_exclusions": ["剪辑软件操作", "代理回连"]
+  },
+  "slides": [
+    {
+      "number": 1,
+      "section": "课程导入",
+      "title": "编码与格式",
+      "layout": "cover",
+      "screen": {
+        "explanation": "用快递打包和文件箱子理解两类视频信息。",
+        "bullets": ["编码", "格式", "两者关系"],
+        "caption": "",
+        "blocks": []
+      },
+      "speaker_notes": "先建立总框架。",
+      "visuals": [],
+      "source_node_ids": ["n0001"],
+      "added_content": [],
+      "scope_check": {"status": "within-branch", "branch_node_id": "n0001"}
+    },
+    {
+      "number": 2,
+      "section": "编码",
+      "title": "编码是整理视频数据的打包手法",
+      "layout": "light",
+      "screen": {
+        "explanation": "视频数据量很大，编码负责按照一套规则整理和压缩这些数据，可以先理解为不同的快递打包方法。",
+        "bullets": ["处理对象是视频数据", "不同编码采用不同整理方法", "打包复杂度会影响体积与播放压力"],
+        "caption": "",
+        "blocks": []
+      },
+      "speaker_notes": "沿用快递打包比喻。",
+      "visuals": [],
+      "source_node_ids": ["n0002"],
+      "added_content": [],
+      "scope_check": {"status": "within-branch", "branch_node_id": "n0002"}
+    },
+    {
+      "number": 3,
+      "section": "格式",
+      "title": "格式是最终承装数据的文件箱子",
+      "layout": "dark",
+      "screen": {
+        "explanation": "格式可以理解为装视频数据的文件箱子，文件名后的扩展名通常提示这个箱子的类型。",
+        "bullets": ["格式负责承装数据", "扩展名通常提示格式", "编码与格式不是同一个概念"],
+        "caption": "",
+        "blocks": []
+      },
+      "speaker_notes": "提醒学员不要混淆编码和格式。",
+      "visuals": [],
+      "source_node_ids": ["n0003"],
+      "added_content": [],
+      "scope_check": {"status": "within-branch", "branch_node_id": "n0003"}
+    }
+  ]
+}

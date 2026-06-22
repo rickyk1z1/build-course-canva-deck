@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "authoritative": true,
+  "authoritative_source": "tests/fixtures/detailed-outline.md",
+  "source_type": "md",
+  "source_sha256": "fixture",
+  "outline_mode": "detailed",
+  "mode_declared_by_user": true,
+  "requires_user_outline_mode": false,
+  "nodes": [
+    {"id": "n0001", "order": 1, "parent_id": null, "depth": 0, "kind": "heading", "text": "编码与格式", "include": true},
+    {"id": "n0002", "order": 2, "parent_id": "n0001", "depth": 1, "kind": "heading", "text": "编码是打包手法", "include": true},
+    {"id": "n0003", "order": 3, "parent_id": "n0001", "depth": 1, "kind": "heading", "text": "格式是文件箱子", "include": true}
+  ],
+  "images": [],
+  "warnings": []
+}
