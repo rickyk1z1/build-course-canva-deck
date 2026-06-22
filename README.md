@@ -5,12 +5,16 @@ Private Codex Skill for turning course outlines into detailed Canva recording de
 ## Install
 
 ```bash
+gh auth login
+gh auth setup-git
+
 python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
   --repo rickyk1z1/build-course-canva-deck \
-  --path skills/build-course-canva-deck
+  --path skills/build-course-canva-deck \
+  --method git
 ```
 
-Restart Codex after installation. Private-repository access requires GitHub authentication, and final delivery requires a connected Canva account with access to template `DAHM5fsVEB0`.
+Restart Codex after installation. Skip `gh auth login` when the device is already authenticated. Final delivery requires a connected Canva account with access to template `DAHM5fsVEB0`.
 
 ## Update
 
