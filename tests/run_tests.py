@@ -346,6 +346,13 @@ def main() -> int:
         source_rich_long_report = audit(temp, source_rich_long_deck_path, source_rich_long_source_path)
         assert source_rich_long_report["ok"]
 
+        builder_source = (SCRIPTS / "build_deck.mjs").read_text(encoding="utf-8")
+        assert "titleLength > 30 ? 36 : titleLength > 24 ? 40 : titleLength > 18 ? 46 : 58" in builder_source
+        assert "numbered && !point.head ? 26 : 16" in builder_source
+        assert "compact ? 16 : 17" in builder_source
+        assert "text.length > 150 ? 16 : text.length > 105 ? 17 : 18" in builder_source
+        assert "size: 15,\n    color: dark ? C.white : C.black" in builder_source
+
         missing_mapping_path = temp / "source-rich-missing-mapping.json"
         missing_mapping = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
         del missing_mapping["course"]["template_page_mapping"]

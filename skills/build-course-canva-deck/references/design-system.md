@@ -43,8 +43,8 @@ For a different template, replace these tokens with the selected template's domi
 - Use long horizontal rules and heavy caption bars only when the selected reference page uses that module. Default to short accent marks, grouped captions, and clear spacing instead.
 - Use approximately 40% text and 50% visual area on illustrated knowledge slides, with the remaining space as breathing room and template structure.
 - Preserve about 10% breathing room through margins and module gaps.
-- Keep body text at 16 pt or larger. Split content before reducing type.
-- Keep ordinary slide titles at 35 pt or larger and prevent accidental wrapping.
+- Keep learner-facing body text at 16 pt or larger. Captions and tertiary explanation should normally be at least 15 pt; never use 12-13 pt for content the learner must read.
+- Keep ordinary slide titles at 36 pt or larger and prevent accidental wrapping. Short titles should usually be 46-58 pt; only long Chinese titles should step down toward 36-40 pt.
 - Use images to explain, compare, or demonstrate; do not add decorative stock imagery without teaching value.
 - Integrate source screenshots and generated case images into text-led knowledge pages. Avoid full-page screenshots unless the slide is explicitly a close-reading page with enough labels and interpretation.
 - If a visual needs labels, keep labels editable in Canva/PPTX instead of baking Chinese text into the image.

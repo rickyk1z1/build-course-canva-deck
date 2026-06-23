@@ -184,7 +184,7 @@ function addPointList(slide, items, theme, position, options = {}) {
         top,
         width: numbered && !point.head ? 46 : colWidth,
         height: 24,
-        size: numbered && !point.head ? 23 : 13,
+        size: numbered && !point.head ? 26 : 16,
         color: accent,
         typeface: F.deco,
         bold: true,
@@ -198,7 +198,7 @@ function addPointList(slide, items, theme, position, options = {}) {
       top: label ? top + (point.head ? 26 : 2) : top + 16,
       width: label && numbered && !point.head ? colWidth - 56 : colWidth,
       height: rowHeight - (point.head ? 30 : 4),
-      size: compact ? 13 : 14,
+      size: compact ? 16 : 17,
       color: dark ? C.white : C.black,
       typeface: F.body,
       lineSpacing: 1.18,
@@ -253,9 +253,9 @@ function addHeader(slide, item, theme) {
     typeface: F.deco, bold: true, name: `eyebrow-${item.number}`,
   });
   const titleLength = String(item.title || "").length;
-  const titleSize = titleLength > 30 ? 32 : titleLength > 24 ? 35 : titleLength > 18 ? 40 : 52;
+  const titleSize = titleLength > 30 ? 36 : titleLength > 24 ? 40 : titleLength > 18 ? 46 : 58;
   addText(slide, item.title, {
-    left: 72, top: 78, width: 1088, height: 88, size: titleSize,
+    left: 72, top: 76, width: 1088, height: 98, size: titleSize,
     color: fg, typeface: F.title, bold: true, name: `title-${item.number}`,
     lineSpacing: 1.02,
   });
@@ -337,7 +337,7 @@ async function addTemplateMotifPreview(slide, item) {
 
 function addExplanation(slide, item, theme, position) {
   const text = screenFor(item).explanation || "";
-  const size = text.length > 150 ? 14 : text.length > 105 ? 15 : 16;
+  const size = text.length > 150 ? 16 : text.length > 105 ? 17 : 18;
   addText(slide, text, {
     ...position, size, color: theme === "dark" ? C.white : C.black,
     typeface: F.body, lineSpacing: 1.22, name: `explanation-${item.number}`,
@@ -361,7 +361,7 @@ function addCaption(slide, item, theme, position) {
     top: position.top + 13,
     width: position.width,
     height: Math.max(34, position.height - 13),
-    size: 12,
+    size: 15,
     color: dark ? C.white : C.black,
     typeface: F.deco,
     bold: true,
@@ -379,8 +379,8 @@ async function buildCover(presentation, item) {
   const motifBox = motifLayout.motif_box || motifLayout.motifBox || {};
   const textColumnWidth = motifLayout.text_column_width || motifLayout.textColumnWidth || 560;
   const titleBox = heroRightMotif
-    ? { left: 72, top: 150, width: textColumnWidth, height: 170, size: 56, text: splitCoverTitle(item.title) }
-    : { left: 72, top: 160, width: 690, height: 130, size: 68, text: item.title };
+    ? { left: 72, top: 145, width: textColumnWidth, height: 180, size: 60, text: splitCoverTitle(item.title) }
+    : { left: 72, top: 155, width: 690, height: 140, size: 72, text: item.title };
   const explanationBox = heroRightMotif
     ? { left: 72, top: 360, width: textColumnWidth, height: 170, size: 22 }
     : { left: 72, top: 330, width: 650, height: 160, size: 24 };

@@ -60,7 +60,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - No question-only or keyword-only knowledge pages.
 - Every normal knowledge slide has a complete explanation and 3-5 useful points.
 - Images are accompanied by interpretation and do not replace the page's knowledge text.
-- Body text is at least 16 pt; ordinary titles are at least 35 pt.
+- Body text is at least 16 pt; learner-facing captions and tertiary explanations are normally at least 15 pt; ordinary titles are at least 36 pt.
 - No unintended overlap, clipping, title wrapping, broken connectors, or missing images.
 - No accidental single-character title wraps, generic bullet blocks, overused full-width rules, detached captions, or heavy caption bars unless they are inherited from the selected reference template page.
 - Page numbers, headers, fonts, and visual tokens are consistent.

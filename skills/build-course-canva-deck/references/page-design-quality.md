@@ -34,11 +34,15 @@ Do not invent a freeform page because the content is hard to fit. First try:
 
 Use a clear size and weight ladder:
 
-- page title: the dominant element, generally 32-54 pt locally depending on Chinese length;
+- page title: the dominant element, generally 36-58 pt locally depending on Chinese length;
+- cover/title-only hero text: usually 60 pt or larger when the title fits;
 - kicker/section label: small, bold, above the title or on the same left axis;
-- body explanation: compact supporting copy, not the visual center;
-- point labels: short orange/black labels or numbers;
-- captions: short interpretation near the image, not a heavy full-width production bar.
+- body explanation: readable supporting copy, usually 16-18 pt, not tiny annotation text;
+- point labels: short orange/black labels or numbers, usually 16 pt for text labels and 26 pt for numeric labels;
+- point bodies / tertiary explanations: usually 16-17 pt; do not use 12-13 pt to make dense content fit;
+- captions: short interpretation near the image, usually 15-16 pt, not a heavy full-width production bar.
+
+Recording decks are viewed during teaching, not only inspected as static design thumbnails. If a page starts to need 12-13 pt for learner-facing explanation, split the slide, reduce copy, or move detail to speaker notes.
 
 For Chinese titles:
 
