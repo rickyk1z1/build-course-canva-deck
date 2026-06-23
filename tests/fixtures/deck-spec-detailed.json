@@ -5,16 +5,29 @@
     "outline_mode": "detailed",
     "authoritative_source": "tests/fixtures/detailed-outline.md",
     "template_design_id": "DAHM5fsVEB0",
-    "explicit_exclusions": ["剪辑软件操作", "代理回连"],
+    "explicit_exclusions": [
+      "剪辑软件操作",
+      "代理回连"
+    ],
     "curriculum_context": {
       "system_name": "自媒体与视频剪辑课程体系",
       "module": "影像基础",
       "course_role": "建立编码与格式的基础分类",
       "prerequisite_lessons": [],
-      "next_lessons": ["导出与交付"],
-      "shared_terms": {"编码": "数据打包手法", "格式": "文件箱子"},
-      "neighbor_topics": ["剪辑软件操作"],
-      "excluded_neighbor_topics": ["剪辑软件操作", "代理回连"]
+      "next_lessons": [
+        "导出与交付"
+      ],
+      "shared_terms": {
+        "编码": "数据打包手法",
+        "格式": "文件箱子"
+      },
+      "neighbor_topics": [
+        "剪辑软件操作"
+      ],
+      "excluded_neighbor_topics": [
+        "剪辑软件操作",
+        "代理回连"
+      ]
     }
   },
   "slides": [
@@ -25,7 +38,11 @@
       "layout": "cover",
       "screen": {
         "explanation": "用快递打包和文件箱子理解两类视频信息。",
-        "bullets": ["编码", "格式", "两者关系"],
+        "bullets": [
+          "编码",
+          "格式",
+          "两者关系"
+        ],
         "caption": "",
         "blocks": []
       },
@@ -41,11 +58,24 @@
         "imagegen_priority": "not-needed",
         "imagegen_bypass_reason": "封面页不需要案例插图。",
         "labels_as_slide_text": true,
-        "exception_reason": "封面页不承担概念解释，避免放入案例图干扰入口。"
+        "exception_reason": "封面页不承担概念解释，避免放入案例图干扰入口。",
+        "template_reference": {
+          "page": 1,
+          "layout_features": [
+            "black full-field background",
+            "large asymmetrical title mass"
+          ],
+          "adaptation": "保留模板入口页的强标题和低信息密度，只替换为本课主题与关键词。"
+        }
       },
-      "source_node_ids": ["n0001"],
+      "source_node_ids": [
+        "n0001"
+      ],
       "added_content": [],
-      "scope_check": {"status": "within-branch", "branch_node_id": "n0001"}
+      "scope_check": {
+        "status": "within-branch",
+        "branch_node_id": "n0001"
+      }
     },
     {
       "number": 2,
@@ -54,7 +84,11 @@
       "layout": "comparison",
       "screen": {
         "explanation": "视频数据量很大，编码负责按照一套规则整理和压缩这些数据，可以先理解为不同的快递打包方法。",
-        "bullets": ["处理对象是视频数据", "不同编码采用不同整理方法", "打包复杂度会影响体积与播放压力"],
+        "bullets": [
+          "处理对象是视频数据",
+          "不同编码采用不同整理方法",
+          "打包复杂度会影响体积与播放压力"
+        ],
         "caption": "把视频数据看作要寄出的内容，编码就是选择一种打包手法。",
         "blocks": []
       },
@@ -71,11 +105,24 @@
         "imagegen_bypass_reason": "该图需要箭头和标签保持可编辑。",
         "text_area_ratio": 0.4,
         "labels_as_slide_text": true,
-        "exception_reason": ""
+        "exception_reason": "",
+        "template_reference": {
+          "page": 11,
+          "layout_features": [
+            "two strong rectangular blocks",
+            "high-contrast left-right relationship"
+          ],
+          "adaptation": "保留模板左右对照结构，用于承载概念差异和可编辑教学图。"
+        }
       },
-      "source_node_ids": ["n0002"],
+      "source_node_ids": [
+        "n0002"
+      ],
       "added_content": [],
-      "scope_check": {"status": "within-branch", "branch_node_id": "n0002"}
+      "scope_check": {
+        "status": "within-branch",
+        "branch_node_id": "n0002"
+      }
     },
     {
       "number": 3,
@@ -84,7 +131,11 @@
       "layout": "comparison",
       "screen": {
         "explanation": "格式可以理解为装视频数据的文件箱子，文件名后的扩展名通常提示这个箱子的类型。",
-        "bullets": ["格式负责承装数据", "扩展名通常提示格式", "编码与格式不是同一个概念"],
+        "bullets": [
+          "格式负责承装数据",
+          "扩展名通常提示格式",
+          "编码与格式不是同一个概念"
+        ],
         "caption": "把格式看成箱子，重点观察它负责承装而不是重新整理数据。",
         "blocks": []
       },
@@ -101,11 +152,24 @@
         "imagegen_bypass_reason": "该图需要箭头和标签保持可编辑。",
         "text_area_ratio": 0.4,
         "labels_as_slide_text": true,
-        "exception_reason": ""
+        "exception_reason": "",
+        "template_reference": {
+          "page": 11,
+          "layout_features": [
+            "two strong rectangular blocks",
+            "high-contrast left-right relationship"
+          ],
+          "adaptation": "保留模板左右对照结构，用于承载概念差异和可编辑教学图。"
+        }
       },
-      "source_node_ids": ["n0003"],
+      "source_node_ids": [
+        "n0003"
+      ],
       "added_content": [],
-      "scope_check": {"status": "within-branch", "branch_node_id": "n0003"}
+      "scope_check": {
+        "status": "within-branch",
+        "branch_node_id": "n0003"
+      }
     }
   ]
 }

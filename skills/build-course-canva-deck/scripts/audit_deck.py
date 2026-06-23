@@ -187,6 +187,59 @@ def main() -> int:
         title = str(slide.get("title", "")).strip()
         if layout != "cover" and (not title or title.endswith(("?", "？"))):
             errors.append(f"{label} must use a conclusion-style title")
+        slide_visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+        template_reference = slide_visual_plan.get("template_reference") or {}
+        if not isinstance(template_reference, dict):
+            errors.append(f"{label} visual_plan.template_reference must describe the template layout source")
+        else:
+            reference_page = template_reference.get("page") or template_reference.get("pages")
+            if not reference_page:
+                errors.append(f"{label} visual_plan.template_reference must name the reference template page or page family")
+            features = template_reference.get("layout_features")
+            if not isinstance(features, list) or len([feature for feature in features if str(feature).strip()]) < 2:
+                errors.append(f"{label} visual_plan.template_reference must list at least two inherited layout features")
+            if len(str(template_reference.get("adaptation", "")).strip()) < 20:
+                errors.append(f"{label} visual_plan.template_reference must explain how the template layout is adapted to this slide")
+        template_motif = slide_visual_plan.get("template_motif")
+        if isinstance(template_motif, dict):
+            if template_motif.get("kind") not in {"hero-right", "visual-anchor", "accent-motif", "background-motif"}:
+                errors.append(f"{label} template_motif.kind is unsupported")
+            if not template_motif.get("local_preview_path"):
+                errors.append(f"{label} template_motif must provide local_preview_path for local PPT layout review")
+            if not template_motif.get("canva_asset_id"):
+                errors.append(f"{label} template_motif must provide the Canva asset id used after import")
+            replacement = template_motif.get("canva_replacement") or {}
+            if not isinstance(replacement, dict) or replacement.get("mode") != "replace_placeholder":
+                errors.append(f"{label} template_motif must use canva_replacement.mode replace_placeholder")
+            if isinstance(replacement, dict) and len(str(replacement.get("match_strategy", "")).strip()) < 20:
+                errors.append(f"{label} template_motif must record how the local preview proxy is matched after Canva import")
+            if not isinstance(template_motif.get("replaces_modules"), list) or not template_motif.get("replaces_modules"):
+                errors.append(f"{label} template_motif must list the structural modules it replaces")
+            if len(str(template_motif.get("placement_basis", "")).strip()) < 20:
+                errors.append(f"{label} template_motif must record a concrete placement basis")
+            local_layout = template_motif.get("local_ppt_layout") or {}
+            motif_box = local_layout.get("motif_box") if isinstance(local_layout, dict) else {}
+            if not isinstance(local_layout, dict) or not isinstance(motif_box, dict):
+                errors.append(f"{label} template_motif must record local_ppt_layout.motif_box before Canva import")
+            else:
+                required_numbers = ["left", "top", "width", "height"]
+                missing = [key for key in required_numbers if not isinstance(motif_box.get(key), (int, float))]
+                if missing:
+                    errors.append(f"{label} template_motif local_ppt_layout.motif_box missing numeric {', '.join(missing)}")
+                if isinstance(local_layout.get("text_column_width"), (int, float)) and local_layout.get("text_column_width") > 720:
+                    errors.append(f"{label} template_motif text column is too wide to reserve a clear motif area")
+                elif not isinstance(local_layout.get("text_column_width"), (int, float)):
+                    errors.append(f"{label} template_motif must record local_ppt_layout.text_column_width")
+                if template_motif.get("kind") == "hero-right" and not missing:
+                    center_x = motif_box["left"] + motif_box["width"] / 2
+                    center_y = motif_box["top"] + motif_box["height"] / 2
+                    if not (880 <= center_x <= 1100 and 260 <= center_y <= 460):
+                        errors.append(f"{label} hero-right template_motif must be centered in the right visual field in local PPT coordinates")
+                    if not (450 <= motif_box["width"] <= 720 and 450 <= motif_box["height"] <= 720):
+                        errors.append(f"{label} hero-right template_motif must use a substantial but controlled right-side scale")
+            collision = template_motif.get("collision_check") or {}
+            if collision.get("status") != "clear" or len(str(collision.get("notes", "")).strip()) < 12:
+                errors.append(f"{label} template_motif must record a clear collision check")
         screen = slide.get("screen") or {}
         if layout in KNOWLEDGE_LAYOUTS:
             explanation = str(screen.get("explanation", "")).strip()

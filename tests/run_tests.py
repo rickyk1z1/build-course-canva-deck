@@ -78,6 +78,42 @@ def main() -> int:
         missing_visual_report = audit(temp, missing_visual_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("visual_plan" in error for error in missing_visual_report["errors"])
 
+        missing_motif_placement_path = temp / "missing-motif-placement.json"
+        missing_motif_placement = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        missing_motif_placement["slides"][0]["visual_plan"]["template_motif"] = {
+            "kind": "hero-right",
+            "canva_asset_id": "MAEeKPWZP8I",
+            "replaces_modules": ["cover-orange", "cover-focus"],
+        }
+        missing_motif_placement_path.write_text(json.dumps(missing_motif_placement, ensure_ascii=False), encoding="utf-8")
+        motif_report = audit(temp, missing_motif_placement_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("template_motif" in error for error in motif_report["errors"])
+
+        missing_motif_replacement_path = temp / "missing-motif-replacement.json"
+        missing_motif_replacement = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        missing_motif_replacement["slides"][0]["visual_plan"]["template_motif"] = {
+            "kind": "hero-right",
+            "canva_asset_id": "MAEeKPWZP8I",
+            "local_preview_path": "assets/template-grainy-star.png",
+            "reference_template_page": 1,
+            "placement_basis": "参考模板右侧中心主视觉，左侧文字栏收窄并提前断行。",
+            "replaces_modules": ["cover-orange", "cover-focus"],
+            "local_ppt_layout": {
+                "coordinate_space": "1280x720",
+                "text_column_width": 560,
+                "title_break_strategy": "manual wrap before PPT generation",
+                "motif_box": {"left": 680, "top": 60, "width": 600, "height": 600},
+                "native_canva_scale": 1.5,
+            },
+            "collision_check": {
+                "status": "clear",
+                "notes": "本地 PPT 预览中主视觉不覆盖标题、正文、页脚和页码。",
+            },
+        }
+        missing_motif_replacement_path.write_text(json.dumps(missing_motif_replacement, ensure_ascii=False), encoding="utf-8")
+        motif_replacement_report = audit(temp, missing_motif_replacement_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("replace_placeholder" in error for error in motif_replacement_report["errors"])
+
         image_not_integrated_path = temp / "image-not-integrated.json"
         image_not_integrated = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
         image_not_integrated["slides"][1]["layout"] = "light"

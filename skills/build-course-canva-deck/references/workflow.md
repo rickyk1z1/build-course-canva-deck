@@ -114,7 +114,36 @@ Build `deck-spec.json` with this minimum shape:
         "prompt_brief": "",
         "text_area_ratio": 0.4,
         "labels_as_slide_text": true,
-        "exception_reason": ""
+        "exception_reason": "",
+        "template_reference": {
+          "page": 7,
+          "layout_features": ["right-side centered visual anchor", "narrow left text column", "high-contrast dark field"],
+          "adaptation": "narrow or wrap the learner-facing text first, then keep the template's visual anchor position and scale"
+        },
+        "template_motif": {
+          "kind": "hero-right",
+          "canva_asset_id": "Canva native asset id inserted after import",
+          "local_preview_path": "required local raster preview used in the PPTX before Canva import",
+          "reference_template_page": 1,
+          "placement_basis": "follow the template's large right-side centered motif; narrow the text column and wrap the title instead of pushing the motif into a corner",
+          "replaces_modules": ["cover-orange", "cover-focus"],
+          "local_ppt_layout": {
+            "coordinate_space": "1280x720",
+            "text_column_width": 560,
+            "title_break_strategy": "manual or deterministic wrap before PPT generation",
+            "motif_box": {"left": 680, "top": 60, "width": 600, "height": 600},
+            "native_canva_scale": 1.5
+          },
+          "canva_replacement": {
+            "mode": "replace_placeholder",
+            "match_strategy": "after Canva import, match the local preview proxy by page index and motif_box position, then update_fill to canva_asset_id",
+            "fallback": "delete the local preview proxy and insert the native Canva asset at the same scaled box; never overlay both"
+          },
+          "collision_check": {
+            "status": "clear",
+            "notes": "local PPT preview shows the motif does not cover title, explanation, footer, or page number"
+          }
+        }
       },
       "source_node_ids": ["n0001"],
       "added_content": [],
@@ -125,6 +154,20 @@ Build `deck-spec.json` with this minimum shape:
 ```
 
 Allowed layouts: `cover`, `roadmap`, `light`, `dark`, `orange`/`accent`, `image-left`, `image-right`, `image-left-dark`, `image-right-dark`, `image-left-orange`/`image-left-accent`, `image-right-orange`/`image-right-accent`, `comparison`, `table`, `summary`.
+
+`visual_plan.template_motif` is not cover-specific. Use it on any slide that reuses a template-native Canva element or a distinctive template motif. The motif must be planned before PPTX generation:
+
+- include a `local_preview_path` so the generated local PPTX/contact sheet previews the final intended position and scale;
+- include `local_ppt_layout` with text column width, title/wrapping decision, and a 1280x720 `motif_box`;
+- treat `canva_asset_id` as the native asset to insert after Canva import at the scaled coordinates, not as a reason to skip local PPT review;
+- set `canva_replacement.mode` to `replace_placeholder`: the local preview proxy must be replaced with the native Canva asset, or deleted before inserting the native asset at the same box. It must never remain underneath an overlaid native asset;
+- list the structural modules or regions the motif replaces. If the motif needs more space, narrow or move text modules in the PPT layout instead of drifting the motif into an arbitrary corner.
+
+Every slide must include `visual_plan.template_reference`, even when it does not use a native Canva motif:
+
+- `page` or `pages`: the chosen template page, template page family, or bundled reference layout being adapted;
+- `layout_features`: at least two visible features inherited from that reference, such as title scale, image crop, color-field split, centered visual anchor, asymmetric grid, side rail, or caption position;
+- `adaptation`: how the course text and visual evidence were fitted into that composition. If the text is long, describe the text-area change, title wrapping, slide split, or alternate template family chosen before building the PPTX.
 
 For sparse mode, every `added_content` item must contain:
 

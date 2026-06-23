@@ -39,10 +39,16 @@ After import:
 
 1. Read the new design metadata and confirm page count.
 2. Read all rich text and scan forbidden language.
-3. Retrieve page previews and inspect the complete deck.
-4. Confirm font appearance, missing glyphs, image crops, page numbering, and layout consistency.
-5. Apply corrections in one editing transaction when possible.
-6. Show every returned thumbnail and a complete contact sheet to the user.
+3. If any slide uses `visual_plan.template_motif`, execute the native motif replacement plan before visual approval:
+   - use the local PPT `local_preview_path` image only as a local preview proxy;
+   - match the imported proxy by page index and `local_ppt_layout.motif_box` position/size;
+   - prefer `update_fill` on that proxy element to replace it with `canva_asset_id`, preserving the already-approved PPT position and scale;
+   - if `update_fill` is unsupported for that element, delete the proxy element and insert the native Canva asset at the same scaled box;
+   - never leave the proxy image underneath an overlaid native Canva element.
+4. Retrieve page previews and inspect the complete deck.
+5. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, and layout consistency.
+6. Apply corrections in one editing transaction when possible.
+7. Show every returned thumbnail and a complete contact sheet to the user.
 
 ## Approval rule
 

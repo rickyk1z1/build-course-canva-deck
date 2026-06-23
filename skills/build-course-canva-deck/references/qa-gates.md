@@ -45,6 +45,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Generated images must be concrete teaching scenes, cases, or demonstrations. Abstract geometry, generic icon collages, and decorative workflow-looking placeholders fail even if they are visually polished.
 - Illustrated knowledge slides target about 40% text area; pages needing more text should split rather than shrink the visual.
 - Full-deck contact-sheet inspection must check template fidelity and layout variety: the deck should follow the Canva template language and avoid a long run of identical page layouts.
+- Every slide records `visual_plan.template_reference` naming the reference template page/family, at least two inherited layout features, and the adaptation decision used before local PPT generation.
 - For decks longer than 12 pages, automated layout rhythm checks must reject:
   - more than 60% of normal knowledge pages using the same layout family;
   - fewer than three background color modes across normal knowledge pages;
