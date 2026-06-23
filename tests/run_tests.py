@@ -35,6 +35,132 @@ def audit(temp: Path, deck: Path, source: Path, *, expect: int = 0) -> dict:
     return json.loads(report.read_text(encoding="utf-8"))
 
 
+def valid_template_motif(kind: str = "visual-anchor") -> dict:
+    return {
+        "kind": kind,
+        "canva_asset_id": "MAEeKPWZP8I",
+        "local_preview_path": "assets/template-motif-preview.png",
+        "reference_template_page": 1,
+        "placement_basis": "参考模板主视觉区域，在本地 PPT 阶段预留稳定位置并检查文字避让。",
+        "replaces_modules": ["template-visual-anchor"],
+        "local_ppt_layout": {
+            "coordinate_space": "1280x720",
+            "text_column_width": 560,
+            "title_break_strategy": "wrap before PPT generation",
+            "motif_box": {"left": 720, "top": 120, "width": 420, "height": 420},
+            "native_canva_scale": 1.5,
+        },
+        "canva_replacement": {
+            "mode": "replace_placeholder",
+            "match_strategy": "after Canva import, match the local preview proxy by page index and recorded motif_box, then replace it",
+            "fallback": "delete the local proxy and insert the native Canva asset at the same recorded box",
+        },
+        "collision_check": {
+            "status": "clear",
+            "notes": "本地 PPT 预览中 motif 不覆盖标题、正文、页脚或页码。",
+        },
+    }
+
+
+def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
+    source = {
+        "schema_version": 1,
+        "authoritative": True,
+        "authoritative_source": "tests/fixtures/source-rich-outline.md",
+        "source_type": "md",
+        "source_sha256": "fixture",
+        "outline_mode": "detailed",
+        "mode_declared_by_user": True,
+        "nodes": [
+            {"id": f"n{number:04d}", "order": number, "parent_id": None if number == 1 else "n0001", "depth": 0 if number == 1 else 1, "kind": "topic", "text": f"节点 {number}", "include": True}
+            for number in range(1, 17)
+        ],
+        "images": [
+            {"id": f"img{number:03d}", "path": f"assets/case-{number}.png", "sha256": f"img{number}"}
+            for number in range(1, 9)
+        ],
+    }
+    source_path = temp / "source-rich-long-source.json"
+    source_path.write_text(json.dumps(source, ensure_ascii=False), encoding="utf-8")
+
+    base = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+    course = base["course"]
+    course["outline_mode"] = "detailed"
+    course["template_page_mapping"] = [
+        {
+            "slide_number": number,
+            "template_reference": f"page {((number - 1) % 8) + 1}",
+            "layout_family": "cover" if number == 1 else "knowledge",
+            "native_motif": "planned" if number in {1, 8} else "none",
+            "local_ppt_decision": "按参考模板页先确定文字列宽、视觉区和 motif 位置，再生成本地 PPT。",
+        }
+        for number in range(1, 17)
+    ]
+    course["image_generation_review"] = {
+        "status": "completed",
+        "source_case_priority": "source-first",
+        "source_case_image_count": 8,
+        "reused_source_slide_numbers": [2, 3, 4],
+        "generated_after_source_review": True,
+        "generated_slide_numbers": [6],
+        "candidates_considered": 3,
+        "rationale": "源图充足但仍补一张文字较多页面的教学案例图。",
+    }
+
+    cover = json.loads(json.dumps(base["slides"][0], ensure_ascii=False))
+    cover["number"] = 1
+    cover["source_node_ids"] = ["n0001"]
+    cover["visual_plan"]["source_node_id"] = "n0001"
+    cover["visual_plan"]["template_motif"] = valid_template_motif("hero-right")
+    cover["visual_plan"]["template_motif"]["local_ppt_layout"]["motif_box"] = {"left": 700, "top": 70, "width": 560, "height": 560}
+
+    layouts = [
+        "comparison", "image-left-dark", "roadmap", "image-right-orange",
+        "table", "image-right", "comparison", "image-left-accent",
+        "image-left-dark", "image-right-dark", "image-right-orange", "image-left",
+        "comparison", "image-right-accent",
+    ]
+    slides = [cover]
+    source_slide = base["slides"][1]
+    for index, layout in enumerate(layouts, start=2):
+        node_id = f"n{index:04d}"
+        slide = json.loads(json.dumps(source_slide, ensure_ascii=False))
+        slide["number"] = index
+        slide["layout"] = layout
+        slide["title"] = f"节点 {index} 的结论式标题"
+        slide["source_node_ids"] = [node_id]
+        slide["visual_plan"]["source_node_id"] = node_id
+        slide["visual_plan"]["template_reference"] = {
+            "page": ((index - 1) % 8) + 1,
+            "layout_features": ["varied template page family", "stable visual/text relationship"],
+            "adaptation": "根据参考模板页调整图文区域、标题宽度和信息块位置后再生成本地 PPT。",
+        }
+        if index in {2, 3, 4}:
+            slide["layout"] = "image-right" if index % 2 == 0 else "image-left-dark"
+            slide["visuals"] = [{"path": f"assets/case-{index}.png", "alt": "源案例图"}]
+            slide["visual_plan"]["asset_type"] = "source-image"
+        if index == 6:
+            slide["layout"] = "image-right"
+            slide["visuals"] = [{"path": "assets/generated/case.png", "alt": "生成案例图"}]
+            slide["visual_plan"]["asset_type"] = "generated-image"
+            slide["visual_plan"]["generation_route"] = "gpt-image-2"
+            slide["visual_plan"]["imagegen_priority"] = "preferred"
+            slide["visual_plan"]["prompt_brief"] = "具体课程场景的无文字教学案例图"
+        if index == 8:
+            slide["visual_plan"]["template_motif"] = valid_template_motif("visual-anchor")
+        slides.append(slide)
+
+    summary = json.loads(json.dumps(base["slides"][-1], ensure_ascii=False))
+    summary["number"] = 16
+    summary["source_node_ids"] = ["n0016"]
+    summary["visual_plan"]["source_node_id"] = "n0016"
+    slides.append(summary)
+    base["slides"] = slides
+    deck_path = temp / "source-rich-long-deck.json"
+    deck_path.write_text(json.dumps(base, ensure_ascii=False), encoding="utf-8")
+    return deck_path, source_path
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="course-canva-skill-") as raw:
         temp = Path(raw)
@@ -198,6 +324,37 @@ def main() -> int:
         repetitive_template_reference_path.write_text(json.dumps(repetitive_template_reference, ensure_ascii=False), encoding="utf-8")
         repetitive_template_reference_report = audit(temp, repetitive_template_reference_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("template reference variety" in error for error in repetitive_template_reference_report["errors"])
+
+        source_rich_long_deck_path, source_rich_long_source_path = write_source_rich_long_fixture(temp)
+        source_rich_long_report = audit(temp, source_rich_long_deck_path, source_rich_long_source_path)
+        assert source_rich_long_report["ok"]
+
+        missing_mapping_path = temp / "source-rich-missing-mapping.json"
+        missing_mapping = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        del missing_mapping["course"]["template_page_mapping"]
+        missing_mapping_path.write_text(json.dumps(missing_mapping, ensure_ascii=False), encoding="utf-8")
+        missing_mapping_report = audit(temp, missing_mapping_path, source_rich_long_source_path, expect=1)
+        assert any("template_page_mapping" in error for error in missing_mapping_report["errors"])
+
+        missing_generated_path = temp / "source-rich-missing-generated.json"
+        missing_generated = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        missing_generated["course"]["image_generation_review"]["generated_slide_numbers"] = []
+        for slide in missing_generated["slides"]:
+            if slide["visual_plan"].get("asset_type") == "generated-image":
+                slide["visual_plan"]["asset_type"] = "source-image"
+                slide["visual_plan"]["generation_route"] = ""
+                slide["visual_plan"]["prompt_brief"] = ""
+        missing_generated_path.write_text(json.dumps(missing_generated, ensure_ascii=False), encoding="utf-8")
+        missing_generated_report = audit(temp, missing_generated_path, source_rich_long_source_path, expect=1)
+        assert any("generated" in error or "image_generation_review" in error for error in missing_generated_report["errors"])
+
+        missing_source_priority_path = temp / "source-rich-missing-source-priority.json"
+        missing_source_priority = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        missing_source_priority["course"]["image_generation_review"]["source_case_priority"] = "generated-first"
+        missing_source_priority["course"]["image_generation_review"]["reused_source_slide_numbers"] = []
+        missing_source_priority_path.write_text(json.dumps(missing_source_priority, ensure_ascii=False), encoding="utf-8")
+        missing_source_priority_report = audit(temp, missing_source_priority_path, source_rich_long_source_path, expect=1)
+        assert any("source_case_priority" in error or "reused_source_slide_numbers" in error for error in missing_source_priority_report["errors"])
 
         # Sparse direct expansion passes.
         sparse = audit(temp, FIXTURES / "deck-spec-sparse.json", FIXTURES / "source-map-sparse.json")

@@ -52,6 +52,8 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 - Keep source images inside knowledge pages. Never let a screenshot or example image replace the lesson text.
 - Do not create a standalone "case images to make later" stage page in the learner deck. Case images and example diagrams must appear on the relevant knowledge pages with learner-facing interpretation.
 - For abstract concepts, build the same kind of concrete visual bridge used in the accepted deck: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels. Do not leave an abstract slide as text only unless `visual_plan.exception_reason` explains why.
+- For decks longer than 12 pages, Canva-native template element use and per-page template-layout diversity are mandatory build inputs. Create `course.template_page_mapping` and `visual_plan.template_motif` plans before local PPT generation; preview native motif proxies in the local PPT/contact sheet and replace them after Canva import instead of overlaying them.
+- If the outline contains enough concrete case images, still run an image-generation review before local PPT generation. Reuse source images where they fit, but generate a small number of extra text-free case illustrations for text-heavy or abstract pages that need a clearer visual bridge.
 - Preserve intuitive metaphors even when approximate. Ask before changing one that appears directionally wrong.
 - Never display production language such as `PDF`, `原稿`, `来源文档`, `制作说明`, `图旁注明`, `详细讲稿`, or `预计讲解时间`.
 - Never display prompts, placeholders, source-tracking labels, or `Genji 是真想教会你`.

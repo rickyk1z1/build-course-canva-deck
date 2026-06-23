@@ -76,6 +76,25 @@ Build `deck-spec.json` with this minimum shape:
       }
     },
     "explicit_exclusions": [],
+    "template_page_mapping": [
+      {
+        "slide_number": 1,
+        "template_reference": "page 1 / cover hero-right",
+        "layout_family": "cover",
+        "native_motif": "hero-right grainy star previewed locally and replaced in Canva",
+        "local_ppt_decision": "narrow title column before PPT generation so the motif has a stable right-side anchor"
+      }
+    ],
+    "image_generation_review": {
+      "status": "completed",
+      "source_case_priority": "source-first",
+      "source_case_image_count": 8,
+      "reused_source_slide_numbers": [2, 4, 5, 9],
+      "generated_after_source_review": true,
+      "generated_slide_numbers": [6, 14],
+      "candidates_considered": 4,
+      "rationale": "source case images are used first where they directly teach the node; generated cases only supplement text-heavy or abstract pages"
+    },
     "curriculum_context": {
       "system_name": "自媒体与视频剪辑课程体系",
       "module": "模块名称",
@@ -171,6 +190,12 @@ Every slide must include `visual_plan.template_reference`, even when it does not
 
 For decks longer than 12 pages, build a template-page mapping table before PPT generation. The mapping must spread slides across multiple reference pages/page families from the selected template. Do not map most normal knowledge pages to one generic two-column reference. Automated QA rejects long decks with too few distinct template references, a dominant reference family, or long runs of the same reference.
 
+For decks longer than 12 pages, `course.template_page_mapping` is required before local PPT generation. It must list every slide, the chosen template reference page/page family, the layout family, any native motif planned for that slide, and the local PPT decision that makes the chosen template composition work. Do not build the local PPT until this table exists.
+
+For decks longer than 12 pages, Canva-native template element use is mandatory when the selected template contains reusable native motifs or structural assets. Plan these in `visual_plan.template_motif` before local PPT generation; use local raster preview proxies only to verify position, scale, collision, and contact-sheet rhythm. After Canva import, replace those proxies with the native Canva assets using the recorded `replace_placeholder` route. A long deck that uses only generic PPT shapes/images and no planned native template motif fails QA.
+
+When the source contains enough concrete case images, still run an image-generation review before local PPT generation. Source images remain the first choice for nodes they directly teach. Record this priority explicitly in `course.image_generation_review.source_case_priority: "source-first"` and list `reused_source_slide_numbers`. Only after this source-case pass should text-heavy or abstract pages receive a small number of generated text-free case illustrations. Record `generated_after_source_review: true`; a source-rich long deck with no source reuse record, no generated-image pages, or no completed review fails QA.
+
 For sparse mode, every `added_content` item must contain:
 
 ```json
@@ -196,6 +221,7 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 - Build a visual plan per knowledge slide; do not create a separate learner-facing page that only lists future case images.
 - Use embedded source visuals before generating replacements.
 - Redraw source visuals only to improve readability; preserve their teaching logic.
+- Run the image-generation review even when the outline already includes many source case images. Use source images where they directly teach the node, but generate a few extra case illustrations for text-heavy or abstract pages that need a more direct visual bridge.
 - Generate illustrations without baked-in text. Add labels as editable slide text.
 - Every knowledge branch that can use a case image or demonstration image should have one. Prefer `gpt-image-2` for rich bitmap case illustrations; use built-in `imagegen` only when GPT Image 2 is unavailable or explicitly requested. If the visual is a simple relationship, process, table, or label-heavy diagram, use editable PPTX/Canva shapes and record why raster generation was bypassed.
 - On illustrated knowledge pages, keep text around 40% and visual content around 50%; split content into more slides when the text cannot fit cleanly.

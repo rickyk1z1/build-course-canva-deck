@@ -164,6 +164,10 @@ def main() -> int:
         errors.append("curriculum_context.course_role is required")
 
     source_nodes = [node for node in source.get("nodes", []) if node.get("include", True)]
+    source_images = [
+        image for image in source.get("images", [])
+        if isinstance(image, dict) and "thumbnail" not in str(image.get("path", "")).lower()
+    ]
     source_ids = {node.get("id") for node in source_nodes}
     source_order = {node.get("id"): node.get("order") for node in source_nodes}
     slides = deck.get("slides")
@@ -179,6 +183,26 @@ def main() -> int:
         if slide.get("layout") not in {"cover", "summary"} and (slide.get("layout", "light") in KNOWLEDGE_LAYOUTS)
     ]
     if len(normal_knowledge) > 12:
+        template_page_mapping = course.get("template_page_mapping")
+        if not isinstance(template_page_mapping, list) or len(template_page_mapping) != len(slides):
+            errors.append(
+                "course.template_page_mapping must list every slide before local PPT generation "
+                "for decks longer than 12 pages"
+            )
+        else:
+            mapped_slide_numbers = [item.get("slide_number") for item in template_page_mapping if isinstance(item, dict)]
+            if mapped_slide_numbers != actual_numbers:
+                errors.append("course.template_page_mapping slide_number values must match deck slide order")
+            for item in template_page_mapping:
+                if not isinstance(item, dict):
+                    errors.append("course.template_page_mapping entries must be objects")
+                    continue
+                if not str(item.get("template_reference", "")).strip():
+                    errors.append("course.template_page_mapping entries must include template_reference")
+                if not str(item.get("layout_family", "")).strip():
+                    errors.append("course.template_page_mapping entries must include layout_family")
+                if len(str(item.get("local_ppt_decision", "")).strip()) < 20:
+                    errors.append("course.template_page_mapping entries must include a concrete local_ppt_decision")
         families = [layout_family(str(slide.get("layout", "light"))) for slide in normal_knowledge]
         themes = [layout_theme(str(slide.get("layout", "light"))) for slide in normal_knowledge]
         family_counts = {family: families.count(family) for family in set(families)}
@@ -224,6 +248,50 @@ def main() -> int:
             run_ref, run_ref_count = max_run(nonempty_refs)
             if run_ref_count > 3:
                 errors.append(f"template reference variety has {run_ref_count} consecutive pages based on {run_ref}")
+        template_motif_count = sum(
+            1 for slide in slides
+            if isinstance((slide.get("visual_plan") or {}).get("template_motif"), dict)
+        )
+        required_motifs = max(2, len(normal_knowledge) // 8)
+        if template_motif_count < required_motifs:
+            errors.append(
+                f"long decks must plan Canva-native template motif use before local PPT generation; "
+                f"found {template_motif_count}, expected at least {required_motifs}"
+            )
+        if len(source_images) >= 6:
+            review = course.get("image_generation_review")
+            generated_slides = [
+                slide for slide in slides
+                if (slide.get("visual_plan") or {}).get("asset_type") == "generated-image"
+            ]
+            source_case_slides = [
+                slide for slide in slides
+                if (slide.get("visual_plan") or {}).get("asset_type") in {"source-image", "redrawn-source-image"}
+            ]
+            required_generated = max(1, len(normal_knowledge) // 10)
+            required_source_reuse = max(2, min(len(source_images), required_generated + 1))
+            if not isinstance(review, dict) or review.get("status") != "completed":
+                errors.append("source-rich long decks must complete course.image_generation_review before local PPT generation")
+            elif review.get("source_case_priority") != "source-first":
+                errors.append("course.image_generation_review must record source_case_priority as source-first")
+            elif not isinstance(review.get("reused_source_slide_numbers"), list) or len(review.get("reused_source_slide_numbers")) < required_source_reuse:
+                errors.append("course.image_generation_review must list enough reused_source_slide_numbers before generated additions")
+            elif review.get("generated_after_source_review") is not True:
+                errors.append("course.image_generation_review must confirm generated_after_source_review")
+            elif not isinstance(review.get("generated_slide_numbers"), list) or not review.get("generated_slide_numbers"):
+                errors.append("course.image_generation_review must list generated_slide_numbers for source-rich long decks")
+            elif int(review.get("candidates_considered") or 0) < required_generated:
+                errors.append("course.image_generation_review must consider candidate pages for generated teaching cases")
+            if len(source_case_slides) < required_source_reuse:
+                errors.append(
+                    f"source-rich long decks must reuse source case images before generated additions; "
+                    f"found {len(source_case_slides)}, expected at least {required_source_reuse}"
+                )
+            if len(generated_slides) < required_generated:
+                errors.append(
+                    f"source-rich long decks must include generated teaching case images; "
+                    f"found {len(generated_slides)}, expected at least {required_generated}"
+                )
 
     mapped: list[str] = []
     previous_min_order = 0

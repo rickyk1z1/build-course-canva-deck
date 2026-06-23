@@ -52,6 +52,8 @@ Allowed `asset_type` values:
 
 Use `gpt-image-2` as the preferred route when a node needs a richer raster case image, such as a realistic object analogy, a textured scene, a before/after visual, or a non-text illustration that would be weak as simple shapes. Use the built-in `imagegen` route only when GPT Image 2 is unavailable, fails, or the user explicitly asks for it.
 
+An image-generation review is mandatory for source-rich decks, not optional. If the outline already contains many case images, inspect and reuse those source cases first wherever they directly teach the current node. Record `source_case_priority: "source-first"` and `reused_source_slide_numbers` in `course.image_generation_review`. After that source-case pass, identify text-heavy or abstract pages where a generated teaching case would improve clarity. Add a small number of generated images for those pages unless every candidate page is better served by editable diagrams and the auditable review records that decision. For long source-rich decks, at least a few learner pages should normally be `generated-image`; a deck with no source-case reuse record or no generated-image pages requires a strong exception and may fail automated QA.
+
 Do not force raster generation for visuals that are better as editable instructional graphics:
 
 - Use `editable-diagram` for arrows, chains, tables, comparisons, labels, and shape-based teaching diagrams.
@@ -99,6 +101,7 @@ For every knowledge slide, verify:
 
 - Does the slide have a concrete visual plan mapped to a source node?
 - Is `visual_applicability` marked required for every knowledge branch that can use a case or demonstration image?
+- Was the image-generation review completed when the source has enough case images, did it reuse source cases first, and were suitable text-heavy/abstract pages supplemented instead of leaving all visuals as source reuse?
 - Is the visual actually on the slide, or represented by editable diagram/table shapes?
 - Does the slide explain the image for learners?
 - Is the image integrated with the current node's text rather than replacing it?
