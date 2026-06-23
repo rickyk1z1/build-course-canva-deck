@@ -45,6 +45,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Generated images must be concrete teaching scenes, cases, or demonstrations. Abstract geometry, generic icon collages, and decorative workflow-looking placeholders fail even if they are visually polished.
 - Illustrated knowledge slides target about 40% text area; pages needing more text should split rather than shrink the visual.
 - Full-deck contact-sheet inspection must check template fidelity and layout variety: the deck should follow the Canva template language and avoid a long run of identical page layouts.
+- Full-deck contact-sheet inspection must also check page-design quality: title scale, body density, alignment axes, contrast hierarchy, proximity grouping, image/caption relationship, and whether the page reads like a designed slide rather than a formatted document.
 - Every slide records `visual_plan.template_reference` naming the reference template page/family, at least two inherited layout features, and the adaptation decision used before local PPT generation.
 - For decks longer than 12 pages, automated layout rhythm checks must reject:
   - more than 60% of normal knowledge pages using the same layout family;
@@ -61,6 +62,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Images are accompanied by interpretation and do not replace the page's knowledge text.
 - Body text is at least 16 pt; ordinary titles are at least 35 pt.
 - No unintended overlap, clipping, title wrapping, broken connectors, or missing images.
+- No accidental single-character title wraps, generic bullet blocks, overused full-width rules, detached captions, or heavy caption bars unless they are inherited from the selected reference template page.
 - Page numbers, headers, fonts, and visual tokens are consistent.
 - The full rendered contact sheet and any flagged page are inspected.
 

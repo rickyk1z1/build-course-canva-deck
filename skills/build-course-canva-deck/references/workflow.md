@@ -95,6 +95,14 @@ Build `deck-spec.json` with this minimum shape:
       "candidates_considered": 4,
       "rationale": "source case images are used first where they directly teach the node; generated cases only supplement text-heavy or abstract pages"
     },
+    "page_design_review": {
+      "status": "completed",
+      "reference_method": "selected Canva template contact sheet plus page-design-quality.md",
+      "checked_dimensions": ["title-scale", "alignment", "proximity", "contrast", "image-caption", "contact-sheet"],
+      "contact_sheet_reviewed": true,
+      "issues_fixed": ["removed document-like full-width rules", "converted generic bullets into information groups"],
+      "residual_risk": "course teaching density is higher than the source branding template, so some pages remain more text-led"
+    },
     "curriculum_context": {
       "system_name": "自媒体与视频剪辑课程体系",
       "module": "模块名称",

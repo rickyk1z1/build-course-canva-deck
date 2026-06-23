@@ -331,6 +331,24 @@ def main() -> int:
                     f"source-rich long decks must include generated teaching case images; "
                     f"found {len(generated_slides)}, expected at least {required_generated}"
                 )
+        design_review = course.get("page_design_review")
+        required_design_dimensions = {"title-scale", "alignment", "proximity", "contrast", "image-caption", "contact-sheet"}
+        if not isinstance(design_review, dict) or design_review.get("status") != "completed":
+            errors.append("long decks must complete course.page_design_review before Canva import")
+        else:
+            checked = {str(item) for item in design_review.get("checked_dimensions", [])}
+            missing_dimensions = sorted(required_design_dimensions - checked)
+            if missing_dimensions:
+                errors.append(
+                    "course.page_design_review missing checked_dimensions: "
+                    + ", ".join(missing_dimensions)
+                )
+            if design_review.get("contact_sheet_reviewed") is not True:
+                errors.append("course.page_design_review must confirm contact_sheet_reviewed")
+            if len(str(design_review.get("reference_method", "")).strip()) < 20:
+                errors.append("course.page_design_review must record the reference design method")
+            if not isinstance(design_review.get("issues_fixed"), list) or not design_review.get("issues_fixed"):
+                errors.append("course.page_design_review must list design issues fixed before Canva import")
 
     mapped: list[str] = []
     previous_min_order = 0

@@ -28,6 +28,7 @@ For a different template, replace these tokens with the selected template's domi
 - Use large flat color fields, square divisions, strong typography, and disciplined image crops.
 - Treat the chosen Canva template as a layout language, not just a color palette. Before building, inspect the selected template contact sheet and choose a template-like composition family for each slide.
 - Plan each page from a reference template page or page family before generating the local PPTX. The slide spec must record `visual_plan.template_reference` with the inherited layout features and adaptation decision, plus `visual_plan.layout_variant` for the actual rendered composition family. Do not build a generic rectangular layout first and then add template-looking decoration later.
+- Read `page-design-quality.md` before local PPT generation. Page design quality is not satisfied by alternating colors or layout names; the rendered slide must show template-like title scale, alignment, proximity, contrast, and image grouping.
 - For decks longer than 12 pages, create `course.template_page_mapping` before generating the local PPTX. This mapping is a build input, not a retrospective note: every slide must name its template reference page/page family, layout family, native motif if any, and local PPT decision.
 - Preserve template diversity page by page: title-only, dark hero, image triptych, split field, side rail, comparison strip, dense index, and summary pages should remain visually distinct when the selected template uses those patterns. If course content does not fit a reference layout, change text width, wrapping, visual scale, or split the content across slides before abandoning the template composition.
 - For long decks, distribute slides across multiple template reference pages/page families. A deck that technically alternates colors but repeatedly uses the same underlying rectangular composition still fails template fidelity.
@@ -38,6 +39,8 @@ For a different template, replace these tokens with the selected template's domi
 - When a template motif competes with text, shrink or move the text area, add deliberate line breaks, or select a different template-like composition family. Do not push the motif into a corner just to avoid a wide text box.
 - Avoid rounded card grids, pills, badges, button-like labels, excessive borders, and dashboard styling.
 - Keep one dominant visual focus per slide.
+- Convert generic bullets into designed information groups: numbered mini-modules, short labels, columns, or structured cards. A neat list of same-sized bullets is still a weak slide when the reference template uses stronger typographic hierarchy.
+- Use long horizontal rules and heavy caption bars only when the selected reference page uses that module. Default to short accent marks, grouped captions, and clear spacing instead.
 - Use approximately 40% text and 50% visual area on illustrated knowledge slides, with the remaining space as breathing room and template structure.
 - Preserve about 10% breathing room through margins and module gaps.
 - Keep body text at 16 pt or larger. Split content before reducing type.
@@ -71,11 +74,13 @@ Choose layouts by content relationship, not by alternating colors mechanically.
 Before final QA, compare the contact sheet against the selected template contact sheet. For the default template, use `assets/template-reference/template-21-pages-contact-sheet.jpg`:
 
 - `course.template_page_mapping` exists for decks longer than 12 pages and was used before PPT generation;
+- `page-design-quality.md` has been applied to title scale, text grouping, alignment axes, proximity, and image/caption treatment;
 - large color fields should feel related to the template;
 - title scale, rule lines, margins, and square divisions should match the template language;
 - Canva-native motifs planned in `visual_plan.template_motif` appear as local preview proxies in the PPT/contact sheet, with space reserved for later replacement rather than overlay;
 - images should be cropped with discipline and integrated into the page, not pasted as generic cards;
 - page rhythm should show controlled variation rather than a single repeated two-column layout.
 - for decks longer than 12 pages, the contact sheet should visibly alternate light, dark, and accent field pages in a template-like rhythm; a long white/light middle section fails even when every individual slide is readable.
+- a deck that looks like a formatted document with images, long rules, black caption strips, or uniform bullet lists fails even if the automated audit passes.
 
 If the deck looks like a generic generated slide deck with only the template colors applied, revise the layout before Canva import.

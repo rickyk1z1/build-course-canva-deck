@@ -36,7 +36,7 @@ Read [references/content-policy.md](references/content-policy.md) before writing
    - learner-facing screen copy that can be understood without narration;
    - lecture notes for oral transitions and emphasis, never rendered on slides.
 8. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page.
-9. Read [references/design-system.md](references/design-system.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
+9. Read [references/design-system.md](references/design-system.md) and [references/page-design-quality.md](references/page-design-quality.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
 10. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
 11. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.
 12. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
@@ -51,6 +51,7 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 - Put definitions, explanations, examples, and visual interpretation on the slide. Do not create question-only or keyword-only pages.
 - Keep source images inside knowledge pages. Never let a screenshot or example image replace the lesson text.
 - Do not create a standalone "case images to make later" stage page in the learner deck. Case images and example diagrams must appear on the relevant knowledge pages with learner-facing interpretation.
+- Treat page design as a first-class requirement, not a skin. The template's typography scale, alignment axes, proximity, contrast hierarchy, image slots, and module spacing must be reflected in the local PPT/contact sheet before Canva import.
 - For abstract concepts, build the same kind of concrete visual bridge used in the accepted deck: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels. Do not leave an abstract slide as text only unless `visual_plan.exception_reason` explains why.
 - For decks longer than 12 pages, Canva-native template element use and per-page template-layout diversity are mandatory build inputs. Create `course.template_page_mapping` and `visual_plan.template_motif` plans before local PPT generation; preview native motif proxies in the local PPT/contact sheet and replace them after Canva import instead of overlaying them.
 - If the outline contains enough concrete case images, still run an image-generation review before local PPT generation. Reuse source images where they fit, but generate a small number of extra text-free case illustrations for text-heavy or abstract pages that need a clearer visual bridge.
@@ -70,6 +71,8 @@ Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage
 - `scripts/build_deck.mjs`: generate editable 16:9 slides using the selected template profile.
 - `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet.
 - `references/visual-system.md`: mandatory rules for source case images, generated diagrams, and slide-level visual plans.
+- `references/design-system.md`: mandatory rules for Canva template fidelity, fonts, colors, and layout rhythm.
+- `references/page-design-quality.md`: mandatory rules for title scale, alignment, proximity, contrast, image evidence blocks, and contact-sheet design review.
 - `references/canva-delivery.md`: Canva connector preflight, cross-device template access, and browser fallback rules.
 - `assets/template-reference/`: immutable fallback visual reference for Canva template `DAHM5fsVEB0` when no other template is selected.
 - `assets/golden-layouts/`: approved knowledge-page composition references.

@@ -106,6 +106,14 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         "candidates_considered": 3,
         "rationale": "源图充足但仍补一张文字较多页面的教学案例图。",
     }
+    course["page_design_review"] = {
+        "status": "completed",
+        "reference_method": "对照选定 Canva 模板 contact sheet 和 page-design-quality.md 完成页面设计复核。",
+        "checked_dimensions": ["title-scale", "alignment", "proximity", "contrast", "image-caption", "contact-sheet"],
+        "contact_sheet_reviewed": True,
+        "issues_fixed": ["converted generic bullets into information groups"],
+        "residual_risk": "fixture only records the review gate, visual quality is checked in real deck renders",
+    }
 
     cover = json.loads(json.dumps(base["slides"][0], ensure_ascii=False))
     cover["number"] = 1
@@ -364,6 +372,13 @@ def main() -> int:
         missing_source_priority_path.write_text(json.dumps(missing_source_priority, ensure_ascii=False), encoding="utf-8")
         missing_source_priority_report = audit(temp, missing_source_priority_path, source_rich_long_source_path, expect=1)
         assert any("source_case_priority" in error or "reused_source_slide_numbers" in error for error in missing_source_priority_report["errors"])
+
+        missing_page_design_path = temp / "source-rich-missing-page-design.json"
+        missing_page_design = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        del missing_page_design["course"]["page_design_review"]
+        missing_page_design_path.write_text(json.dumps(missing_page_design, ensure_ascii=False), encoding="utf-8")
+        missing_page_design_report = audit(temp, missing_page_design_path, source_rich_long_source_path, expect=1)
+        assert any("page_design_review" in error for error in missing_page_design_report["errors"])
 
         # Sparse direct expansion passes.
         sparse = audit(temp, FIXTURES / "deck-spec-sparse.json", FIXTURES / "source-map-sparse.json")
