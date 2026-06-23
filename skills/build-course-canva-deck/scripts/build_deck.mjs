@@ -148,6 +148,33 @@ function imageSideFor(layout) {
   return String(layout).includes("image-left") ? "left" : "right";
 }
 
+function templateReferenceFor(item) {
+  return item.visual_plan?.template_reference || item.template_reference || {};
+}
+
+function referencePageFor(item) {
+  const page = templateReferenceFor(item).page;
+  return Number(Array.isArray(page) ? page[0] : page) || 0;
+}
+
+function layoutVariantFor(item) {
+  const explicit = item.visual_plan?.layout_variant
+    || item.visual_plan?.composition_variant
+    || templateReferenceFor(item).layout_variant
+    || templateReferenceFor(item).composition_family;
+  if (explicit) return String(explicit);
+  const page = referencePageFor(item);
+  if ([3, 18, 21].includes(page)) return "index-grid";
+  if ([6].includes(page)) return "wide-case-band";
+  if ([7].includes(page)) return "close-reading";
+  if ([8].includes(page)) return "poster-panel";
+  if ([9].includes(page)) return "dark-spotlight";
+  if ([10].includes(page)) return "center-anchor";
+  if ([12].includes(page)) return "two-panel";
+  if ([14].includes(page)) return "gallery-strip";
+  return "split-image";
+}
+
 function addHeader(slide, item, theme) {
   const dark = theme === "dark";
   const fg = dark ? C.white : C.black;
@@ -317,35 +344,111 @@ async function buildImageSlide(presentation, item) {
   const theme = themeFor(item.layout);
   const dark = theme === "dark";
   const orange = theme === "orange";
+  const variant = layoutVariantFor(item);
   const slide = presentation.slides.add();
   slide.background.fill = dark ? C.black : theme === "orange" ? C.orange : C.cream;
   addHeader(slide, item, theme);
   const visual = (item.visuals || [])[0];
   const imageLeft = imageSideFor(item.layout) === "left";
-  const imagePosition = imageLeft
+  let imagePosition = imageLeft
     ? { left: 72, top: 205, width: 620, height: 355 }
     : { left: 588, top: 205, width: 620, height: 355 };
-  const textLeft = imageLeft ? 735 : 72;
-  const textWidth = 473;
-  if (orange) {
-    addBox(slide, {
-      left: textLeft - 24, top: 190, width: textWidth + 48, height: 420,
-      fill: C.cream, name: `orange-text-field-${item.number}`,
-    });
+  let captionPosition = { left: imagePosition.left, top: 570, width: imagePosition.width, height: 60 };
+  let explanationPosition = { left: imageLeft ? 735 : 72, top: 205, width: 473, height: 135 };
+  let bulletsPosition = { left: explanationPosition.left, top: 365, width: explanationPosition.width, height: 245 };
+  let textTheme = theme;
+  let textPanel = null;
+  let imageFrame = dark ? {
+    left: imagePosition.left - 16,
+    top: imagePosition.top - 16,
+    width: imagePosition.width + 32,
+    height: imagePosition.height + 32,
+    fill: C.cream,
+  } : null;
+
+  if (variant === "wide-case-band") {
+    imagePosition = { left: 72, top: 330, width: 760, height: 235 };
+    captionPosition = { left: 72, top: 576, width: 760, height: 52 };
+    explanationPosition = { left: 72, top: 205, width: 760, height: 92 };
+    bulletsPosition = { left: 872, top: 230, width: 320, height: 335 };
+    textPanel = { left: 848, top: 205, width: 360, height: 380, fill: orange ? C.cream : dark ? C.black : C.white };
+    imageFrame = dark ? { left: 56, top: 314, width: 792, height: 267, fill: C.cream } : null;
+    textTheme = dark ? "dark" : "light";
+  } else if (variant === "poster-panel") {
+    imagePosition = imageLeft
+      ? { left: 72, top: 190, width: 430, height: 430 }
+      : { left: 778, top: 190, width: 430, height: 430 };
+    captionPosition = { left: imagePosition.left, top: 626, width: imagePosition.width, height: 46 };
+    explanationPosition = imageLeft
+      ? { left: 555, top: 210, width: 610, height: 135 }
+      : { left: 72, top: 210, width: 610, height: 135 };
+    bulletsPosition = { left: explanationPosition.left, top: 375, width: explanationPosition.width, height: 210 };
+    textPanel = { left: explanationPosition.left - 24, top: 190, width: explanationPosition.width + 48, height: 430, fill: orange ? C.cream : dark ? C.black : C.white };
+    imageFrame = dark ? { left: imagePosition.left - 14, top: 176, width: imagePosition.width + 28, height: imagePosition.height + 28, fill: C.cream } : null;
+    textTheme = dark ? "dark" : "light";
+  } else if (variant === "center-anchor") {
+    imagePosition = { left: 248, top: 205, width: 784, height: 295 };
+    captionPosition = { left: 248, top: 508, width: 784, height: 48 };
+    explanationPosition = { left: 72, top: 585, width: 520, height: 72 };
+    bulletsPosition = { left: 632, top: 578, width: 576, height: 88 };
+    imageFrame = dark ? { left: 228, top: 185, width: 824, height: 335, fill: C.cream } : { left: 228, top: 185, width: 824, height: 335, fill: orange ? C.cream : C.white };
+    textTheme = theme;
+  } else if (variant === "gallery-strip") {
+    imagePosition = { left: 72, top: 215, width: 720, height: 240 };
+    captionPosition = { left: 72, top: 466, width: 720, height: 48 };
+    explanationPosition = { left: 838, top: 205, width: 352, height: 145 };
+    bulletsPosition = { left: 838, top: 375, width: 352, height: 180 };
+    textPanel = { left: 816, top: 190, width: 392, height: 390, fill: orange ? C.cream : dark ? C.black : C.white };
+    imageFrame = dark ? { left: 56, top: 199, width: 752, height: 272, fill: C.cream } : null;
+    textTheme = dark ? "dark" : "light";
+  } else if (variant === "close-reading") {
+    imagePosition = imageLeft
+      ? { left: 72, top: 195, width: 690, height: 395 }
+      : { left: 518, top: 195, width: 690, height: 395 };
+    captionPosition = { left: imagePosition.left, top: 602, width: imagePosition.width, height: 54 };
+    explanationPosition = imageLeft
+      ? { left: 810, top: 215, width: 360, height: 140 }
+      : { left: 72, top: 215, width: 360, height: 140 };
+    bulletsPosition = { left: explanationPosition.left, top: 385, width: explanationPosition.width, height: 200 };
+    textPanel = { left: explanationPosition.left - 22, top: 195, width: explanationPosition.width + 44, height: 395, fill: orange ? C.cream : dark ? C.black : C.white };
+    imageFrame = dark ? { left: imagePosition.left - 14, top: 181, width: imagePosition.width + 28, height: imagePosition.height + 28, fill: C.cream } : null;
+    textTheme = dark ? "dark" : "light";
+  } else if (variant === "dark-spotlight") {
+    imagePosition = { left: imageLeft ? 92 : 528, top: 215, width: 590, height: 330 };
+    captionPosition = { left: imagePosition.left, top: 556, width: imagePosition.width, height: 54 };
+    explanationPosition = { left: imageLeft ? 728 : 72, top: 210, width: 410, height: 150 };
+    bulletsPosition = { left: explanationPosition.left, top: 390, width: 410, height: 195 };
+    imageFrame = { left: imagePosition.left - 18, top: imagePosition.top - 18, width: imagePosition.width + 36, height: imagePosition.height + 36, fill: C.cream };
+    textTheme = "dark";
+  } else if (variant === "two-panel") {
+    const textLeft = imageLeft ? 724 : 72;
+    const imageX = imageLeft ? 72 : 696;
+    imagePosition = { left: imageX, top: 205, width: 512, height: 365 };
+    captionPosition = { left: imageX, top: 582, width: 512, height: 54 };
+    explanationPosition = { left: textLeft, top: 225, width: 430, height: 145 };
+    bulletsPosition = { left: textLeft, top: 400, width: 430, height: 190 };
+    textPanel = { left: textLeft - 30, top: 198, width: 490, height: 420, fill: orange ? C.cream : dark ? C.black : C.white };
+    imageFrame = dark ? { left: imageX - 16, top: 189, width: 544, height: 397, fill: C.cream } : null;
+    textTheme = dark ? "dark" : "light";
+  } else if (orange) {
+    textPanel = {
+      left: explanationPosition.left - 24,
+      top: 190,
+      width: explanationPosition.width + 48,
+      height: 420,
+      fill: C.cream,
+    };
+    textTheme = "light";
   }
-  if (dark) {
-    addBox(slide, {
-      left: imagePosition.left - 16, top: imagePosition.top - 16,
-      width: imagePosition.width + 32, height: imagePosition.height + 32,
-      fill: C.cream, name: `dark-image-field-${item.number}`,
-    });
-  }
+
+  if (textPanel) addBox(slide, { ...textPanel, name: `text-field-${variant}-${item.number}` });
+  if (imageFrame) addBox(slide, { ...imageFrame, name: `image-field-${variant}-${item.number}` });
   await addImage(slide, visual, imagePosition, visual?.fit || "contain");
-  addCaption(slide, item, theme, { left: imagePosition.left, top: 570, width: imagePosition.width, height: 60 });
-  addExplanation(slide, item, theme, { left: textLeft, top: 205, width: textWidth, height: 135 });
+  addCaption(slide, item, textTheme, captionPosition);
+  addExplanation(slide, item, textTheme, explanationPosition);
   addText(slide, bulletText(bulletsFor(item), 5), {
-    left: textLeft, top: 365, width: textWidth, height: 245, size: 17,
-    color: dark ? C.white : C.black, typeface: F.body, lineSpacing: 1.34,
+    ...bulletsPosition, size: 17,
+    color: textTheme === "dark" ? C.white : C.black, typeface: F.body, lineSpacing: 1.34,
     name: `bullets-${item.number}`,
   });
   addFooter(slide, item, theme);

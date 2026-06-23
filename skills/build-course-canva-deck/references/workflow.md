@@ -139,6 +139,7 @@ Build `deck-spec.json` with this minimum shape:
           "layout_features": ["right-side centered visual anchor", "narrow left text column", "high-contrast dark field"],
           "adaptation": "narrow or wrap the learner-facing text first, then keep the template's visual anchor position and scale"
         },
+        "layout_variant": "center-anchor",
         "template_motif": {
           "kind": "hero-right",
           "canva_asset_id": "Canva native asset id inserted after import",
@@ -187,6 +188,8 @@ Every slide must include `visual_plan.template_reference`, even when it does not
 - `page` or `pages`: the chosen template page, template page family, or bundled reference layout being adapted;
 - `layout_features`: at least two visible features inherited from that reference, such as title scale, image crop, color-field split, centered visual anchor, asymmetric grid, side rail, or caption position;
 - `adaptation`: how the course text and visual evidence were fitted into that composition. If the text is long, describe the text-area change, title wrapping, slide split, or alternate template family chosen before building the PPTX.
+
+For decks longer than 12 pages, every normal knowledge slide must also set `visual_plan.layout_variant` before local PPT generation. This is the actual composition family the builder must render, not a retrospective description. Use concrete values such as `split-image`, `poster-panel`, `wide-case-band`, `center-anchor`, `gallery-strip`, `close-reading`, `index-grid`, `two-panel`, or another short stable family name. The full deck must distribute these variants across the selected template pages so the contact sheet does not collapse into repeated two-column pages.
 
 For decks longer than 12 pages, build a template-page mapping table before PPT generation. The mapping must spread slides across multiple reference pages/page families from the selected template. Do not map most normal knowledge pages to one generic two-column reference. Automated QA rejects long decks with too few distinct template references, a dominant reference family, or long runs of the same reference.
 

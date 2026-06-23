@@ -94,6 +94,15 @@ def template_reference_key(slide: dict[str, Any]) -> str:
     return str(value or "").strip()
 
 
+def composition_variant_key(slide: dict[str, Any]) -> str:
+    visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+    value = visual_plan.get("layout_variant") or visual_plan.get("composition_variant")
+    if not value:
+        reference = visual_plan.get("template_reference") if isinstance(visual_plan.get("template_reference"), dict) else {}
+        value = reference.get("composition_family") or reference.get("layout_variant")
+    return str(value or "").strip()
+
+
 def structured_visual_content(screen: dict[str, Any], visual_plan: dict[str, Any], visuals: list[Any]) -> bool:
     if visuals:
         return True
@@ -248,6 +257,36 @@ def main() -> int:
             run_ref, run_ref_count = max_run(nonempty_refs)
             if run_ref_count > 3:
                 errors.append(f"template reference variety has {run_ref_count} consecutive pages based on {run_ref}")
+        variants = [composition_variant_key(slide) for slide in normal_knowledge]
+        missing_variants = [
+            str(slide.get("number"))
+            for slide, variant in zip(normal_knowledge, variants)
+            if not variant
+        ]
+        if missing_variants:
+            errors.append(
+                "long decks must record visual_plan.layout_variant for every normal knowledge slide; "
+                f"missing slides: {', '.join(missing_variants[:12])}"
+            )
+        else:
+            distinct_variants = set(variants)
+            min_distinct_variants = min(7, max(4, len(normal_knowledge) // 4))
+            if len(distinct_variants) < min_distinct_variants:
+                errors.append(
+                    f"composition variety is too low: uses {len(distinct_variants)} "
+                    f"layout variants across {len(normal_knowledge)} normal knowledge slides; "
+                    f"expected at least {min_distinct_variants}"
+                )
+            variant_counts = {variant: variants.count(variant) for variant in distinct_variants}
+            dominant_variant, dominant_variant_count = max(variant_counts.items(), key=lambda item: item[1])
+            if dominant_variant_count / len(normal_knowledge) > 0.35:
+                errors.append(
+                    f"composition variety is too repetitive: {dominant_variant} covers "
+                    f"{dominant_variant_count}/{len(normal_knowledge)} normal knowledge slides"
+                )
+            run_variant, run_variant_count = max_run(variants)
+            if run_variant_count > 2:
+                errors.append(f"composition variety has {run_variant_count} consecutive pages using {run_variant}")
         template_motif_count = sum(
             1 for slide in slides
             if isinstance((slide.get("visual_plan") or {}).get("template_motif"), dict)
@@ -326,6 +365,8 @@ def main() -> int:
                 errors.append(f"{label} visual_plan.template_reference must list at least two inherited layout features")
             if len(str(template_reference.get("adaptation", "")).strip()) < 20:
                 errors.append(f"{label} visual_plan.template_reference must explain how the template layout is adapted to this slide")
+        if len(normal_knowledge) > 12 and slide in normal_knowledge and not composition_variant_key(slide):
+            errors.append(f"{label} visual_plan.layout_variant must name the actual rendered composition family")
         template_motif = slide_visual_plan.get("template_motif")
         if isinstance(template_motif, dict):
             if template_motif.get("kind") not in {"hero-right", "visual-anchor", "accent-motif", "background-motif"}:

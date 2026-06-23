@@ -111,6 +111,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     cover["number"] = 1
     cover["source_node_ids"] = ["n0001"]
     cover["visual_plan"]["source_node_id"] = "n0001"
+    cover["visual_plan"]["layout_variant"] = "hero-cover"
     cover["visual_plan"]["template_motif"] = valid_template_motif("hero-right")
     cover["visual_plan"]["template_motif"]["local_ppt_layout"]["motif_box"] = {"left": 700, "top": 70, "width": 560, "height": 560}
 
@@ -119,6 +120,12 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         "table", "image-right", "comparison", "image-left-accent",
         "image-left-dark", "image-right-dark", "image-right-orange", "image-left",
         "comparison", "image-right-accent",
+    ]
+    variants = [
+        "two-panel", "dark-spotlight", "index-grid", "poster-panel",
+        "comparison-strip", "split-image", "close-reading", "wide-case-band",
+        "gallery-strip", "center-anchor", "poster-panel", "split-image",
+        "comparison-strip", "two-panel",
     ]
     slides = [cover]
     source_slide = base["slides"][1]
@@ -135,6 +142,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
             "layout_features": ["varied template page family", "stable visual/text relationship"],
             "adaptation": "根据参考模板页调整图文区域、标题宽度和信息块位置后再生成本地 PPT。",
         }
+        slide["visual_plan"]["layout_variant"] = variants[index - 2]
         if index in {2, 3, 4}:
             slide["layout"] = "image-right" if index % 2 == 0 else "image-left-dark"
             slide["visuals"] = [{"path": f"assets/case-{index}.png", "alt": "源案例图"}]
@@ -154,6 +162,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     summary["number"] = 16
     summary["source_node_ids"] = ["n0016"]
     summary["visual_plan"]["source_node_id"] = "n0016"
+    summary["visual_plan"]["layout_variant"] = "summary-blocks"
     slides.append(summary)
     base["slides"] = slides
     deck_path = temp / "source-rich-long-deck.json"
