@@ -161,6 +161,33 @@ def main() -> int:
         repetitive_layout_report = audit(temp, repetitive_layout_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("layout rhythm" in error for error in repetitive_layout_report["errors"])
 
+        repetitive_template_reference_path = temp / "repetitive-template-reference.json"
+        repetitive_template_reference = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        varied_layouts = [
+            "image-right", "image-left-dark", "comparison", "image-right-orange",
+            "light", "dark", "image-left-accent", "table", "orange", "image-right-dark",
+            "comparison", "image-left", "dark", "image-right-accent",
+        ]
+        repeated = [repetitive_template_reference["slides"][0]]
+        source_slide = repetitive_template_reference["slides"][1]
+        for offset, layout in enumerate(varied_layouts, start=2):
+            clone = json.loads(json.dumps(source_slide, ensure_ascii=False))
+            clone["number"] = offset
+            clone["layout"] = layout
+            clone["visual_plan"]["template_reference"] = {
+                "page": 4,
+                "layout_features": ["same rectangular grid", "same text and visual split"],
+                "adaptation": "故意重复同一个模板页族，用于验证整套版式多样性会被拦截。",
+            }
+            repeated.append(clone)
+        final_slide = json.loads(json.dumps(repetitive_template_reference["slides"][-1], ensure_ascii=False))
+        final_slide["number"] = len(repeated) + 1
+        repeated.append(final_slide)
+        repetitive_template_reference["slides"] = repeated
+        repetitive_template_reference_path.write_text(json.dumps(repetitive_template_reference, ensure_ascii=False), encoding="utf-8")
+        repetitive_template_reference_report = audit(temp, repetitive_template_reference_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("template reference variety" in error for error in repetitive_template_reference_report["errors"])
+
         # Sparse direct expansion passes.
         sparse = audit(temp, FIXTURES / "deck-spec-sparse.json", FIXTURES / "source-map-sparse.json")
         assert sparse["ok"]

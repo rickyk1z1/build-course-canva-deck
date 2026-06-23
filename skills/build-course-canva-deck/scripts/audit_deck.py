@@ -84,6 +84,15 @@ def layout_family(layout: str) -> str:
     return layout
 
 
+def template_reference_key(slide: dict[str, Any]) -> str:
+    visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+    reference = visual_plan.get("template_reference") if isinstance(visual_plan.get("template_reference"), dict) else {}
+    value = reference.get("family") or reference.get("page") or reference.get("pages")
+    if isinstance(value, list):
+        value = ",".join(str(item) for item in value)
+    return str(value or "").strip()
+
+
 def max_run(values: list[str]) -> tuple[str, int]:
     best_value = ""
     best_count = 0
@@ -168,6 +177,27 @@ def main() -> int:
                 "layout rhythm is dominated by plain light image-left/image-right pages; "
                 "use dark and accent template-field image variants"
             )
+        template_refs = [template_reference_key(slide) for slide in normal_knowledge]
+        nonempty_refs = [ref for ref in template_refs if ref]
+        distinct_refs = set(nonempty_refs)
+        min_distinct_refs = min(6, max(3, len(normal_knowledge) // 4))
+        if len(distinct_refs) < min_distinct_refs:
+            errors.append(
+                f"template reference variety is too low: uses {len(distinct_refs)} "
+                f"reference pages/families across {len(normal_knowledge)} normal knowledge slides; "
+                f"expected at least {min_distinct_refs}"
+            )
+        if nonempty_refs:
+            ref_counts = {ref: nonempty_refs.count(ref) for ref in distinct_refs}
+            dominant_ref, dominant_ref_count = max(ref_counts.items(), key=lambda item: item[1])
+            if dominant_ref_count / len(normal_knowledge) > 0.40:
+                errors.append(
+                    f"template reference variety is too repetitive: {dominant_ref} covers "
+                    f"{dominant_ref_count}/{len(normal_knowledge)} normal knowledge slides"
+                )
+            run_ref, run_ref_count = max_run(nonempty_refs)
+            if run_ref_count > 3:
+                errors.append(f"template reference variety has {run_ref_count} consecutive pages based on {run_ref}")
 
     mapped: list[str] = []
     previous_min_order = 0

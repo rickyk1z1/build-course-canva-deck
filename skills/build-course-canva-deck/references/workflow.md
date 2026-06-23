@@ -169,6 +169,8 @@ Every slide must include `visual_plan.template_reference`, even when it does not
 - `layout_features`: at least two visible features inherited from that reference, such as title scale, image crop, color-field split, centered visual anchor, asymmetric grid, side rail, or caption position;
 - `adaptation`: how the course text and visual evidence were fitted into that composition. If the text is long, describe the text-area change, title wrapping, slide split, or alternate template family chosen before building the PPTX.
 
+For decks longer than 12 pages, build a template-page mapping table before PPT generation. The mapping must spread slides across multiple reference pages/page families from the selected template. Do not map most normal knowledge pages to one generic two-column reference. Automated QA rejects long decks with too few distinct template references, a dominant reference family, or long runs of the same reference.
+
 For sparse mode, every `added_content` item must contain:
 
 ```json
