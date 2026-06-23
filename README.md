@@ -7,7 +7,7 @@
 ## 一行安装
 
 ```bash
-python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py --repo rickyk1z1/canva-create-note --path skills/build-course-canva-deck
+python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py --repo rickyk1z1/build-course-canva-deck --path skills/build-course-canva-deck
 ```
 
 安装后重启 Codex，然后使用：
@@ -37,7 +37,3 @@ $build-course-canva-deck
 
 - 需要能够运行 Codex Skills。
 - 最终写入 Canva 时，需要连接可访问模板 `DAHM5fsVEB0` 的 Canva 账号。
-
-## 更新
-
-安装器不会覆盖已经存在的 Skill。更新时先把 `~/.codex/skills/build-course-canva-deck` 移到备份目录，再重新执行上面的一行安装命令；确认新版正常后删除备份。
