@@ -35,12 +35,14 @@ Production metadata may exist in internal notes, but never in visible screen fie
 ## Visual gate
 
 - Every normal knowledge slide has a `visual_plan` mapped to a source node.
+- Every knowledge branch that can use a case image or demonstration image has one; exceptions must be explicit and justified.
 - `visual_plan.integration` is `knowledge-page`; production-stage lists are rejected.
 - The visual is actually represented in the slide as a source image, redrawn source image, generated image, editable diagram, or editable table.
 - Slides with source or generated images use `image-left`, `image-right`, or another layout that visibly places the image inside the knowledge page.
 - Visuals have learner-facing interpretation in the same slide.
 - Generated images contain no baked-in Chinese text; labels are editable slide text.
-- Generated image plans include a generation route and prompt brief; imagegen is an allowed route for rich bitmap examples when available, while editable diagrams remain preferred for label-heavy teaching graphics.
+- Generated image plans include a generation route and prompt brief; imagegen is the preferred route for rich bitmap examples when available, while editable diagrams remain preferred for label-heavy teaching graphics.
+- Illustrated knowledge slides target about 40% text area; pages needing more text should split rather than shrink the visual.
 - `text-only-exception` is allowed only for cover, transition, summary, or a clearly justified non-visual page.
 - No slide may present case images as a future task list instead of using them to teach the current node.
 

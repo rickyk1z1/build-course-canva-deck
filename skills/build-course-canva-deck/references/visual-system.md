@@ -17,8 +17,12 @@ Before building the PPTX, every normal knowledge slide must include a `visual_pl
   "asset_type": "source-image",
   "integration": "knowledge-page",
   "description": "student-facing visual idea, without production wording",
+  "visual_applicability": "required",
+  "imagegen_priority": "preferred",
+  "imagegen_bypass_reason": "",
   "generation_route": "",
   "prompt_brief": "",
+  "text_area_ratio": 0.4,
   "labels_as_slide_text": true,
   "exception_reason": ""
 }
@@ -39,18 +43,21 @@ Allowed `asset_type` values:
 
 1. Extract and reuse source case images when the source already contains a concrete example.
 2. If the source image is low resolution or too dense, redraw it as a cleaner Canva-readable visual without changing the example logic.
-3. If the source uses a metaphor but has no image, create a simple diagram around that exact metaphor.
-4. If the source has no metaphor, create a basic concrete visual bridge: object analogy, before/after, side-by-side comparison, or simple chain.
-5. Keep all technical labels as editable slide text. Generated images should contain no baked-in Chinese text.
+3. For every knowledge branch that can be taught with a case image or demonstration image, create one. Treat this as required by default, not optional decoration.
+4. Prefer `generated-image` through `imagegen` for rich case illustrations and demonstration illustrations, especially familiar-object metaphors, before/after scenes, physical analogies, and abstract concepts that need a concrete picture.
+5. Use `editable-diagram` or `editable-table` only when the visual is mainly arrows, chains, comparisons, labels, or table-like information that must stay editable.
+6. Keep all technical labels as editable slide text. Generated images should contain no baked-in Chinese text.
 
 ## Image generation capability
 
-Use the current environment's `imagegen` capability when a node needs a richer raster case image, such as a realistic object analogy, a textured scene, a before/after visual, or a non-text illustration that would be weak as simple shapes.
+Use the current environment's `imagegen` capability as the preferred route when a node needs a richer raster case image, such as a realistic object analogy, a textured scene, a before/after visual, or a non-text illustration that would be weak as simple shapes.
 
-Do not force imagegen for every visual:
+Do not force imagegen for visuals that are better as editable instructional graphics:
 
 - Use `editable-diagram` for arrows, chains, tables, comparisons, labels, and shape-based teaching diagrams.
 - Use `generated-image` with `generation_route: "imagegen"` when a bitmap illustration will make the concept easier to understand.
+- If imagegen is bypassed for a knowledge slide that could otherwise use an illustration, record `imagegen_priority: "not-needed"` plus a concrete `imagegen_bypass_reason`.
+- If imagegen is unavailable in the current environment, record `imagegen_priority: "unavailable"` and use the best deterministic fallback; do not leave the page without a visual.
 - Keep the generated image free of Chinese text, UI labels, watermarks, and decorative slogans.
 - Put all labels, arrows, captions, and explanations in editable slide text.
 - Save final project-bound generated images into the course asset folder; do not leave them only in a default generation directory.
@@ -62,7 +69,7 @@ If imagegen is unavailable or fails, use the best deterministic fallback that st
 
 - A case image is an illustration inside a knowledge page, not the whole page.
 - The page remains text-led: title, explanation, 3-5 points, and visual interpretation stay visible.
-- Target area: 55-70% text, 30-45% visual, about 10% breathing room.
+- On illustrated knowledge slides, target about 40% text area, 50% visual area, and 10% breathing room. If the source text needs more space, split into more slides instead of shrinking the visual into a token illustration.
 - Captions explain what to look at, not where the image came from.
 - Do not use decorative stock images unless they directly teach the node.
 
@@ -83,9 +90,11 @@ Reject a visual if explaining it requires a new topic branch or a neighboring co
 For every knowledge slide, verify:
 
 - Does the slide have a concrete visual plan mapped to a source node?
+- Is `visual_applicability` marked required for every knowledge branch that can use a case or demonstration image?
 - Is the visual actually on the slide, or represented by editable diagram/table shapes?
 - Does the slide explain the image for learners?
 - Is the image integrated with the current node's text rather than replacing it?
+- Is the text area around 40% on illustrated knowledge slides?
 - Are all labels editable slide text?
 - Do generated images record their generation route and prompt brief in `visual_plan`?
 - Are there any production words such as `PDF`, `原稿`, `来源文档`, `图旁注明`, or `制作说明`? If yes, fail.

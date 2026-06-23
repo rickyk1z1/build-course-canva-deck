@@ -37,6 +37,10 @@
         "asset_type": "editable-diagram",
         "integration": "knowledge-page",
         "description": "用两条分支和一个组合节点展示本课结构。",
+        "visual_applicability": "required",
+        "imagegen_priority": "not-needed",
+        "imagegen_bypass_reason": "路线图需要文字节点保持可编辑。",
+        "text_area_ratio": 0.4,
         "labels_as_slide_text": true,
         "exception_reason": ""
       },
@@ -68,6 +72,10 @@
         "asset_type": "editable-diagram",
         "integration": "knowledge-page",
         "description": "左侧画打包手法，右侧画文件箱子，箭头表示两者可以组合。",
+        "visual_applicability": "required",
+        "imagegen_priority": "not-needed",
+        "imagegen_bypass_reason": "对比图需要文字标签保持可编辑。",
+        "text_area_ratio": 0.4,
         "labels_as_slide_text": true,
         "exception_reason": ""
       },

@@ -23,7 +23,7 @@
 - Use large flat color fields, square divisions, strong typography, and disciplined image crops.
 - Avoid rounded card grids, pills, badges, button-like labels, excessive borders, and dashboard styling.
 - Keep one dominant visual focus per slide.
-- Use approximately 55-70% text and 30-45% visual area on illustrated knowledge slides.
+- Use approximately 40% text and 50% visual area on illustrated knowledge slides, with the remaining space as breathing room and template structure.
 - Preserve about 10% breathing room through margins and module gaps.
 - Keep body text at 16 pt or larger. Split content before reducing type.
 - Keep ordinary slide titles at 35 pt or larger and prevent accidental wrapping.
@@ -39,7 +39,7 @@
 - `light`: cream background, large title, explanation, black/orange information blocks.
 - `dark`: black background, white copy, orange accent and cream secondary block.
 - `orange`: orange background, black title, black/cream information blocks.
-- `image-left` / `image-right`: source or generated image occupies 30-45%; explanation and bullets remain primary.
+- `image-left` / `image-right`: source or generated image occupies about half the page; explanation, bullets, and caption occupy about 40%.
 - `comparison`: two clearly labeled sides with both text and visual evidence.
 - `table`: compact factual comparison with sufficient row spacing.
 - `summary`: return the lesson to its governing framework; do not introduce new knowledge.

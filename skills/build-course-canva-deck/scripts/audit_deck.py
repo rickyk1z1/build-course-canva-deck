@@ -32,6 +32,8 @@ IMAGE_ASSET_TYPES = {"source-image", "redrawn-source-image", "generated-image"}
 VISUAL_LAYOUTS = {"image-left", "image-right", "comparison", "table", "roadmap"}
 FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-note", "later", "future-task"}
 GENERATED_IMAGE_ROUTES = {"imagegen", "user-provided", "external-tool"}
+VISUAL_APPLICABILITY = {"required", "exception"}
+IMAGEGEN_PRIORITY = {"preferred", "not-needed", "unavailable"}
 
 
 def flatten_text(value: Any) -> Iterable[str]:
@@ -141,8 +143,14 @@ def main() -> int:
                 plan_node = visual_plan.get("source_node_id")
                 description = str(visual_plan.get("description", "")).strip()
                 role = str(visual_plan.get("teaching_role", "")).strip()
+                visual_applicability = str(visual_plan.get("visual_applicability", "")).strip()
+                imagegen_priority = str(visual_plan.get("imagegen_priority", "")).strip()
                 if asset_type not in VISUAL_ASSET_TYPES:
                     errors.append(f"{label} visual_plan.asset_type is unsupported")
+                if visual_applicability not in VISUAL_APPLICABILITY:
+                    errors.append(f"{label} visual_plan.visual_applicability must be required or exception")
+                if imagegen_priority not in IMAGEGEN_PRIORITY:
+                    errors.append(f"{label} visual_plan.imagegen_priority is required")
                 if integration != "knowledge-page" or integration in FORBIDDEN_VISUAL_INTEGRATIONS:
                     errors.append(f"{label} visual_plan must integrate the visual into the knowledge page")
                 if plan_node not in source_ids:
@@ -151,6 +159,14 @@ def main() -> int:
                     errors.append(f"{label} visual_plan lacks a concrete teaching role or description")
                 if visual_plan.get("labels_as_slide_text") is not True and asset_type != "text-only-exception":
                     errors.append(f"{label} visual labels must be editable slide text")
+                if visual_applicability == "required" and asset_type == "text-only-exception":
+                    errors.append(f"{label} requires a case or demonstration visual, but uses a text-only exception")
+                text_area_ratio = visual_plan.get("text_area_ratio")
+                if asset_type != "text-only-exception":
+                    if not isinstance(text_area_ratio, (int, float)):
+                        errors.append(f"{label} visual_plan.text_area_ratio is required for illustrated slides")
+                    elif not 0.33 <= float(text_area_ratio) <= 0.48:
+                        errors.append(f"{label} text area should stay around 40% on illustrated slides")
                 visuals = slide.get("visuals") or []
                 if asset_type in IMAGE_ASSET_TYPES:
                     if not visuals:
@@ -164,8 +180,16 @@ def main() -> int:
                     prompt_brief = str(visual_plan.get("prompt_brief", "")).strip()
                     if route not in GENERATED_IMAGE_ROUTES:
                         errors.append(f"{label} generated image must record a supported generation route")
+                    if route != "imagegen" and imagegen_priority != "unavailable":
+                        errors.append(f"{label} generated image should use imagegen unless imagegen is unavailable")
                     if len(prompt_brief) < 12:
                         errors.append(f"{label} generated image must record a concrete prompt brief")
+                if asset_type in {"editable-diagram", "editable-table"} and imagegen_priority == "preferred":
+                    errors.append(f"{label} editable visual must explain why imagegen was not used")
+                if imagegen_priority == "not-needed":
+                    bypass_reason = str(visual_plan.get("imagegen_bypass_reason", "")).strip()
+                    if len(bypass_reason) < 12:
+                        errors.append(f"{label} imagegen bypass requires a concrete reason")
                 if asset_type in {"editable-diagram", "editable-table"} and layout not in VISUAL_LAYOUTS:
                     errors.append(f"{label} editable visual assets should use a visible diagram/table/comparison layout")
                 if asset_type == "text-only-exception":

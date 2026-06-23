@@ -84,8 +84,12 @@ Build `deck-spec.json` with this minimum shape:
         "asset_type": "editable-diagram",
         "integration": "knowledge-page",
         "description": "student-facing visual idea",
+        "visual_applicability": "required",
+        "imagegen_priority": "preferred",
+        "imagegen_bypass_reason": "",
         "generation_route": "",
         "prompt_brief": "",
+        "text_area_ratio": 0.4,
         "labels_as_slide_text": true,
         "exception_reason": ""
       },
@@ -125,8 +129,8 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 - Use embedded source visuals before generating replacements.
 - Redraw source visuals only to improve readability; preserve their teaching logic.
 - Generate illustrations without baked-in text. Add labels as editable slide text.
-- When a knowledge node needs a richer bitmap case image, use the available `imagegen` skill/tool path if it is present in the environment; if the visual is a simple relationship, process, table, or label-heavy diagram, prefer editable PPTX/Canva shapes instead.
-- Use an image as 30-45% of a knowledge page, not as the whole lesson.
+- Every knowledge branch that can use a case image or demonstration image should have one. Prefer the available `imagegen` skill/tool path for rich bitmap case illustrations; if the visual is a simple relationship, process, table, or label-heavy diagram, use editable PPTX/Canva shapes and record why imagegen was bypassed.
+- On illustrated knowledge pages, keep text around 40% and visual content around 50%; split content into more slides when the text cannot fit cleanly.
 - Every source screenshot or generated diagram must have learner-facing interpretation in the same slide's caption or nearby body text.
 
 ## Build and delivery

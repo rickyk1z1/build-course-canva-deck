@@ -210,14 +210,15 @@ async function buildImageSlide(presentation, item) {
   const visual = (item.visuals || [])[0];
   const imageLeft = item.layout !== "image-right";
   const imagePosition = imageLeft
-    ? { left: 72, top: 205, width: 500, height: 350 }
-    : { left: 708, top: 205, width: 500, height: 350 };
-  const textLeft = imageLeft ? 620 : 72;
+    ? { left: 72, top: 205, width: 620, height: 355 }
+    : { left: 588, top: 205, width: 620, height: 355 };
+  const textLeft = imageLeft ? 735 : 72;
+  const textWidth = 473;
   await addImage(slide, visual, imagePosition, visual?.fit || "contain");
   addCaption(slide, item, theme, { left: imagePosition.left, top: 570, width: imagePosition.width, height: 60 });
-  addExplanation(slide, item, theme, { left: textLeft, top: 205, width: 588, height: 135 });
+  addExplanation(slide, item, theme, { left: textLeft, top: 205, width: textWidth, height: 135 });
   addText(slide, bulletText(bulletsFor(item), 5), {
-    left: textLeft, top: 365, width: 588, height: 245, size: 17,
+    left: textLeft, top: 365, width: textWidth, height: 245, size: 17,
     color: dark ? C.white : C.black, typeface: F.body, lineSpacing: 1.34,
     name: `bullets-${item.number}`,
   });

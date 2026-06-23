@@ -37,6 +37,9 @@
         "asset_type": "text-only-exception",
         "integration": "knowledge-page",
         "description": "封面只保留课程入口和关键词。",
+        "visual_applicability": "exception",
+        "imagegen_priority": "not-needed",
+        "imagegen_bypass_reason": "封面页不需要案例插图。",
         "labels_as_slide_text": true,
         "exception_reason": "封面页不承担概念解释，避免放入案例图干扰入口。"
       },
@@ -63,6 +66,10 @@
         "asset_type": "editable-diagram",
         "integration": "knowledge-page",
         "description": "画出视频数据、打包手法和压缩后包裹的关系。",
+        "visual_applicability": "required",
+        "imagegen_priority": "not-needed",
+        "imagegen_bypass_reason": "该图需要箭头和标签保持可编辑。",
+        "text_area_ratio": 0.4,
         "labels_as_slide_text": true,
         "exception_reason": ""
       },
@@ -89,6 +96,10 @@
         "asset_type": "editable-diagram",
         "integration": "knowledge-page",
         "description": "画出已打包的数据进入不同文件箱子的关系。",
+        "visual_applicability": "required",
+        "imagegen_priority": "not-needed",
+        "imagegen_bypass_reason": "该图需要箭头和标签保持可编辑。",
+        "text_area_ratio": 0.4,
         "labels_as_slide_text": true,
         "exception_reason": ""
       },
