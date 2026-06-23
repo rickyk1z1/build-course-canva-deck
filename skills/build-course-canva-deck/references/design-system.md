@@ -28,6 +28,9 @@
 - Keep body text at 16 pt or larger. Split content before reducing type.
 - Keep ordinary slide titles at 35 pt or larger and prevent accidental wrapping.
 - Use images to explain, compare, or demonstrate; do not add decorative stock imagery without teaching value.
+- Integrate source screenshots and generated case images into text-led knowledge pages. Avoid full-page screenshots unless the slide is explicitly a close-reading page with enough labels and interpretation.
+- If a visual needs labels, keep labels editable in Canva/PPTX instead of baking Chinese text into the image.
+- Prefer clear teaching diagrams over beautiful but generic imagery.
 
 ## Layout bank
 

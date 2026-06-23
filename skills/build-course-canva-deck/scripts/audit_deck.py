@@ -20,6 +20,17 @@ FORBIDDEN = [
 ]
 KNOWLEDGE_LAYOUTS = {"roadmap", "light", "dark", "orange", "image-left", "image-right", "comparison", "table", "summary"}
 ALLOWED_ADDITION_KINDS = {"definition", "cause", "relationship", "example", "misconception", "boundary"}
+VISUAL_ASSET_TYPES = {
+    "source-image",
+    "redrawn-source-image",
+    "generated-image",
+    "editable-diagram",
+    "editable-table",
+    "text-only-exception",
+}
+IMAGE_ASSET_TYPES = {"source-image", "redrawn-source-image", "generated-image"}
+VISUAL_LAYOUTS = {"image-left", "image-right", "comparison", "table", "roadmap"}
+FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-note", "later", "future-task"}
 
 
 def flatten_text(value: Any) -> Iterable[str]:
@@ -119,6 +130,40 @@ def main() -> int:
                 errors.append(f"{label} should contain 3-5 structured learner-facing points")
             if layout in {"image-left", "image-right", "comparison"} and not screen.get("caption"):
                 errors.append(f"{label} has a visual layout without learner-facing interpretation")
+            if layout != "summary":
+                visual_plan = slide.get("visual_plan")
+                if not isinstance(visual_plan, dict):
+                    errors.append(f"{label} lacks a slide-level visual_plan")
+                    visual_plan = {}
+                asset_type = str(visual_plan.get("asset_type", "")).strip()
+                integration = str(visual_plan.get("integration", "")).strip()
+                plan_node = visual_plan.get("source_node_id")
+                description = str(visual_plan.get("description", "")).strip()
+                role = str(visual_plan.get("teaching_role", "")).strip()
+                if asset_type not in VISUAL_ASSET_TYPES:
+                    errors.append(f"{label} visual_plan.asset_type is unsupported")
+                if integration != "knowledge-page" or integration in FORBIDDEN_VISUAL_INTEGRATIONS:
+                    errors.append(f"{label} visual_plan must integrate the visual into the knowledge page")
+                if plan_node not in source_ids:
+                    errors.append(f"{label} visual_plan.source_node_id must map to an original source node")
+                if len(description) < 8 or len(role) < 8:
+                    errors.append(f"{label} visual_plan lacks a concrete teaching role or description")
+                if visual_plan.get("labels_as_slide_text") is not True and asset_type != "text-only-exception":
+                    errors.append(f"{label} visual labels must be editable slide text")
+                visuals = slide.get("visuals") or []
+                if asset_type in IMAGE_ASSET_TYPES:
+                    if not visuals:
+                        errors.append(f"{label} visual_plan uses an image asset but slide.visuals is empty")
+                    if layout not in {"image-left", "image-right", "comparison"}:
+                        errors.append(f"{label} image assets must use an image-integrated layout")
+                    if not screen.get("caption"):
+                        errors.append(f"{label} image asset lacks learner-facing visual interpretation")
+                if asset_type in {"editable-diagram", "editable-table"} and layout not in VISUAL_LAYOUTS:
+                    errors.append(f"{label} editable visual assets should use a visible diagram/table/comparison layout")
+                if asset_type == "text-only-exception":
+                    reason = str(visual_plan.get("exception_reason", "")).strip()
+                    if layout not in {"summary"} and len(reason) < 12:
+                        errors.append(f"{label} text-only visual exception is not justified")
         node_ids = slide.get("source_node_ids") or []
         if not node_ids:
             errors.append(f"{label} has no source-node mapping")

@@ -31,6 +31,15 @@
       },
       "speaker_notes": "先建立总框架。",
       "visuals": [],
+      "visual_plan": {
+        "teaching_role": "用总览结构提示本课只讲编码、格式和两者关系。",
+        "source_node_id": "n0001",
+        "asset_type": "text-only-exception",
+        "integration": "knowledge-page",
+        "description": "封面只保留课程入口和关键词。",
+        "labels_as_slide_text": true,
+        "exception_reason": "封面页不承担概念解释，避免放入案例图干扰入口。"
+      },
       "source_node_ids": ["n0001"],
       "added_content": [],
       "scope_check": {"status": "within-branch", "branch_node_id": "n0001"}
@@ -39,15 +48,24 @@
       "number": 2,
       "section": "编码",
       "title": "编码是整理视频数据的打包手法",
-      "layout": "light",
+      "layout": "comparison",
       "screen": {
         "explanation": "视频数据量很大，编码负责按照一套规则整理和压缩这些数据，可以先理解为不同的快递打包方法。",
         "bullets": ["处理对象是视频数据", "不同编码采用不同整理方法", "打包复杂度会影响体积与播放压力"],
-        "caption": "",
+        "caption": "把视频数据看作要寄出的内容，编码就是选择一种打包手法。",
         "blocks": []
       },
       "speaker_notes": "沿用快递打包比喻。",
       "visuals": [],
+      "visual_plan": {
+        "teaching_role": "用快递打包比喻把抽象的编码规则变成可见的整理动作。",
+        "source_node_id": "n0002",
+        "asset_type": "editable-diagram",
+        "integration": "knowledge-page",
+        "description": "画出视频数据、打包手法和压缩后包裹的关系。",
+        "labels_as_slide_text": true,
+        "exception_reason": ""
+      },
       "source_node_ids": ["n0002"],
       "added_content": [],
       "scope_check": {"status": "within-branch", "branch_node_id": "n0002"}
@@ -56,15 +74,24 @@
       "number": 3,
       "section": "格式",
       "title": "格式是最终承装数据的文件箱子",
-      "layout": "dark",
+      "layout": "comparison",
       "screen": {
         "explanation": "格式可以理解为装视频数据的文件箱子，文件名后的扩展名通常提示这个箱子的类型。",
         "bullets": ["格式负责承装数据", "扩展名通常提示格式", "编码与格式不是同一个概念"],
-        "caption": "",
+        "caption": "把格式看成箱子，重点观察它负责承装而不是重新整理数据。",
         "blocks": []
       },
       "speaker_notes": "提醒学员不要混淆编码和格式。",
       "visuals": [],
+      "visual_plan": {
+        "teaching_role": "用文件箱子比喻区分格式和编码，降低概念混淆。",
+        "source_node_id": "n0003",
+        "asset_type": "editable-diagram",
+        "integration": "knowledge-page",
+        "description": "画出已打包的数据进入不同文件箱子的关系。",
+        "labels_as_slide_text": true,
+        "exception_reason": ""
+      },
       "source_node_ids": ["n0003"],
       "added_content": [],
       "scope_check": {"status": "within-branch", "branch_node_id": "n0003"}

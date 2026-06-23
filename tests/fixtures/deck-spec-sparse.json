@@ -31,6 +31,15 @@
       },
       "speaker_notes": "先建立分类。",
       "visuals": [],
+      "visual_plan": {
+        "teaching_role": "用路线图把编码、格式和组合关系放到同一张认知地图中。",
+        "source_node_id": "n0001",
+        "asset_type": "editable-diagram",
+        "integration": "knowledge-page",
+        "description": "用两条分支和一个组合节点展示本课结构。",
+        "labels_as_slide_text": true,
+        "exception_reason": ""
+      },
       "source_node_ids": ["n0001"],
       "added_content": [
         {"text": "编码描述数据整理方法", "source_node_id": "n0001", "kind": "definition", "relevance": "direct", "evidence_urls": ["https://www.loc.gov/preservation/digital/formats/intro/intro.shtml"]}
@@ -53,6 +62,15 @@
       },
       "speaker_notes": "使用快递打包和箱子比喻。",
       "visuals": [],
+      "visual_plan": {
+        "teaching_role": "用快递打包和文件箱子的并列图，解释编码与格式不是同一层概念。",
+        "source_node_id": "n0002",
+        "asset_type": "editable-diagram",
+        "integration": "knowledge-page",
+        "description": "左侧画打包手法，右侧画文件箱子，箭头表示两者可以组合。",
+        "labels_as_slide_text": true,
+        "exception_reason": ""
+      },
       "source_node_ids": ["n0002"],
       "added_content": [
         {"text": "同一格式可能承装不同编码的数据", "source_node_id": "n0002", "kind": "relationship", "relevance": "direct", "evidence_urls": ["https://www.loc.gov/preservation/digital/formats/intro/intro.shtml"]},

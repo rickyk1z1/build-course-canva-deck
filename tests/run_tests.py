@@ -71,6 +71,22 @@ def main() -> int:
         detailed_bad_path.write_text(json.dumps(detailed_bad, ensure_ascii=False), encoding="utf-8")
         assert not audit(temp, detailed_bad_path, FIXTURES / "source-map-detailed.json", expect=1)["ok"]
 
+        missing_visual_path = temp / "missing-visual-plan.json"
+        missing_visual = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        del missing_visual["slides"][1]["visual_plan"]
+        missing_visual_path.write_text(json.dumps(missing_visual, ensure_ascii=False), encoding="utf-8")
+        missing_visual_report = audit(temp, missing_visual_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("visual_plan" in error for error in missing_visual_report["errors"])
+
+        image_not_integrated_path = temp / "image-not-integrated.json"
+        image_not_integrated = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        image_not_integrated["slides"][1]["layout"] = "light"
+        image_not_integrated["slides"][1]["visual_plan"]["asset_type"] = "source-image"
+        image_not_integrated["slides"][1]["visuals"] = []
+        image_not_integrated_path.write_text(json.dumps(image_not_integrated, ensure_ascii=False), encoding="utf-8")
+        image_report = audit(temp, image_not_integrated_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("image asset" in error or "image-integrated layout" in error for error in image_report["errors"])
+
         # Sparse direct expansion passes.
         sparse = audit(temp, FIXTURES / "deck-spec-sparse.json", FIXTURES / "source-map-sparse.json")
         assert sparse["ok"]

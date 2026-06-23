@@ -77,6 +77,15 @@ Build `deck-spec.json` with this minimum shape:
       },
       "speaker_notes": "仅供录课口述",
       "visuals": [],
+      "visual_plan": {
+        "teaching_role": "what the visual helps the learner understand",
+        "source_node_id": "n0001",
+        "asset_type": "editable-diagram",
+        "integration": "knowledge-page",
+        "description": "student-facing visual idea",
+        "labels_as_slide_text": true,
+        "exception_reason": ""
+      },
       "source_node_ids": ["n0001"],
       "added_content": [],
       "scope_check": {"status": "within-branch", "branch_node_id": "n0001"}
@@ -108,9 +117,13 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 - Keep neighboring lessons' primary teaching tasks out of this deck; record a handoff instead of duplicating them.
 - Give each knowledge slide one explanation paragraph and usually 3-5 concrete points.
 - Keep a page readable without narration; use notes only for delivery rhythm.
+- Read `visual-system.md` before visual work.
+- Build a visual plan per knowledge slide; do not create a separate learner-facing page that only lists future case images.
 - Use embedded source visuals before generating replacements.
+- Redraw source visuals only to improve readability; preserve their teaching logic.
 - Generate illustrations without baked-in text. Add labels as editable slide text.
 - Use an image as 30-45% of a knowledge page, not as the whole lesson.
+- Every source screenshot or generated diagram must have learner-facing interpretation in the same slide's caption or nearby body text.
 
 ## Build and delivery
 

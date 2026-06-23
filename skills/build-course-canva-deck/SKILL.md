@@ -35,7 +35,7 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 7. Write two separate layers:
    - learner-facing screen copy that can be understood without narration;
    - lecture notes for oral transitions and emphasis, never rendered on slides.
-8. Reuse source examples and images first. Create new diagrams or text-free illustrations only when they materially improve comprehension.
+8. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page.
 9. Read [references/design-system.md](references/design-system.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
 10. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
 11. Read [references/canva-delivery.md](references/canva-delivery.md), import the verified PPTX as a new Canva design, and leave template `DAHM5fsVEB0` unchanged.
@@ -50,6 +50,8 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 - Use one teaching node per slide by default; add slides instead of shrinking body text below 16 pt.
 - Put definitions, explanations, examples, and visual interpretation on the slide. Do not create question-only or keyword-only pages.
 - Keep source images inside knowledge pages. Never let a screenshot or example image replace the lesson text.
+- Do not create a standalone "case images to make later" stage page in the learner deck. Case images and example diagrams must appear on the relevant knowledge pages with learner-facing interpretation.
+- For abstract concepts, build the same kind of concrete visual bridge used in the accepted deck: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels. Do not leave an abstract slide as text only unless `visual_plan.exception_reason` explains why.
 - Preserve intuitive metaphors even when approximate. Ask before changing one that appears directionally wrong.
 - Never display production language such as `PDF`, `原稿`, `来源文档`, `制作说明`, `图旁注明`, `详细讲稿`, or `预计讲解时间`.
 - Never display prompts, placeholders, source-tracking labels, or `Genji 是真想教会你`.
@@ -65,5 +67,6 @@ Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage
 - `scripts/audit_deck.py`: enforce coverage, mode, scope, screen-copy, and PPTX text gates.
 - `scripts/build_deck.mjs`: generate editable 16:9 slides in the fixed template language.
 - `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet.
+- `references/visual-system.md`: mandatory rules for source case images, generated diagrams, and slide-level visual plans.
 - `assets/template-reference/`: immutable visual reference for Canva template `DAHM5fsVEB0`.
 - `assets/golden-layouts/`: approved knowledge-page composition references.

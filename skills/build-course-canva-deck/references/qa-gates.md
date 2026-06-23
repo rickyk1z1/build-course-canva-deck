@@ -32,6 +32,17 @@ Scan titles, explanations, bullets, captions, and visible block text. Reject:
 
 Production metadata may exist in internal notes, but never in visible screen fields or PPTX slide XML.
 
+## Visual gate
+
+- Every normal knowledge slide has a `visual_plan` mapped to a source node.
+- `visual_plan.integration` is `knowledge-page`; production-stage lists are rejected.
+- The visual is actually represented in the slide as a source image, redrawn source image, generated image, editable diagram, or editable table.
+- Slides with source or generated images use `image-left`, `image-right`, or another layout that visibly places the image inside the knowledge page.
+- Visuals have learner-facing interpretation in the same slide.
+- Generated images contain no baked-in Chinese text; labels are editable slide text.
+- `text-only-exception` is allowed only for cover, transition, summary, or a clearly justified non-visual page.
+- No slide may present case images as a future task list instead of using them to teach the current node.
+
 ## Slide gate
 
 - No question-only or keyword-only knowledge pages.
