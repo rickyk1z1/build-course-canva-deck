@@ -38,7 +38,7 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 8. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page.
 9. Read [references/design-system.md](references/design-system.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
 10. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
-11. Read [references/canva-delivery.md](references/canva-delivery.md), import the verified PPTX as a new Canva design, and leave template `DAHM5fsVEB0` unchanged.
+11. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight, import the verified PPTX as a new Canva design, and leave the canonical template unchanged.
 12. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
 13. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
 
@@ -56,7 +56,7 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 - Never display production language such as `PDF`, `原稿`, `来源文档`, `制作说明`, `图旁注明`, `详细讲稿`, or `预计讲解时间`.
 - Never display prompts, placeholders, source-tracking labels, or `Genji 是真想教会你`.
 - Keep research citations in the evidence ledger, not on slides unless the user requests citations.
-- Do not modify or overwrite the original Canva template.
+- Do not modify or overwrite the original Canva template. If the connector cannot access `DAHM5fsVEB0` on another device, ask for an accessible duplicate or explicit browser fallback instead of continuing with a broken Canva connection.
 
 Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage complete.
 
@@ -68,5 +68,6 @@ Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage
 - `scripts/build_deck.mjs`: generate editable 16:9 slides in the fixed template language.
 - `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet.
 - `references/visual-system.md`: mandatory rules for source case images, generated diagrams, and slide-level visual plans.
+- `references/canva-delivery.md`: Canva connector preflight, cross-device template access, and browser fallback rules.
 - `assets/template-reference/`: immutable visual reference for Canva template `DAHM5fsVEB0`.
 - `assets/golden-layouts/`: approved knowledge-page composition references.

@@ -87,6 +87,15 @@ def main() -> int:
         image_report = audit(temp, image_not_integrated_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("image asset" in error or "image-integrated layout" in error for error in image_report["errors"])
 
+        generated_missing_route_path = temp / "generated-missing-route.json"
+        generated_missing_route = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        generated_missing_route["slides"][1]["layout"] = "image-right"
+        generated_missing_route["slides"][1]["visuals"] = [{"path": "example.png", "alt": "案例图"}]
+        generated_missing_route["slides"][1]["visual_plan"]["asset_type"] = "generated-image"
+        generated_missing_route_path.write_text(json.dumps(generated_missing_route, ensure_ascii=False), encoding="utf-8")
+        generated_route_report = audit(temp, generated_missing_route_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("generation route" in error or "prompt brief" in error for error in generated_route_report["errors"])
+
         # Sparse direct expansion passes.
         sparse = audit(temp, FIXTURES / "deck-spec-sparse.json", FIXTURES / "source-map-sparse.json")
         assert sparse["ok"]

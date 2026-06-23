@@ -17,6 +17,8 @@ Before building the PPTX, every normal knowledge slide must include a `visual_pl
   "asset_type": "source-image",
   "integration": "knowledge-page",
   "description": "student-facing visual idea, without production wording",
+  "generation_route": "",
+  "prompt_brief": "",
   "labels_as_slide_text": true,
   "exception_reason": ""
 }
@@ -40,6 +42,21 @@ Allowed `asset_type` values:
 3. If the source uses a metaphor but has no image, create a simple diagram around that exact metaphor.
 4. If the source has no metaphor, create a basic concrete visual bridge: object analogy, before/after, side-by-side comparison, or simple chain.
 5. Keep all technical labels as editable slide text. Generated images should contain no baked-in Chinese text.
+
+## Image generation capability
+
+Use the current environment's `imagegen` capability when a node needs a richer raster case image, such as a realistic object analogy, a textured scene, a before/after visual, or a non-text illustration that would be weak as simple shapes.
+
+Do not force imagegen for every visual:
+
+- Use `editable-diagram` for arrows, chains, tables, comparisons, labels, and shape-based teaching diagrams.
+- Use `generated-image` with `generation_route: "imagegen"` when a bitmap illustration will make the concept easier to understand.
+- Keep the generated image free of Chinese text, UI labels, watermarks, and decorative slogans.
+- Put all labels, arrows, captions, and explanations in editable slide text.
+- Save final project-bound generated images into the course asset folder; do not leave them only in a default generation directory.
+- Record a short `prompt_brief` in `visual_plan` so the image intent can be audited without exposing production prompts on slides.
+
+If imagegen is unavailable or fails, use the best deterministic fallback that still teaches the node: editable SVG/PPTX diagram, redrawn source image, or user-supplied image. Do not replace a needed case visual with an empty text-only slide.
 
 ## Required composition
 
@@ -70,4 +87,5 @@ For every knowledge slide, verify:
 - Does the slide explain the image for learners?
 - Is the image integrated with the current node's text rather than replacing it?
 - Are all labels editable slide text?
+- Do generated images record their generation route and prompt brief in `visual_plan`?
 - Are there any production words such as `PDF`, `原稿`, `来源文档`, `图旁注明`, or `制作说明`? If yes, fail.

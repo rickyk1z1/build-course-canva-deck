@@ -31,6 +31,7 @@ VISUAL_ASSET_TYPES = {
 IMAGE_ASSET_TYPES = {"source-image", "redrawn-source-image", "generated-image"}
 VISUAL_LAYOUTS = {"image-left", "image-right", "comparison", "table", "roadmap"}
 FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-note", "later", "future-task"}
+GENERATED_IMAGE_ROUTES = {"imagegen", "user-provided", "external-tool"}
 
 
 def flatten_text(value: Any) -> Iterable[str]:
@@ -158,6 +159,13 @@ def main() -> int:
                         errors.append(f"{label} image assets must use an image-integrated layout")
                     if not screen.get("caption"):
                         errors.append(f"{label} image asset lacks learner-facing visual interpretation")
+                if asset_type == "generated-image":
+                    route = str(visual_plan.get("generation_route", "")).strip()
+                    prompt_brief = str(visual_plan.get("prompt_brief", "")).strip()
+                    if route not in GENERATED_IMAGE_ROUTES:
+                        errors.append(f"{label} generated image must record a supported generation route")
+                    if len(prompt_brief) < 12:
+                        errors.append(f"{label} generated image must record a concrete prompt brief")
                 if asset_type in {"editable-diagram", "editable-table"} and layout not in VISUAL_LAYOUTS:
                     errors.append(f"{label} editable visual assets should use a visible diagram/table/comparison layout")
                 if asset_type == "text-only-exception":

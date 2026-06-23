@@ -9,6 +9,7 @@ Keep scratch files outside the user's project. Put durable deliverables in `<sou
 - `<course-stem>-Canva导入稿.pptx`
 - `curriculum-context.json`
 - `课程体系关联说明.md`
+- `canva-access.json`
 - `assets/`
 - `qa-report.json`
 - `canva-design.txt`
@@ -83,6 +84,8 @@ Build `deck-spec.json` with this minimum shape:
         "asset_type": "editable-diagram",
         "integration": "knowledge-page",
         "description": "student-facing visual idea",
+        "generation_route": "",
+        "prompt_brief": "",
         "labels_as_slide_text": true,
         "exception_reason": ""
       },
@@ -122,6 +125,7 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 - Use embedded source visuals before generating replacements.
 - Redraw source visuals only to improve readability; preserve their teaching logic.
 - Generate illustrations without baked-in text. Add labels as editable slide text.
+- When a knowledge node needs a richer bitmap case image, use the available `imagegen` skill/tool path if it is present in the environment; if the visual is a simple relationship, process, table, or label-heavy diagram, prefer editable PPTX/Canva shapes instead.
 - Use an image as 30-45% of a knowledge page, not as the whole lesson.
 - Every source screenshot or generated diagram must have learner-facing interpretation in the same slide's caption or nearby body text.
 
@@ -131,8 +135,9 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 2. Build the PPTX and export per-slide PNG and layout JSON.
 3. Inspect the montage and every flagged slide at full size.
 4. Run the final audit against both `deck-spec.json` and the PPTX XML.
-5. Import the PPTX into Canva as a new presentation.
-6. Verify page count, all rich text, font mapping, images, and page previews.
-7. Show one final complete review to the user.
-8. Commit Canva draft edits only after explicit approval.
-9. Re-read the saved design and return its edit link.
+5. Run the Canva access preflight described in `canva-delivery.md`; do not import if the active connector cannot access the chosen template/reference route.
+6. Import the PPTX into Canva as a new presentation.
+7. Verify page count, all rich text, font mapping, images, and page previews.
+8. Show one final complete review to the user.
+9. Commit Canva draft edits only after explicit approval.
+10. Re-read the saved design and return its edit link.

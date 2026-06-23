@@ -40,6 +40,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Slides with source or generated images use `image-left`, `image-right`, or another layout that visibly places the image inside the knowledge page.
 - Visuals have learner-facing interpretation in the same slide.
 - Generated images contain no baked-in Chinese text; labels are editable slide text.
+- Generated image plans include a generation route and prompt brief; imagegen is an allowed route for rich bitmap examples when available, while editable diagrams remain preferred for label-heavy teaching graphics.
 - `text-only-exception` is allowed only for cover, transition, summary, or a clearly justified non-visual page.
 - No slide may present case images as a future task list instead of using them to teach the current node.
 
@@ -55,6 +56,8 @@ Production metadata may exist in internal notes, but never in visible screen fie
 
 ## Canva gate
 
+- Canva access preflight is recorded in `canva-access.json`.
+- If the canonical template is inaccessible, an accessible duplicate or explicit browser fallback approval is recorded before import.
 - Canva page count equals the PPTX page count.
 - Every page has been previewed.
 - Rich-text scan contains zero forbidden terms.

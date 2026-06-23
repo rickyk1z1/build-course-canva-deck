@@ -2,9 +2,34 @@
 
 ## Preconditions
 
-- Confirm the Canva connector is connected to an account that can access template `DAHM5fsVEB0`.
-- Read the template and accepted reference design when available.
+- Confirm the Canva connector is connected to an account that can access the chosen template route.
+- Canonical visual template: `DAHM5fsVEB0`.
+- Accepted reference design when available: `DAHNU2_rPtU`; it is a quality reference, not a content source.
 - Keep the original template unchanged.
+
+## Access preflight
+
+Run this before importing or creating any Canva design:
+
+1. Search/read the canonical template `DAHM5fsVEB0`.
+2. Search/read the accepted reference design `DAHNU2_rPtU` when available.
+3. Record the result in `canva-access.json`:
+   - active Canva account or workspace if the tool exposes it;
+   - accessible template/reference IDs;
+   - chosen template route;
+   - connector errors and timestamps.
+4. If `DAHM5fsVEB0` returns `design not found` but other designs are readable, treat it as a template permission/workspace problem, not as proof the design does not exist.
+5. If the connector returns internal errors such as MCP `-32603`, treat it as a connector/service failure. Retry once after reconnecting; do not repeatedly call the same failing operation.
+6. Do not import or create the final Canva design until one route below is available.
+
+Allowed template routes:
+
+- **Connector route:** connector can access `DAHM5fsVEB0`; proceed normally.
+- **Accessible duplicate route:** user provides a duplicate template/design ID that the current connector can access; use it for this device while preserving the same visual system.
+- **Bundled-reference route:** connector cannot access the template, but the local PPTX has already been built from bundled template references; ask the user to connect the correct Canva account or provide an accessible duplicate before Canva import.
+- **Browser fallback route:** only after explicit user approval, use the user's logged-in browser/Chrome session to upload/import the verified PPTX and inspect pages. Operate only on a new design; never modify the canonical template.
+
+If none of these routes is available, stop and report the blocker. Do not continue by guessing permissions.
 
 ## Import route
 
@@ -29,7 +54,9 @@ After commit, re-read design metadata and rich text. Return the edit URL only af
 
 ## Failure handling
 
-- Template inaccessible: use bundled reference images to finish the local PPTX, then ask the user to connect the correct Canva account before import.
+- Template inaccessible: use bundled reference images to finish the local PPTX, then ask the user to connect the correct Canva account, provide an accessible duplicate template ID, or approve browser fallback before import.
+- Same login but different access: explain that Canva connector access can differ from browser-visible access because of team/workspace context, token scope, link permissions, or connector cache. Verify by directly opening/copying the template in the target device's browser and by reconnecting the Canva integration.
+- Connector internal error: retry once after reconnecting. If it still fails, ask for browser fallback rather than repeatedly calling the broken connector.
 - Import page mismatch: stop, repair the local PPTX, and re-import as a new design.
 - Missing font or broken glyph: do not silently substitute. Correct the PPTX font names or fix in Canva, then re-preview.
 - Thumbnail server error: retry the affected page; do not treat a missing preview as approval.
