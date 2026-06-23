@@ -206,6 +206,9 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 
 1. Run the content audit before building.
 2. Build the PPTX and export per-slide PNG and layout JSON.
+   - Pass the external scratch directory as `--workspace`.
+   - The workspace may provide its own `package.json` and `node_modules`; otherwise `build_deck.mjs` falls back to Codex's bundled primary runtime for `@oai/artifact-tool`.
+   - If neither route can resolve `@oai/artifact-tool`, stop and initialize an isolated scratch Node workspace instead of changing the user's project dependencies.
 3. Inspect the montage and every flagged slide at full size.
 4. Run the final audit against both `deck-spec.json` and the PPTX XML.
 5. Run the Canva access preflight described in `canva-delivery.md`; do not import if the active connector cannot access the chosen template/reference route.

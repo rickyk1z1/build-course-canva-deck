@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
@@ -20,9 +21,37 @@ for (const key of ["spec", "output", "workspace"]) {
   if (!args[key]) throw new Error(`Missing --${key}`);
 }
 
+function resolveFrom(baseFile, moduleName) {
+  try {
+    return createRequire(baseFile).resolve(moduleName);
+  } catch {
+    return null;
+  }
+}
+
+async function resolveArtifactTool(workspace) {
+  const moduleName = "@oai/artifact-tool";
+  const runtimeNodeModules = path.join(
+    os.homedir(),
+    ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules",
+  );
+  const candidates = [
+    path.join(workspace, "package.json"),
+    path.join(process.cwd(), "package.json"),
+    path.join(runtimeNodeModules, "codex-artifact-resolver.js"),
+  ];
+  for (const candidate of candidates) {
+    const resolved = resolveFrom(candidate, moduleName);
+    if (resolved) return resolved;
+  }
+  throw new Error(
+    `${moduleName} was not found. Use a scratch workspace with ${moduleName} installed, `
+    + "or run inside Codex with the bundled primary runtime available.",
+  );
+}
+
 const workspace = path.resolve(String(args.workspace));
-const requireFromWorkspace = createRequire(path.join(workspace, "package.json"));
-const artifactEntry = requireFromWorkspace.resolve("@oai/artifact-tool");
+const artifactEntry = await resolveArtifactTool(workspace);
 const { Presentation, PresentationFile } = await import(pathToFileURL(artifactEntry).href);
 
 const specPath = path.resolve(String(args.spec));

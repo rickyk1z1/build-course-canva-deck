@@ -36,6 +36,7 @@ def validate(payload: dict) -> list[str]:
     if orders != list(range(1, len(nodes) + 1)):
         errors.append("node order must be contiguous and match list order")
     position = {node.get("id"): i for i, node in enumerate(nodes)}
+    depth_by_id = {node.get("id"): node.get("depth") for node in nodes}
     for node in nodes:
         parent = node.get("parent_id")
         if parent is None:
@@ -44,6 +45,9 @@ def validate(payload: dict) -> list[str]:
             errors.append(f"node {node.get('id')} references missing parent {parent}")
         elif position[parent] >= position[node.get("id")]:
             errors.append(f"node {node.get('id')} appears before its parent {parent}")
+        elif isinstance(depth_by_id.get(parent), int) and isinstance(node.get("depth"), int):
+            if depth_by_id[parent] >= node["depth"]:
+                errors.append(f"node {node.get('id')} depth must be greater than parent {parent}")
     mode = payload.get("outline_mode")
     if mode is not None and mode not in {"detailed", "sparse"}:
         errors.append("outline_mode must be detailed, sparse, or null")

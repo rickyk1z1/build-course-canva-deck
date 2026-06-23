@@ -95,8 +95,24 @@ class SourceMapBuilder:
 
 
 def parse_markdown_or_text(builder: SourceMapBuilder, text: str, markdown: bool) -> None:
-    stack: list[tuple[int, str]] = []
-    last_parent: str | None = None
+    stack: list[tuple[int, str, str]] = []
+
+    def current_heading_base() -> int:
+        for depth, _, kind in reversed(stack):
+            if kind == "heading":
+                return depth
+        return -1
+
+    def add_at_depth(text_value: str, *, depth: int, kind: str, locator: str) -> None:
+        while stack and stack[-1][0] >= depth:
+            stack.pop()
+        parent = stack[-1][1] if stack else None
+        node = builder.add_node(
+            text_value, parent_id=parent, depth=depth, kind=kind, locator=locator,
+        )
+        if node:
+            stack.append((depth, node, kind))
+
     for line_number, raw in enumerate(text.splitlines(), start=1):
         if not raw.strip():
             continue
@@ -105,29 +121,26 @@ def parse_markdown_or_text(builder: SourceMapBuilder, text: str, markdown: bool)
         numbered = re.match(r"^(\s*)\d+[.)、]\s*(.+)$", raw)
         if heading:
             level = len(heading.group(1))
-            while stack and stack[-1][0] >= level:
-                stack.pop()
-            parent = stack[-1][1] if stack else None
-            node = builder.add_node(
-                heading.group(2), parent_id=parent, depth=level - 1,
+            add_at_depth(
+                heading.group(2), depth=level - 1,
                 kind="heading", locator=f"line:{line_number}",
             )
-            if node:
-                stack.append((level, node))
-                last_parent = node
             continue
         match = bullet or numbered
         if match:
             indent = len(match.group(1).replace("\t", "    ")) // 2
-            parent = stack[-1][1] if stack else last_parent
-            builder.add_node(
-                match.group(2), parent_id=parent, depth=len(stack) + indent,
+            base = current_heading_base()
+            depth = base + 1 + indent if base >= 0 else indent
+            add_at_depth(
+                match.group(2), depth=depth,
                 kind="list-item", locator=f"line:{line_number}",
             )
             continue
-        parent = stack[-1][1] if stack else last_parent
-        builder.add_node(
-            raw, parent_id=parent, depth=len(stack), kind="paragraph",
+        indent = len(raw) - len(raw.lstrip(" \t"))
+        base = current_heading_base()
+        depth = base + 1 if base >= 0 else indent // 2
+        add_at_depth(
+            raw, depth=depth, kind="paragraph",
             locator=f"line:{line_number}",
         )
 

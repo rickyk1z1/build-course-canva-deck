@@ -16,7 +16,7 @@ from typing import Any, Iterable
 FORBIDDEN = [
     "PDF", "原稿", "来源文档", "制作说明", "图旁注明", "详细讲稿",
     "预计讲解时间", "视觉说明", "对应节点", "Genji 是真想教会你",
-    "lorem ipsum", "[TODO", "{{", "}}", "turn0", "ref_id",
+    "lorem ipsum", "TODO", "[TODO", "{{", "}}", "turn0", "ref_id",
 ]
 IMAGE_LAYOUTS = {
     "image-left", "image-right",
@@ -25,6 +25,7 @@ IMAGE_LAYOUTS = {
     "image-left-accent", "image-right-accent",
 }
 KNOWLEDGE_LAYOUTS = {"roadmap", "light", "dark", "orange", "accent", *IMAGE_LAYOUTS, "comparison", "table", "summary"}
+ALLOWED_LAYOUTS = {"cover", *KNOWLEDGE_LAYOUTS}
 ALLOWED_ADDITION_KINDS = {"definition", "cause", "relationship", "example", "misconception", "boundary"}
 VISUAL_ASSET_TYPES = {
     "source-image",
@@ -91,6 +92,31 @@ def template_reference_key(slide: dict[str, Any]) -> str:
     if isinstance(value, list):
         value = ",".join(str(item) for item in value)
     return str(value or "").strip()
+
+
+def structured_visual_content(screen: dict[str, Any], visual_plan: dict[str, Any], visuals: list[Any]) -> bool:
+    if visuals:
+        return True
+    bullets = screen.get("bullets") or []
+    if isinstance(bullets, list) and any(str(item).strip() for item in bullets):
+        return True
+    blocks = screen.get("blocks") or []
+    if isinstance(blocks, list):
+        for block in blocks:
+            if not isinstance(block, dict):
+                continue
+            if str(block.get("heading", "")).strip():
+                return True
+            items = block.get("items") or []
+            if isinstance(items, list) and any(str(item).strip() for item in items):
+                return True
+    for key in ("diagram_elements", "table_rows", "shape_plan"):
+        value = visual_plan.get(key)
+        if isinstance(value, list) and value:
+            return True
+        if isinstance(value, dict) and value:
+            return True
+    return False
 
 
 def max_run(values: list[str]) -> tuple[str, int]:
@@ -206,6 +232,8 @@ def main() -> int:
     for index, slide in enumerate(slides, start=1):
         label = f"slide {index}"
         layout = slide.get("layout", "light")
+        if layout not in ALLOWED_LAYOUTS:
+            errors.append(f"{label} uses unsupported layout: {layout}")
         text = visible_text(slide)
         lower = text.lower()
         for term in FORBIDDEN:
@@ -317,6 +345,14 @@ def main() -> int:
                     elif not 0.33 <= float(text_area_ratio) <= 0.48:
                         errors.append(f"{label} text area should stay around 40% on illustrated slides")
                 visuals = slide.get("visuals") or []
+                if (
+                    asset_type in {"editable-diagram", "editable-table"}
+                    and layout in {"comparison", "table", "roadmap"}
+                    and not structured_visual_content(screen, visual_plan, visuals)
+                ):
+                    errors.append(
+                        f"{label} editable visual must be backed by visible blocks, visual elements, or diagram/table metadata"
+                    )
                 if asset_type in IMAGE_ASSET_TYPES:
                     if not visuals:
                         errors.append(f"{label} visual_plan uses an image asset but slide.visuals is empty")
@@ -380,6 +416,9 @@ def main() -> int:
     missing = [node_id for node_id in source_ids if node_id not in mapped]
     if missing:
         errors.append(f"source coverage is incomplete; missing {len(missing)} nodes: {', '.join(sorted(missing)[:12])}")
+    duplicates = sorted({node_id for node_id in mapped if mapped.count(node_id) > 1})
+    if duplicates:
+        errors.append(f"source coverage maps nodes more than once: {', '.join(duplicates[:12])}")
     mapped_orders = [source_order[node_id] for node_id in mapped if node_id in source_order]
     if mapped_orders != sorted(mapped_orders):
         errors.append("source-node mappings are not monotonic across slides")

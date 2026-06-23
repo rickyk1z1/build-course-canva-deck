@@ -45,8 +45,19 @@ def main() -> int:
         extracted = json.loads(source_map.read_text(encoding="utf-8"))
         assert extracted["outline_mode"] is None
         assert extracted["requires_user_outline_mode"] is True
+        by_text = {node["text"]: node for node in extracted["nodes"]}
+        assert by_text["编码是整理和压缩视频数据的打包手法。"]["parent_id"] == by_text["编码"]["id"]
+        assert by_text["格式是承装视频数据的文件箱子。"]["parent_id"] == by_text["格式"]["id"]
         run([sys.executable, str(SCRIPTS / "validate_source_map.py"), str(source_map), "--require-mode"], expect=1)
         run([sys.executable, str(SCRIPTS / "validate_source_map.py"), str(source_map), "--mode", "detailed", "--write", "--require-mode"])
+
+        txt_outline = temp / "outline.txt"
+        txt_outline.write_text("一、父节点\n  1. 子节点\n  2. 子节点二\n二、父节点二\n", encoding="utf-8")
+        txt_map = temp / "txt-source-map.json"
+        run([sys.executable, str(SCRIPTS / "extract_source.py"), "--input", str(txt_outline), "--output", str(txt_map)])
+        txt_nodes = json.loads(txt_map.read_text(encoding="utf-8"))["nodes"]
+        assert txt_nodes[1]["parent_id"] == txt_nodes[0]["id"]
+        assert txt_nodes[2]["parent_id"] == txt_nodes[0]["id"]
 
         # Modern XMind parsing works and also leaves mode unset.
         xmind = temp / "fixture.xmind"
@@ -210,6 +221,30 @@ def main() -> int:
         backstage_path.write_text(json.dumps(backstage, ensure_ascii=False), encoding="utf-8")
         backstage_report = audit(temp, backstage_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("PDF" in error for error in backstage_report["errors"])
+
+        unsupported_layout_path = temp / "unsupported-layout.json"
+        unsupported_layout = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        unsupported_layout["slides"][1]["layout"] = "bad-layout"
+        unsupported_layout["slides"][1]["screen"]["explanation"] += " TODO"
+        unsupported_layout["slides"][1]["source_node_ids"].append(unsupported_layout["slides"][1]["source_node_ids"][0])
+        unsupported_layout_path.write_text(json.dumps(unsupported_layout, ensure_ascii=False), encoding="utf-8")
+        unsupported_layout_report = audit(temp, unsupported_layout_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("unsupported layout" in error for error in unsupported_layout_report["errors"])
+        assert any("TODO" in error for error in unsupported_layout_report["errors"])
+        assert any("more than once" in error for error in unsupported_layout_report["errors"])
+
+        empty_editable_path = temp / "empty-editable-visual.json"
+        empty_editable = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        empty_editable["slides"][1]["layout"] = "comparison"
+        empty_editable["slides"][1]["screen"]["bullets"] = []
+        empty_editable["slides"][1]["screen"]["blocks"] = []
+        empty_editable["slides"][1]["visuals"] = []
+        empty_editable["slides"][1]["visual_plan"]["asset_type"] = "editable-diagram"
+        empty_editable["slides"][1]["visual_plan"]["imagegen_priority"] = "not-needed"
+        empty_editable["slides"][1]["visual_plan"]["imagegen_bypass_reason"] = "该页是关系结构图，更适合可编辑形状。"
+        empty_editable_path.write_text(json.dumps(empty_editable, ensure_ascii=False), encoding="utf-8")
+        empty_editable_report = audit(temp, empty_editable_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("editable visual" in error for error in empty_editable_report["errors"])
 
         # Contact-sheet helper works with generated PNGs.
         try:
