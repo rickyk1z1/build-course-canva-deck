@@ -40,18 +40,21 @@ await Promise.all([
   fs.mkdir(path.dirname(outputPath), { recursive: true }),
 ]);
 
+const profile = spec.course?.design_profile || {};
+const profileColors = profile.colors || {};
+const profileFonts = profile.fonts || {};
 const C = {
-  black: "#1C1C1C",
-  orange: "#FC6736",
-  cream: "#F2EBE3",
-  white: "#FFFFFF",
-  muted: "#6C6661",
+  black: profileColors.dark || profileColors.black || "#1C1C1C",
+  orange: profileColors.accent || profileColors.orange || "#FC6736",
+  cream: profileColors.light || profileColors.cream || "#F2EBE3",
+  white: profileColors.neutral || profileColors.white || "#FFFFFF",
+  muted: profileColors.muted || "#6C6661",
 };
 const F = {
-  title: "站酷高端黑",
-  secondary: "思源黑体 CN Light",
-  body: "字由点字烈黑",
-  deco: "思源黑体 CN Bold",
+  title: profileFonts.title || "站酷高端黑",
+  secondary: profileFonts.secondary || "思源黑体 CN Light",
+  body: profileFonts.body || "字由点字烈黑",
+  deco: profileFonts.decorative || profileFonts.deco || "思源黑体 CN Bold",
 };
 
 function addBox(slide, { left, top, width, height, fill, name }) {
@@ -107,9 +110,13 @@ function bulletText(items, max = 6) {
 }
 
 function themeFor(layout) {
-  if (layout === "dark" || layout === "summary") return "dark";
-  if (layout === "orange" || layout === "roadmap") return "orange";
+  if (layout === "dark" || layout === "summary" || String(layout).endsWith("-dark")) return "dark";
+  if (layout === "orange" || layout === "accent" || layout === "roadmap" || String(layout).endsWith("-orange") || String(layout).endsWith("-accent")) return "orange";
   return "light";
+}
+
+function imageSideFor(layout) {
+  return String(layout).includes("image-left") ? "left" : "right";
 }
 
 function addHeader(slide, item, theme) {
@@ -204,16 +211,30 @@ async function buildCover(presentation, item) {
 async function buildImageSlide(presentation, item) {
   const theme = themeFor(item.layout);
   const dark = theme === "dark";
+  const orange = theme === "orange";
   const slide = presentation.slides.add();
   slide.background.fill = dark ? C.black : theme === "orange" ? C.orange : C.cream;
   addHeader(slide, item, theme);
   const visual = (item.visuals || [])[0];
-  const imageLeft = item.layout !== "image-right";
+  const imageLeft = imageSideFor(item.layout) === "left";
   const imagePosition = imageLeft
     ? { left: 72, top: 205, width: 620, height: 355 }
     : { left: 588, top: 205, width: 620, height: 355 };
   const textLeft = imageLeft ? 735 : 72;
   const textWidth = 473;
+  if (orange) {
+    addBox(slide, {
+      left: textLeft - 24, top: 190, width: textWidth + 48, height: 420,
+      fill: C.cream, name: `orange-text-field-${item.number}`,
+    });
+  }
+  if (dark) {
+    addBox(slide, {
+      left: imagePosition.left - 16, top: imagePosition.top - 16,
+      width: imagePosition.width + 32, height: imagePosition.height + 32,
+      fill: C.cream, name: `dark-image-field-${item.number}`,
+    });
+  }
   await addImage(slide, visual, imagePosition, visual?.fit || "contain");
   addCaption(slide, item, theme, { left: imagePosition.left, top: 570, width: imagePosition.width, height: 60 });
   addExplanation(slide, item, theme, { left: textLeft, top: 205, width: textWidth, height: 135 });
@@ -276,7 +297,7 @@ async function main() {
   const presentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
   for (const item of slides) {
     if (item.layout === "cover") await buildCover(presentation, item);
-    else if (item.layout === "image-left" || item.layout === "image-right") await buildImageSlide(presentation, item);
+    else if (String(item.layout).startsWith("image-left") || String(item.layout).startsWith("image-right")) await buildImageSlide(presentation, item);
     else if (item.layout === "comparison" || item.layout === "table") buildComparison(presentation, item);
     else buildTextSlide(presentation, item);
   }

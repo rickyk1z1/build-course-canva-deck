@@ -96,6 +96,35 @@ def main() -> int:
         generated_route_report = audit(temp, generated_missing_route_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("generation route" in error or "prompt brief" in error for error in generated_route_report["errors"])
 
+        generated_wrong_route_path = temp / "generated-wrong-route.json"
+        generated_wrong_route = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        generated_wrong_route["slides"][1]["layout"] = "image-right"
+        generated_wrong_route["slides"][1]["visuals"] = [{"path": "example.png", "alt": "案例图"}]
+        generated_wrong_route["slides"][1]["visual_plan"]["asset_type"] = "generated-image"
+        generated_wrong_route["slides"][1]["visual_plan"]["generation_route"] = "imagegen"
+        generated_wrong_route["slides"][1]["visual_plan"]["imagegen_priority"] = "preferred"
+        generated_wrong_route["slides"][1]["visual_plan"]["prompt_brief"] = "具体课程场景插图"
+        generated_wrong_route_path.write_text(json.dumps(generated_wrong_route, ensure_ascii=False), encoding="utf-8")
+        generated_wrong_route_report = audit(temp, generated_wrong_route_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("gpt-image-2" in error for error in generated_wrong_route_report["errors"])
+
+        repetitive_layout_path = temp / "repetitive-layout.json"
+        repetitive_layout = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        repeated = [repetitive_layout["slides"][0]]
+        source_slide = repetitive_layout["slides"][1]
+        for number in range(2, 16):
+            clone = json.loads(json.dumps(source_slide, ensure_ascii=False))
+            clone["number"] = number
+            clone["layout"] = "image-right" if number % 2 == 0 else "image-left"
+            repeated.append(clone)
+        final_slide = json.loads(json.dumps(repetitive_layout["slides"][-1], ensure_ascii=False))
+        final_slide["number"] = 16
+        repeated.append(final_slide)
+        repetitive_layout["slides"] = repeated
+        repetitive_layout_path.write_text(json.dumps(repetitive_layout, ensure_ascii=False), encoding="utf-8")
+        repetitive_layout_report = audit(temp, repetitive_layout_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("layout rhythm" in error for error in repetitive_layout_report["errors"])
+
         # Sparse direct expansion passes.
         sparse = audit(temp, FIXTURES / "deck-spec-sparse.json", FIXTURES / "source-map-sparse.json")
         assert sparse["ok"]

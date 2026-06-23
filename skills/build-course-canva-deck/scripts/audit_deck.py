@@ -18,7 +18,13 @@ FORBIDDEN = [
     "预计讲解时间", "视觉说明", "对应节点", "Genji 是真想教会你",
     "lorem ipsum", "[TODO", "{{", "}}", "turn0", "ref_id",
 ]
-KNOWLEDGE_LAYOUTS = {"roadmap", "light", "dark", "orange", "image-left", "image-right", "comparison", "table", "summary"}
+IMAGE_LAYOUTS = {
+    "image-left", "image-right",
+    "image-left-dark", "image-right-dark",
+    "image-left-orange", "image-right-orange",
+    "image-left-accent", "image-right-accent",
+}
+KNOWLEDGE_LAYOUTS = {"roadmap", "light", "dark", "orange", "accent", *IMAGE_LAYOUTS, "comparison", "table", "summary"}
 ALLOWED_ADDITION_KINDS = {"definition", "cause", "relationship", "example", "misconception", "boundary"}
 VISUAL_ASSET_TYPES = {
     "source-image",
@@ -29,9 +35,9 @@ VISUAL_ASSET_TYPES = {
     "text-only-exception",
 }
 IMAGE_ASSET_TYPES = {"source-image", "redrawn-source-image", "generated-image"}
-VISUAL_LAYOUTS = {"image-left", "image-right", "comparison", "table", "roadmap"}
+VISUAL_LAYOUTS = {*IMAGE_LAYOUTS, "comparison", "table", "roadmap"}
 FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-note", "later", "future-task"}
-GENERATED_IMAGE_ROUTES = {"imagegen", "user-provided", "external-tool"}
+GENERATED_IMAGE_ROUTES = {"gpt-image-2", "imagegen", "user-provided"}
 VISUAL_APPLICABILITY = {"required", "exception"}
 IMAGEGEN_PRIORITY = {"preferred", "not-needed", "unavailable"}
 
@@ -62,6 +68,37 @@ def pptx_text(path: Path) -> tuple[int, str]:
             xml = archive.read(name).decode("utf-8", errors="replace")
             texts.extend(html.unescape(value) for value in re.findall(r"<a:t>(.*?)</a:t>", xml, flags=re.S))
         return len(names), "\n".join(texts)
+
+
+def layout_theme(layout: str) -> str:
+    if layout in {"dark", "summary"} or layout.endswith("-dark"):
+        return "dark"
+    if layout in {"orange", "accent", "roadmap"} or layout.endswith("-orange") or layout.endswith("-accent"):
+        return "orange"
+    return "light"
+
+
+def layout_family(layout: str) -> str:
+    if layout.startswith("image-left") or layout.startswith("image-right"):
+        return f"image-{layout_theme(layout)}"
+    return layout
+
+
+def max_run(values: list[str]) -> tuple[str, int]:
+    best_value = ""
+    best_count = 0
+    current_value = ""
+    current_count = 0
+    for value in values:
+        if value == current_value:
+            current_count += 1
+        else:
+            current_value = value
+            current_count = 1
+        if current_count > best_count:
+            best_value = current_value
+            best_count = current_count
+    return best_value, best_count
 
 
 def main() -> int:
@@ -102,6 +139,35 @@ def main() -> int:
     actual_numbers = [slide.get("number") for slide in slides]
     if actual_numbers != expected_numbers:
         errors.append("slide numbers must be contiguous and match list order")
+    normal_knowledge = [
+        slide for slide in slides
+        if slide.get("layout") not in {"cover", "summary"} and (slide.get("layout", "light") in KNOWLEDGE_LAYOUTS)
+    ]
+    if len(normal_knowledge) > 12:
+        families = [layout_family(str(slide.get("layout", "light"))) for slide in normal_knowledge]
+        themes = [layout_theme(str(slide.get("layout", "light"))) for slide in normal_knowledge]
+        family_counts = {family: families.count(family) for family in set(families)}
+        dominant_family, dominant_count = max(family_counts.items(), key=lambda item: item[1])
+        dominant_ratio = dominant_count / len(normal_knowledge)
+        if dominant_ratio > 0.60:
+            errors.append(
+                f"layout rhythm is too repetitive: {dominant_family} covers "
+                f"{dominant_count}/{len(normal_knowledge)} normal knowledge slides"
+            )
+        if len(set(themes)) < 3:
+            errors.append("layout rhythm must use at least three background color modes across long decks")
+        run_family, run_family_count = max_run(families)
+        if run_family_count > 4:
+            errors.append(f"layout rhythm has {run_family_count} consecutive {run_family} pages")
+        run_theme, run_theme_count = max_run(themes)
+        if run_theme_count > 4:
+            errors.append(f"layout rhythm has {run_theme_count} consecutive {run_theme} background pages")
+        plain_light_image_count = sum(1 for slide in normal_knowledge if slide.get("layout") in {"image-left", "image-right"})
+        if plain_light_image_count / len(normal_knowledge) > 0.50:
+            errors.append(
+                "layout rhythm is dominated by plain light image-left/image-right pages; "
+                "use dark and accent template-field image variants"
+            )
 
     mapped: list[str] = []
     previous_min_order = 0
@@ -131,7 +197,7 @@ def main() -> int:
                 errors.append(f"{label} lacks a self-contained learner explanation")
             if layout not in {"table", "summary"} and not 3 <= point_count <= 5:
                 errors.append(f"{label} should contain 3-5 structured learner-facing points")
-            if layout in {"image-left", "image-right", "comparison"} and not screen.get("caption"):
+            if layout in IMAGE_LAYOUTS | {"comparison"} and not screen.get("caption"):
                 errors.append(f"{label} has a visual layout without learner-facing interpretation")
             if layout != "summary":
                 visual_plan = slide.get("visual_plan")
@@ -171,7 +237,7 @@ def main() -> int:
                 if asset_type in IMAGE_ASSET_TYPES:
                     if not visuals:
                         errors.append(f"{label} visual_plan uses an image asset but slide.visuals is empty")
-                    if layout not in {"image-left", "image-right", "comparison"}:
+                    if layout not in IMAGE_LAYOUTS | {"comparison"}:
                         errors.append(f"{label} image assets must use an image-integrated layout")
                     if not screen.get("caption"):
                         errors.append(f"{label} image asset lacks learner-facing visual interpretation")
@@ -180,8 +246,8 @@ def main() -> int:
                     prompt_brief = str(visual_plan.get("prompt_brief", "")).strip()
                     if route not in GENERATED_IMAGE_ROUTES:
                         errors.append(f"{label} generated image must record a supported generation route")
-                    if route != "imagegen" and imagegen_priority != "unavailable":
-                        errors.append(f"{label} generated image should use imagegen unless imagegen is unavailable")
+                    if route != "gpt-image-2" and imagegen_priority != "unavailable":
+                        errors.append(f"{label} generated image should use gpt-image-2 unless it is unavailable")
                     if len(prompt_brief) < 12:
                         errors.append(f"{label} generated image must record a concrete prompt brief")
                 if asset_type in {"editable-diagram", "editable-table"} and imagegen_priority == "preferred":

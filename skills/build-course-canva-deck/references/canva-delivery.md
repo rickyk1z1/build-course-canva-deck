@@ -3,28 +3,28 @@
 ## Preconditions
 
 - Confirm the Canva connector is connected to an account that can access the chosen template route.
-- Canonical visual template: `DAHM5fsVEB0`.
+- Default visual template: `DAHM5fsVEB0`. If the user supplies another template/design ID, that ID becomes the chosen visual template for this run.
 - Accepted reference design when available: `DAHNU2_rPtU`; it is a quality reference, not a content source.
-- Keep the original template unchanged.
+- Keep the chosen source template unchanged.
 
 ## Access preflight
 
 Run this before importing or creating any Canva design:
 
-1. Search/read the canonical template `DAHM5fsVEB0`.
+1. Search/read the chosen template ID from `course.template_design_id` or the user's explicit template link. Use `DAHM5fsVEB0` only when no other template is selected.
 2. Search/read the accepted reference design `DAHNU2_rPtU` when available.
 3. Record the result in `canva-access.json`:
    - active Canva account or workspace if the tool exposes it;
    - accessible template/reference IDs;
    - chosen template route;
    - connector errors and timestamps.
-4. If `DAHM5fsVEB0` returns `design not found` but other designs are readable, treat it as a template permission/workspace problem, not as proof the design does not exist.
+4. If the chosen template returns `design not found` but other designs are readable, treat it as a template permission/workspace problem, not as proof the design does not exist.
 5. If the connector returns internal errors such as MCP `-32603`, treat it as a connector/service failure. Retry once after reconnecting; do not repeatedly call the same failing operation.
 6. Do not import or create the final Canva design until one route below is available.
 
 Allowed template routes:
 
-- **Connector route:** connector can access `DAHM5fsVEB0`; proceed normally.
+- **Connector route:** connector can access the chosen template; proceed normally.
 - **Accessible duplicate route:** user provides a duplicate template/design ID that the current connector can access; use it for this device while preserving the same visual system.
 - **Bundled-reference route:** connector cannot access the template, but the local PPTX has already been built from bundled template references; ask the user to connect the correct Canva account or provide an accessible duplicate before Canva import.
 - **Browser fallback route:** only after explicit user approval, use the user's logged-in browser/Chrome session to upload/import the verified PPTX and inspect pages. Operate only on a new design; never modify the canonical template.

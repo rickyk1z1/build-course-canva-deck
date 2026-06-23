@@ -52,6 +52,29 @@ Build `deck-spec.json` with this minimum shape:
     "outline_mode": "detailed",
     "authoritative_source": "/absolute/path",
     "template_design_id": "DAHM5fsVEB0",
+    "design_profile": {
+      "profile_source": "default-bundled-template | chosen-canva-template",
+      "template_design_id": "DAHM5fsVEB0",
+      "reference_contact_sheet": "assets/template-reference/template-21-pages-contact-sheet.jpg",
+      "colors": {
+        "dark": "#1C1C1C",
+        "accent": "#FC6736",
+        "light": "#F2EBE3",
+        "neutral": "#FFFFFF",
+        "muted": "#6C6661"
+      },
+      "fonts": {
+        "title": "站酷高端黑",
+        "secondary": "思源黑体 CN Light",
+        "body": "字由点字烈黑",
+        "decorative": "思源黑体 CN Bold"
+      },
+      "layout_rhythm": {
+        "required_modes": ["light", "dark", "accent"],
+        "max_consecutive_same_mode": 4,
+        "max_dominant_family_ratio": 0.6
+      }
+    },
     "explicit_exclusions": [],
     "curriculum_context": {
       "system_name": "自媒体与视频剪辑课程体系",
@@ -101,7 +124,7 @@ Build `deck-spec.json` with this minimum shape:
 }
 ```
 
-Allowed layouts: `cover`, `roadmap`, `light`, `dark`, `orange`, `image-left`, `image-right`, `comparison`, `table`, `summary`.
+Allowed layouts: `cover`, `roadmap`, `light`, `dark`, `orange`/`accent`, `image-left`, `image-right`, `image-left-dark`, `image-right-dark`, `image-left-orange`/`image-left-accent`, `image-right-orange`/`image-right-accent`, `comparison`, `table`, `summary`.
 
 For sparse mode, every `added_content` item must contain:
 
@@ -129,9 +152,10 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 - Use embedded source visuals before generating replacements.
 - Redraw source visuals only to improve readability; preserve their teaching logic.
 - Generate illustrations without baked-in text. Add labels as editable slide text.
-- Every knowledge branch that can use a case image or demonstration image should have one. Prefer the available `imagegen` skill/tool path for rich bitmap case illustrations; if the visual is a simple relationship, process, table, or label-heavy diagram, use editable PPTX/Canva shapes and record why imagegen was bypassed.
+- Every knowledge branch that can use a case image or demonstration image should have one. Prefer `gpt-image-2` for rich bitmap case illustrations; use built-in `imagegen` only when GPT Image 2 is unavailable or explicitly requested. If the visual is a simple relationship, process, table, or label-heavy diagram, use editable PPTX/Canva shapes and record why raster generation was bypassed.
 - On illustrated knowledge pages, keep text around 40% and visual content around 50%; split content into more slides when the text cannot fit cleanly.
 - Every source screenshot or generated diagram must have learner-facing interpretation in the same slide's caption or nearby body text.
+- Generated illustrations must be concrete teaching scenes or examples. Reject abstract geometric placeholders, generic icons, or decorative workflow-looking images that do not make the slide's knowledge point clearer.
 
 ## Build and delivery
 

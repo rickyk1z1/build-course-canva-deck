@@ -5,7 +5,7 @@ description: Turn a course outline or knowledge tree into a detailed, learner-fa
 
 # Build Course Canva Deck
 
-Create a complete recording presentation from a course knowledge outline. Treat the accepted `影像基础参数` deck as the content-depth and visual-quality baseline, not as reusable subject matter.
+Create a complete recording presentation from a course knowledge outline. Treat the accepted `影像基础参数` deck as the content-depth and visual-quality baseline, not as reusable subject matter. Treat the Canva template as configurable: use the bundled `DAHM5fsVEB0` profile only when the user has not supplied a different template.
 
 ## Non-negotiable checkpoint
 
@@ -38,7 +38,7 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 8. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page.
 9. Read [references/design-system.md](references/design-system.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
 10. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
-11. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight, import the verified PPTX as a new Canva design, and leave the canonical template unchanged.
+11. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.
 12. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
 13. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
 
@@ -56,7 +56,7 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 - Never display production language such as `PDF`, `原稿`, `来源文档`, `制作说明`, `图旁注明`, `详细讲稿`, or `预计讲解时间`.
 - Never display prompts, placeholders, source-tracking labels, or `Genji 是真想教会你`.
 - Keep research citations in the evidence ledger, not on slides unless the user requests citations.
-- Do not modify or overwrite the original Canva template. If the connector cannot access `DAHM5fsVEB0` on another device, ask for an accessible duplicate or explicit browser fallback instead of continuing with a broken Canva connection.
+- Do not modify or overwrite the original Canva template. If the connector cannot access the chosen template on another device, ask for an accessible duplicate or explicit browser fallback instead of continuing with a broken Canva connection.
 
 Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage complete.
 
@@ -65,9 +65,9 @@ Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage
 - `scripts/extract_source.py`: extract a canonical source map from supported formats.
 - `scripts/validate_source_map.py`: validate hierarchy and record the user-declared mode.
 - `scripts/audit_deck.py`: enforce coverage, mode, scope, screen-copy, and PPTX text gates.
-- `scripts/build_deck.mjs`: generate editable 16:9 slides in the fixed template language.
+- `scripts/build_deck.mjs`: generate editable 16:9 slides using the selected template profile.
 - `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet.
 - `references/visual-system.md`: mandatory rules for source case images, generated diagrams, and slide-level visual plans.
 - `references/canva-delivery.md`: Canva connector preflight, cross-device template access, and browser fallback rules.
-- `assets/template-reference/`: immutable visual reference for Canva template `DAHM5fsVEB0`.
+- `assets/template-reference/`: immutable fallback visual reference for Canva template `DAHM5fsVEB0` when no other template is selected.
 - `assets/golden-layouts/`: approved knowledge-page composition references.

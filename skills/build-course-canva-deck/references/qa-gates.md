@@ -41,8 +41,15 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Slides with source or generated images use `image-left`, `image-right`, or another layout that visibly places the image inside the knowledge page.
 - Visuals have learner-facing interpretation in the same slide.
 - Generated images contain no baked-in Chinese text; labels are editable slide text.
-- Generated image plans include a generation route and prompt brief; imagegen is the preferred route for rich bitmap examples when available, while editable diagrams remain preferred for label-heavy teaching graphics.
+- Generated image plans include a generation route and prompt brief; `gpt-image-2` is the preferred route for rich bitmap examples when available, while editable diagrams remain preferred for label-heavy teaching graphics.
+- Generated images must be concrete teaching scenes, cases, or demonstrations. Abstract geometry, generic icon collages, and decorative workflow-looking placeholders fail even if they are visually polished.
 - Illustrated knowledge slides target about 40% text area; pages needing more text should split rather than shrink the visual.
+- Full-deck contact-sheet inspection must check template fidelity and layout variety: the deck should follow the Canva template language and avoid a long run of identical page layouts.
+- For decks longer than 12 pages, automated layout rhythm checks must reject:
+  - more than 60% of normal knowledge pages using the same layout family;
+  - fewer than three background color modes across normal knowledge pages;
+  - more than four consecutive normal knowledge pages with the same layout family or the same background color mode;
+  - a middle section dominated by plain light `image-left` / `image-right` pages.
 - `text-only-exception` is allowed only for cover, transition, summary, or a clearly justified non-visual page.
 - No slide may present case images as a future task list instead of using them to teach the current node.
 
