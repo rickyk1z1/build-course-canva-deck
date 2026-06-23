@@ -66,8 +66,16 @@ def main() -> int:
     mode = source.get("outline_mode")
     if mode not in {"detailed", "sparse"} or not source.get("mode_declared_by_user"):
         errors.append("outline mode was not explicitly declared by the user")
-    if (deck.get("course") or {}).get("outline_mode") != mode:
+    course = deck.get("course") or {}
+    if course.get("outline_mode") != mode:
         errors.append("deck-spec mode does not match source-map mode")
+    curriculum = course.get("curriculum_context") or {}
+    if not curriculum.get("system_name"):
+        errors.append("curriculum_context.system_name is required")
+    if not curriculum.get("module"):
+        errors.append("curriculum_context.module is required")
+    if not curriculum.get("course_role"):
+        errors.append("curriculum_context.course_role is required")
 
     source_nodes = [node for node in source.get("nodes", []) if node.get("include", True)]
     source_ids = {node.get("id") for node in source_nodes}
@@ -83,7 +91,8 @@ def main() -> int:
 
     mapped: list[str] = []
     previous_min_order = 0
-    exclusions = [str(value) for value in (deck.get("course") or {}).get("explicit_exclusions", [])]
+    exclusions = [str(value) for value in course.get("explicit_exclusions", [])]
+    exclusions.extend(str(value) for value in curriculum.get("excluded_neighbor_topics", []))
     for index, slide in enumerate(slides, start=1):
         label = f"slide {index}"
         layout = slide.get("layout", "light")

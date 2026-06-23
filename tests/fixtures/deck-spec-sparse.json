@@ -5,7 +5,17 @@
     "outline_mode": "sparse",
     "authoritative_source": "tests/fixtures/sparse-outline.md",
     "template_design_id": "DAHM5fsVEB0",
-    "explicit_exclusions": ["剪辑软件操作", "软件按钮操作", "代理回连"]
+    "explicit_exclusions": ["剪辑软件操作", "软件按钮操作", "代理回连"],
+    "curriculum_context": {
+      "system_name": "自媒体与视频剪辑课程体系",
+      "module": "影像基础",
+      "course_role": "区分编码与格式并建立基础理解",
+      "prerequisite_lessons": ["视频文件基础"],
+      "next_lessons": ["导出参数"],
+      "shared_terms": {"编码": "数据打包手法", "格式": "文件箱子"},
+      "neighbor_topics": ["剪辑软件操作", "代理流程"],
+      "excluded_neighbor_topics": ["剪辑软件操作", "软件按钮操作", "代理回连"]
+    }
   },
   "slides": [
     {

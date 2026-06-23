@@ -59,6 +59,12 @@ def main() -> int:
         # Detailed baseline passes; added content does not.
         detailed = audit(temp, FIXTURES / "deck-spec-detailed.json", FIXTURES / "source-map-detailed.json")
         assert detailed["ok"]
+        missing_curriculum_path = temp / "missing-curriculum.json"
+        missing_curriculum = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        del missing_curriculum["course"]["curriculum_context"]
+        missing_curriculum_path.write_text(json.dumps(missing_curriculum, ensure_ascii=False), encoding="utf-8")
+        curriculum_report = audit(temp, missing_curriculum_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("curriculum_context" in error for error in curriculum_report["errors"])
         detailed_bad_path = temp / "detailed-added.json"
         detailed_bad = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
         detailed_bad["slides"][1]["added_content"] = [{"text": "额外流程"}]

@@ -7,6 +7,8 @@ Keep scratch files outside the user's project. Put durable deliverables in `<sou
 - `<course-stem>-屏显稿.md`
 - `<course-stem>-录课讲稿.md`
 - `<course-stem>-Canva导入稿.pptx`
+- `curriculum-context.json`
+- `课程体系关联说明.md`
 - `assets/`
 - `qa-report.json`
 - `canva-design.txt`
@@ -20,7 +22,8 @@ Never overwrite source files.
 3. Extract text, hierarchy, order, and embedded images.
 4. Render PDFs and inspect their visual hierarchy. A long mind-map PDF often encodes hierarchy through position and connectors that text extraction loses.
 5. Ask the user to choose `细纲` or `粗纲`; never recommend or infer a mode.
-6. Record the explicit reply in the source map.
+6. Search the workspace for the overall curriculum map and neighboring lessons. Create `curriculum-context.json`; ask only when the course position cannot be discovered.
+7. Record the explicit mode reply in the source map.
 
 Supported deterministic extraction routes:
 
@@ -48,7 +51,17 @@ Build `deck-spec.json` with this minimum shape:
     "outline_mode": "detailed",
     "authoritative_source": "/absolute/path",
     "template_design_id": "DAHM5fsVEB0",
-    "explicit_exclusions": []
+    "explicit_exclusions": [],
+    "curriculum_context": {
+      "system_name": "自媒体与视频剪辑课程体系",
+      "module": "模块名称",
+      "course_role": "本课负责解决的问题",
+      "prerequisite_lessons": [],
+      "next_lessons": [],
+      "shared_terms": {},
+      "neighbor_topics": [],
+      "excluded_neighbor_topics": []
+    }
   },
   "slides": [
     {
@@ -91,6 +104,8 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 ## Authoring and visuals
 
 - Preserve source order before optimizing narrative transitions.
+- Align the deck with the overall curriculum role, prerequisites, shared terminology, and downstream lessons.
+- Keep neighboring lessons' primary teaching tasks out of this deck; record a handoff instead of duplicating them.
 - Give each knowledge slide one explanation paragraph and usually 3-5 concrete points.
 - Keep a page readable without narration; use notes only for delivery rhythm.
 - Use embedded source visuals before generating replacements.

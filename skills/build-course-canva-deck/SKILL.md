@@ -1,6 +1,6 @@
 ---
 name: build-course-canva-deck
-description: Turn a course outline or knowledge tree into a detailed, learner-facing, editable Canva recording deck using the fixed black-orange-cream template system. Use for PDF, XMind, DOCX, Markdown, TXT, OPML, or FreeMind inputs when Codex must preserve teaching order, distinguish a user-declared detailed outline from a user-declared sparse outline, create screen copy and separate lecture notes, prepare explanatory visuals, build and QA a PPTX, import it into Canva, and request final approval before saving.
+description: Turn a course outline or knowledge tree into a detailed, learner-facing, editable Canva recording deck that belongs to one coherent self-media, editing-mindset, and video-editing curriculum. Use for PDF, XMind, DOCX, Markdown, TXT, OPML, or FreeMind inputs when Codex must preserve teaching order, distinguish a user-declared detailed outline from a user-declared sparse outline, align terminology and scope with neighboring courses, create screen copy and separate lecture notes, prepare explanatory visuals, build and QA a PPTX, import it into Canva, and request final approval before saving.
 ---
 
 # Build Course Canva Deck
@@ -15,6 +15,8 @@ Create a complete recording presentation from a course knowledge outline. Treat 
 4. Do not infer the mode from length, hierarchy, file type, or apparent detail. Do not proceed until the user chooses.
 5. Record the choice in `source-map.json` with `validate_source_map.py --mode detailed|sparse --write`.
 
+Before authoring, read [references/curriculum-system.md](references/curriculum-system.md). Discover the existing curriculum map, neighboring lessons, shared terminology, and this lesson's role. If the workspace does not reveal the lesson's position, ask the user for the missing curriculum context instead of inventing it.
+
 ## Mode contract
 
 - `细纲` / `detailed`: match the accepted `影像基础参数` deck's content depth. Preserve source order, examples, metaphors, claims, and scope. Improve teachability, wording, and visuals only. Do not add adjacent professional workflows.
@@ -27,21 +29,24 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 1. Read [references/workflow.md](references/workflow.md) and create an external scratch workspace.
 2. Run `scripts/extract_source.py` to create `source-map.json`. For PDFs, also render and visually inspect every relevant page; extracted text alone is not hierarchy evidence.
 3. Complete the mandatory source and mode checkpoint above.
-4. Build a source coverage matrix in source order. Include every valid node exactly once or intentionally map a tightly related group to one slide.
-5. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
-6. Write two separate layers:
+4. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
+5. Build a source coverage matrix in source order. Include every valid node exactly once or intentionally map a tightly related group to one slide.
+6. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
+7. Write two separate layers:
    - learner-facing screen copy that can be understood without narration;
    - lecture notes for oral transitions and emphasis, never rendered on slides.
-7. Reuse source examples and images first. Create new diagrams or text-free illustrations only when they materially improve comprehension.
-8. Read [references/design-system.md](references/design-system.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
-9. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
-10. Read [references/canva-delivery.md](references/canva-delivery.md), import the verified PPTX as a new Canva design, and leave template `DAHM5fsVEB0` unchanged.
-11. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
-12. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
+8. Reuse source examples and images first. Create new diagrams or text-free illustrations only when they materially improve comprehension.
+9. Read [references/design-system.md](references/design-system.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
+10. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
+11. Read [references/canva-delivery.md](references/canva-delivery.md), import the verified PPTX as a new Canva design, and leave template `DAHM5fsVEB0` unchanged.
+12. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
+13. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
 
 ## Hard boundaries
 
 - Keep the source's teaching order.
+- Treat every deck as one component of the same self-media and editing curriculum. Preserve shared terminology, prerequisites, difficulty progression, and division of responsibility between lessons.
+- Do not duplicate a neighboring lesson's main teaching task. Record the handoff to that lesson instead of expanding into it.
 - Use one teaching node per slide by default; add slides instead of shrinking body text below 16 pt.
 - Put definitions, explanations, examples, and visual interpretation on the slide. Do not create question-only or keyword-only pages.
 - Keep source images inside knowledge pages. Never let a screenshot or example image replace the lesson text.

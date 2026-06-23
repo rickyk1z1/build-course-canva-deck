@@ -4,6 +4,8 @@
 
 Write for zero-basis learners who need a fast, directionally correct mental model. Prefer familiar objects, visible relationships, and plain language over terminology debates. Keep technical statements accurate enough to guide action without turning an introductory lesson into an advanced workflow.
 
+Treat all decks as chapters of one self-media and editing curriculum. Reuse established terminology and metaphor systems, respect prerequisite order, and keep each lesson responsible for a distinct teaching task. Read `curriculum-system.md` before optimizing or expanding content.
+
 ## Detailed outline (`细纲`)
 
 Use the accepted `影像基础参数` deck as the depth baseline.
@@ -30,6 +32,8 @@ Expand vertically inside each existing node with:
 
 Do not expand horizontally. A topic is out of scope when it cannot be mapped directly to an original node or when its relevance drops into a neighboring workflow. For example, a branch about encoding and containers may explain their definitions, relationship, trade-offs, and examples, but must not branch into editing-software button operations.
 
+An addition is also out of scope when it belongs to a neighboring course, duplicates material already taught elsewhere, or skips prerequisites expected by the overall curriculum.
+
 For every addition:
 
 1. Map it to one original source node.
@@ -37,6 +41,7 @@ For every addition:
 3. Mark relevance as `direct`.
 4. Record authoritative evidence.
 5. Remove it if explaining it requires a new branch not present in the source.
+6. Remove it if it belongs to `excluded_neighbor_topics` or conflicts with the current lesson's `course_role`.
 
 ## Screen copy versus lecture notes
 

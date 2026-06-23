@@ -10,11 +10,15 @@
 
 ## Content gate
 
+- `curriculum_context` identifies the overall system, module, and this lesson's role.
+- Shared terminology matches existing lessons.
+- Prerequisite knowledge is only recapped as needed; neighboring lessons are not duplicated.
 - Every included source node maps to at least one slide.
 - Slide source-node order is monotonic.
 - Detailed mode contains no added-content records.
 - Sparse additions map to original nodes, use allowed addition kinds, have `direct` relevance, and include evidence URLs.
 - Sparse additions do not create new branches or enter neighboring workflows.
+- Visible content contains none of the curriculum context's `excluded_neighbor_topics`.
 - User examples and metaphors are preserved.
 
 ## Learner-facing gate
