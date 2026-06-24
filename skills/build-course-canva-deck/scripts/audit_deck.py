@@ -41,6 +41,30 @@ FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-n
 GENERATED_IMAGE_ROUTES = {"gpt-image-2", "imagegen", "user-provided"}
 VISUAL_APPLICABILITY = {"required", "exception"}
 IMAGEGEN_PRIORITY = {"preferred", "not-needed", "unavailable"}
+TEMPLATE_MOTIF_KINDS = {"hero-right", "visual-anchor", "accent-motif", "background-motif", "frame-motif", "side-panel"}
+TEMPLATE_NATIVE_ELEMENT_TYPES = {
+    "vector",
+    "shape",
+    "line",
+    "frame",
+    "group",
+    "background-shape",
+    "native-vector",
+    "native-shape",
+    "native-group",
+    "image-frame",
+}
+TEMPLATE_MOTIF_REPLACEMENT_MODES = {"copy_template_element", "replace_placeholder"}
+VECTOR_COPY_ELEMENT_TYPES = {
+    "vector",
+    "shape",
+    "line",
+    "group",
+    "background-shape",
+    "native-vector",
+    "native-shape",
+    "native-group",
+}
 ALLOWED_SOURCE_GRANULARITY = {
     "single-case",
     "explicit-comparison",
@@ -153,6 +177,33 @@ def max_run(values: list[str]) -> tuple[str, int]:
     return best_value, best_count
 
 
+def numeric_box(value: Any) -> dict[str, float] | None:
+    if not isinstance(value, dict):
+        return None
+    required = ["left", "top", "width", "height"]
+    if any(not isinstance(value.get(key), (int, float)) for key in required):
+        return None
+    return {key: float(value[key]) for key in required}
+
+
+def boxes_overlap(first: dict[str, float], second: dict[str, float]) -> bool:
+    return (
+        first["left"] < second["left"] + second["width"]
+        and first["left"] + first["width"] > second["left"]
+        and first["top"] < second["top"] + second["height"]
+        and first["top"] + first["height"] > second["top"]
+    )
+
+
+def template_motif_key(template_motif: dict[str, Any]) -> str:
+    ref = template_motif.get("native_element_ref") if isinstance(template_motif.get("native_element_ref"), dict) else {}
+    return ":".join(
+        str(ref.get(key, "")).strip()
+        for key in ("source_design_id", "source_page", "source_element_id")
+        if str(ref.get(key, "")).strip()
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--deck-spec", required=True, type=Path)
@@ -221,6 +272,29 @@ def main() -> int:
                     errors.append("course.template_page_mapping entries must include layout_family")
                 if len(str(item.get("local_ppt_decision", "")).strip()) < 20:
                     errors.append("course.template_page_mapping entries must include a concrete local_ppt_decision")
+        template_native_element_inventory = course.get("template_native_element_inventory")
+        inventory_keys: set[str] = set()
+        if not isinstance(template_native_element_inventory, list) or not template_native_element_inventory:
+            errors.append(
+                "course.template_native_element_inventory must list reusable existing native elements "
+                "from the selected Canva template before local PPT generation"
+            )
+        else:
+            for item in template_native_element_inventory:
+                if not isinstance(item, dict):
+                    errors.append("course.template_native_element_inventory entries must be objects")
+                    continue
+                source_design_id = str(item.get("source_design_id", "")).strip()
+                source_page = str(item.get("source_page", "")).strip()
+                source_element_id = str(item.get("source_element_id", "")).strip()
+                source_element_type = str(item.get("source_element_type", "")).strip()
+                if not source_design_id or not source_page or not source_element_id:
+                    errors.append("course.template_native_element_inventory entries must include source_design_id, source_page, and source_element_id")
+                if source_element_type not in TEMPLATE_NATIVE_ELEMENT_TYPES:
+                    errors.append("course.template_native_element_inventory source_element_type must describe a native vector/shape/group/frame element")
+                if len(str(item.get("visual_role", "")).strip()) < 8:
+                    errors.append("course.template_native_element_inventory entries must describe visual_role")
+                inventory_keys.add(":".join([source_design_id, source_page, source_element_id]))
         families = [layout_family(str(slide.get("layout", "light"))) for slide in normal_knowledge]
         themes = [layout_theme(str(slide.get("layout", "light"))) for slide in normal_knowledge]
         family_counts = {family: families.count(family) for family in set(families)}
@@ -306,6 +380,37 @@ def main() -> int:
                 f"long decks must plan Canva-native template motif use before local PPT generation; "
                 f"found {template_motif_count}, expected at least {required_motifs}"
             )
+        if template_motif_count >= 4:
+            motif_keys = [
+                template_motif_key((slide.get("visual_plan") or {}).get("template_motif") or {})
+                for slide in slides
+                if isinstance((slide.get("visual_plan") or {}).get("template_motif"), dict)
+            ]
+            nonempty_motif_keys = [key for key in motif_keys if key]
+            if "inventory_keys" in locals() and inventory_keys:
+                for key in nonempty_motif_keys:
+                    if key not in inventory_keys:
+                        errors.append(f"Canva-native template motif {key} is not listed in course.template_native_element_inventory")
+            distinct_motif_keys = set(nonempty_motif_keys)
+            if len(distinct_motif_keys) < 2:
+                errors.append(
+                    "Canva-native template motif use is too repetitive: long decks must reuse at least "
+                    "two distinct existing template elements instead of placing the same element everywhere"
+                )
+            if nonempty_motif_keys:
+                motif_key_counts = {key: nonempty_motif_keys.count(key) for key in distinct_motif_keys}
+                dominant_motif_key, dominant_motif_count = max(motif_key_counts.items(), key=lambda item: item[1])
+                if dominant_motif_count / len(nonempty_motif_keys) > 0.60:
+                    errors.append(
+                        f"Canva-native template motif use is too repetitive: template element "
+                        f"{dominant_motif_key} appears on {dominant_motif_count}/{len(nonempty_motif_keys)} motif slides"
+                    )
+                run_motif_key, run_motif_count = max_run(nonempty_motif_keys)
+                if run_motif_count > 2:
+                    errors.append(
+                        f"Canva-native template motif use has {run_motif_count} consecutive motif placements "
+                        f"from the same template element {run_motif_key}"
+                    )
         source_image_rich_threshold = max(6, (len(normal_knowledge) + 2) // 3)
         if len(source_images) >= source_image_rich_threshold:
             review = course.get("image_generation_review")
@@ -491,24 +596,55 @@ def main() -> int:
             errors.append(f"{label} visual_plan.layout_variant must name the actual rendered composition family")
         template_motif = slide_visual_plan.get("template_motif")
         if isinstance(template_motif, dict):
-            if template_motif.get("kind") not in {"hero-right", "visual-anchor", "accent-motif", "background-motif"}:
+            if template_motif.get("kind") not in TEMPLATE_MOTIF_KINDS:
                 errors.append(f"{label} template_motif.kind is unsupported")
             if not template_motif.get("local_preview_path"):
                 errors.append(f"{label} template_motif must provide local_preview_path for local PPT layout review")
+            native_ref = template_motif.get("native_element_ref")
+            if not isinstance(native_ref, dict):
+                errors.append(f"{label} template_motif must provide native_element_ref for an existing element in the chosen Canva template")
+                native_ref = {}
+            source_design_id = str(native_ref.get("source_design_id", "")).strip()
+            course_template_id = str(course.get("template_design_id", "")).strip()
+            if not source_design_id:
+                errors.append(f"{label} template_motif.native_element_ref.source_design_id is required")
+            elif course_template_id and source_design_id != course_template_id:
+                errors.append(
+                    f"{label} template_motif must reuse an element from the chosen template {course_template_id}, "
+                    f"not {source_design_id}"
+                )
+            if not isinstance(native_ref.get("source_page"), (int, float, str)) or not str(native_ref.get("source_page", "")).strip():
+                errors.append(f"{label} template_motif.native_element_ref.source_page is required")
+            if not str(native_ref.get("source_element_id", "")).strip():
+                errors.append(f"{label} template_motif.native_element_ref.source_element_id is required")
+            source_element_type = str(native_ref.get("source_element_type", "")).strip()
+            if source_element_type not in TEMPLATE_NATIVE_ELEMENT_TYPES:
+                errors.append(
+                    f"{label} template_motif.native_element_ref.source_element_type must be a reusable native "
+                    "template vector/shape/group/frame element"
+                )
+            if native_ref.get("copied_from_existing_template") is not True:
+                errors.append(f"{label} template_motif.native_element_ref must confirm copied_from_existing_template: true")
             canva_asset_id = str(template_motif.get("canva_asset_id", "")).strip()
-            if not canva_asset_id:
-                errors.append(f"{label} template_motif must provide the Canva asset id used after import")
-            elif (
+            if canva_asset_id and (
                 canva_asset_id.lower().startswith("pending")
                 or "inserted after import" in canva_asset_id.lower()
                 or "canva native asset id" in canva_asset_id.lower()
             ):
                 errors.append(f"{label} template_motif.canva_asset_id is still a placeholder, not a verified Canva native asset")
             replacement = template_motif.get("canva_replacement") or {}
-            if not isinstance(replacement, dict) or replacement.get("mode") != "replace_placeholder":
-                errors.append(f"{label} template_motif must use canva_replacement.mode replace_placeholder")
+            replacement_mode = replacement.get("mode") if isinstance(replacement, dict) else ""
+            if not isinstance(replacement, dict) or replacement_mode not in TEMPLATE_MOTIF_REPLACEMENT_MODES:
+                errors.append(f"{label} template_motif must use canva_replacement.mode copy_template_element or replace_placeholder")
+            if source_element_type in VECTOR_COPY_ELEMENT_TYPES and replacement_mode != "copy_template_element":
+                errors.append(
+                    f"{label} template_motif reuses a native vector/shape/group element and must copy the existing "
+                    "template element instead of replacing a proxy with a generic media asset"
+                )
             if isinstance(replacement, dict) and len(str(replacement.get("match_strategy", "")).strip()) < 20:
                 errors.append(f"{label} template_motif must record how the local preview proxy is matched after Canva import")
+            if isinstance(replacement, dict) and replacement_mode == "copy_template_element" and len(str(replacement.get("source_copy_strategy", "")).strip()) < 20:
+                errors.append(f"{label} template_motif must record canva_replacement.source_copy_strategy for copying the existing template element")
             if not isinstance(template_motif.get("replaces_modules"), list) or not template_motif.get("replaces_modules"):
                 errors.append(f"{label} template_motif must list the structural modules it replaces")
             if len(str(template_motif.get("placement_basis", "")).strip()) < 20:
@@ -522,6 +658,16 @@ def main() -> int:
                 missing = [key for key in required_numbers if not isinstance(motif_box.get(key), (int, float))]
                 if missing:
                     errors.append(f"{label} template_motif local_ppt_layout.motif_box missing numeric {', '.join(missing)}")
+                motif_box_numeric = numeric_box(motif_box)
+                if motif_box_numeric:
+                    allow_bleed = local_layout.get("allow_bleed") is True
+                    if not allow_bleed and (
+                        motif_box_numeric["left"] < 0
+                        or motif_box_numeric["top"] < 0
+                        or motif_box_numeric["left"] + motif_box_numeric["width"] > 1280
+                        or motif_box_numeric["top"] + motif_box_numeric["height"] > 720
+                    ):
+                        errors.append(f"{label} template_motif motif_box must stay inside the 1280x720 canvas unless allow_bleed is true")
                 if isinstance(local_layout.get("text_column_width"), (int, float)) and local_layout.get("text_column_width") > 720:
                     errors.append(f"{label} template_motif text column is too wide to reserve a clear motif area")
                 elif not isinstance(local_layout.get("text_column_width"), (int, float)):
@@ -533,6 +679,22 @@ def main() -> int:
                         errors.append(f"{label} hero-right template_motif must be centered in the right visual field in local PPT coordinates")
                     if not (450 <= motif_box["width"] <= 720 and 450 <= motif_box["height"] <= 720):
                         errors.append(f"{label} hero-right template_motif must use a substantial but controlled right-side scale")
+                protected_zones = local_layout.get("protected_zones")
+                if not isinstance(protected_zones, list) or not protected_zones:
+                    errors.append(f"{label} template_motif must record local_ppt_layout.protected_zones for title/body/footer/page-number collision checks")
+                else:
+                    motif_box_numeric = numeric_box(motif_box)
+                    for zone in protected_zones:
+                        if not isinstance(zone, dict):
+                            errors.append(f"{label} template_motif protected_zones entries must be objects")
+                            continue
+                        zone_name = str(zone.get("name", "")).strip() or "unnamed"
+                        zone_box = numeric_box(zone)
+                        if not zone_box:
+                            errors.append(f"{label} template_motif protected zone {zone_name} must include numeric left/top/width/height")
+                            continue
+                        if motif_box_numeric and boxes_overlap(motif_box_numeric, zone_box):
+                            errors.append(f"{label} template_motif overlaps protected zone {zone_name}")
             collision = template_motif.get("collision_check") or {}
             if collision.get("status") != "clear" or len(str(collision.get("notes", "")).strip()) < 12:
                 errors.append(f"{label} template_motif must record a clear collision check")

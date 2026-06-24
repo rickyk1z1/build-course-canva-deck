@@ -35,10 +35,22 @@ def audit(temp: Path, deck: Path, source: Path, *, expect: int = 0) -> dict:
     return json.loads(report.read_text(encoding="utf-8"))
 
 
-def valid_template_motif(kind: str = "visual-anchor") -> dict:
+def valid_template_motif(
+    kind: str = "visual-anchor",
+    *,
+    source_page: int = 1,
+    source_element_id: str = "template-star-small",
+) -> dict:
     return {
         "kind": kind,
-        "canva_asset_id": "MAEeKPWZP8I",
+        "native_element_ref": {
+            "source_design_id": "DAHM5fsVEB0",
+            "source_page": source_page,
+            "source_element_id": source_element_id,
+            "source_element_type": "vector",
+            "source_element_role": "template-native visual motif",
+            "copied_from_existing_template": True,
+        },
         "local_preview_path": "assets/template-motif-preview.png",
         "reference_template_page": 1,
         "placement_basis": "参考模板主视觉区域，在本地 PPT 阶段预留稳定位置并检查文字避让。",
@@ -49,11 +61,18 @@ def valid_template_motif(kind: str = "visual-anchor") -> dict:
             "title_break_strategy": "wrap before PPT generation",
             "motif_box": {"left": 720, "top": 120, "width": 420, "height": 420},
             "native_canva_scale": 1.5,
+            "protected_zones": [
+                {"name": "title", "left": 72, "top": 58, "width": 600, "height": 128},
+                {"name": "body", "left": 72, "top": 215, "width": 560, "height": 360},
+                {"name": "footer", "left": 72, "top": 682, "width": 360, "height": 24},
+                {"name": "page-number", "left": 1170, "top": 675, "width": 48, "height": 30},
+            ],
         },
         "canva_replacement": {
-            "mode": "replace_placeholder",
-            "match_strategy": "after Canva import, match the local preview proxy by page index and recorded motif_box, then replace it",
-            "fallback": "delete the local proxy and insert the native Canva asset at the same recorded box",
+            "mode": "copy_template_element",
+            "match_strategy": "after Canva import, match the local preview proxy by page index and recorded motif_box before deleting it",
+            "source_copy_strategy": "copy the recorded existing vector element from the chosen Canva template page and paste it into the imported deck at the recorded box",
+            "fallback": "stop and request browser fallback or an accessible duplicate template; do not use a searched library asset",
         },
         "collision_check": {
             "status": "clear",
@@ -96,6 +115,40 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         }
         for number in range(1, 17)
     ]
+    course["template_native_element_inventory"] = [
+        {
+            "source_design_id": "DAHM5fsVEB0",
+            "source_page": 1,
+            "source_element_id": "template-star-hero",
+            "source_element_type": "vector",
+            "visual_role": "cover hero star motif",
+            "usable_layout_families": ["cover", "hero-cover"],
+        },
+        {
+            "source_design_id": "DAHM5fsVEB0",
+            "source_page": 3,
+            "source_element_id": "template-anchor-8",
+            "source_element_type": "vector",
+            "visual_role": "small section anchor motif",
+            "usable_layout_families": ["dark-spotlight", "center-anchor"],
+        },
+        {
+            "source_design_id": "DAHM5fsVEB0",
+            "source_page": 2,
+            "source_element_id": "template-anchor-10",
+            "source_element_type": "shape",
+            "visual_role": "side rail accent shape",
+            "usable_layout_families": ["image-right-dark", "poster-panel"],
+        },
+        {
+            "source_design_id": "DAHM5fsVEB0",
+            "source_page": 4,
+            "source_element_id": "template-anchor-12",
+            "source_element_type": "group",
+            "visual_role": "native grouped corner motif",
+            "usable_layout_families": ["comparison-strip", "two-panel"],
+        },
+    ]
     course["image_generation_review"] = {
         "status": "completed",
         "source_case_priority": "source-first",
@@ -132,7 +185,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     cover["source_node_ids"] = ["n0001"]
     cover["visual_plan"]["source_node_id"] = "n0001"
     cover["visual_plan"]["layout_variant"] = "hero-cover"
-    cover["visual_plan"]["template_motif"] = valid_template_motif("hero-right")
+    cover["visual_plan"]["template_motif"] = valid_template_motif("hero-right", source_page=1, source_element_id="template-star-hero")
     cover["visual_plan"]["template_motif"]["local_ppt_layout"]["motif_box"] = {"left": 700, "top": 70, "width": 560, "height": 560}
 
     layouts = [
@@ -181,7 +234,11 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
             slide["visual_plan"]["imagegen_priority"] = "preferred"
             slide["visual_plan"]["prompt_brief"] = "具体课程场景的无文字教学案例图"
         if index in {8, 10, 12}:
-            slide["visual_plan"]["template_motif"] = valid_template_motif("visual-anchor")
+            slide["visual_plan"]["template_motif"] = valid_template_motif(
+                "visual-anchor",
+                source_page=((index - 1) % 3) + 2,
+                source_element_id=f"template-anchor-{index}",
+            )
         slides.append(slide)
 
     summary = json.loads(json.dumps(base["slides"][-1], ensure_ascii=False))
@@ -263,28 +320,41 @@ def main() -> int:
 
         missing_motif_replacement_path = temp / "missing-motif-replacement.json"
         missing_motif_replacement = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
-        missing_motif_replacement["slides"][0]["visual_plan"]["template_motif"] = {
-            "kind": "hero-right",
-            "canva_asset_id": "MAEeKPWZP8I",
-            "local_preview_path": "assets/template-grainy-star.png",
-            "reference_template_page": 1,
-            "placement_basis": "参考模板右侧中心主视觉，左侧文字栏收窄并提前断行。",
-            "replaces_modules": ["cover-orange", "cover-focus"],
-            "local_ppt_layout": {
-                "coordinate_space": "1280x720",
-                "text_column_width": 560,
-                "title_break_strategy": "manual wrap before PPT generation",
-                "motif_box": {"left": 680, "top": 60, "width": 600, "height": 600},
-                "native_canva_scale": 1.5,
-            },
-            "collision_check": {
-                "status": "clear",
-                "notes": "本地 PPT 预览中主视觉不覆盖标题、正文、页脚和页码。",
-            },
-        }
+        missing_motif_replacement["slides"][0]["visual_plan"]["template_motif"] = valid_template_motif(
+            "hero-right",
+            source_page=1,
+            source_element_id="template-star-hero",
+        )
+        missing_motif_replacement["slides"][0]["visual_plan"]["template_motif"]["local_ppt_layout"]["motif_box"] = {"left": 680, "top": 60, "width": 600, "height": 600}
+        del missing_motif_replacement["slides"][0]["visual_plan"]["template_motif"]["canva_replacement"]
         missing_motif_replacement_path.write_text(json.dumps(missing_motif_replacement, ensure_ascii=False), encoding="utf-8")
         motif_replacement_report = audit(temp, missing_motif_replacement_path, FIXTURES / "source-map-detailed.json", expect=1)
-        assert any("replace_placeholder" in error for error in motif_replacement_report["errors"])
+        assert any("copy_template_element" in error for error in motif_replacement_report["errors"])
+
+        non_template_motif_path = temp / "non-template-motif.json"
+        non_template_motif = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        non_template_motif["slides"][0]["visual_plan"]["template_motif"] = valid_template_motif(
+            "hero-right",
+            source_page=1,
+            source_element_id="template-star-hero",
+        )
+        non_template_motif["slides"][0]["visual_plan"]["template_motif"]["local_ppt_layout"]["motif_box"] = {"left": 680, "top": 60, "width": 600, "height": 600}
+        non_template_motif["slides"][0]["visual_plan"]["template_motif"]["native_element_ref"]["source_design_id"] = "MAEeKPWZP8I"
+        non_template_motif_path.write_text(json.dumps(non_template_motif, ensure_ascii=False), encoding="utf-8")
+        non_template_motif_report = audit(temp, non_template_motif_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("chosen template" in error for error in non_template_motif_report["errors"])
+
+        overlapping_motif_path = temp / "overlapping-motif.json"
+        overlapping_motif = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        overlapping_motif["slides"][0]["visual_plan"]["template_motif"] = valid_template_motif(
+            "visual-anchor",
+            source_page=2,
+            source_element_id="template-anchor-overlap",
+        )
+        overlapping_motif["slides"][0]["visual_plan"]["template_motif"]["local_ppt_layout"]["motif_box"] = {"left": 100, "top": 80, "width": 320, "height": 180}
+        overlapping_motif_path.write_text(json.dumps(overlapping_motif, ensure_ascii=False), encoding="utf-8")
+        overlapping_motif_report = audit(temp, overlapping_motif_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("overlaps protected zone" in error for error in overlapping_motif_report["errors"])
 
         image_not_integrated_path = temp / "image-not-integrated.json"
         image_not_integrated = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
@@ -363,6 +433,17 @@ def main() -> int:
         source_rich_long_deck_path, source_rich_long_source_path = write_source_rich_long_fixture(temp)
         source_rich_long_report = audit(temp, source_rich_long_deck_path, source_rich_long_source_path)
         assert source_rich_long_report["ok"]
+
+        repeated_native_motif_path = temp / "source-rich-repeated-native-motif.json"
+        repeated_native_motif = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        for slide in repeated_native_motif["slides"]:
+            motif = slide.get("visual_plan", {}).get("template_motif")
+            if isinstance(motif, dict):
+                motif["native_element_ref"]["source_page"] = 1
+                motif["native_element_ref"]["source_element_id"] = "same-template-star"
+        repeated_native_motif_path.write_text(json.dumps(repeated_native_motif, ensure_ascii=False), encoding="utf-8")
+        repeated_native_motif_report = audit(temp, repeated_native_motif_path, source_rich_long_source_path, expect=1)
+        assert any("too repetitive" in error for error in repeated_native_motif_report["errors"])
 
         builder_source = (SCRIPTS / "build_deck.mjs").read_text(encoding="utf-8")
         assert "titleLength > 30 ? 36 : titleLength > 24 ? 40 : titleLength > 18 ? 46 : 58" in builder_source
