@@ -41,6 +41,14 @@ FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-n
 GENERATED_IMAGE_ROUTES = {"gpt-image-2", "imagegen", "user-provided"}
 VISUAL_APPLICABILITY = {"required", "exception"}
 IMAGEGEN_PRIORITY = {"preferred", "not-needed", "unavailable"}
+ALLOWED_SOURCE_GRANULARITY = {
+    "single-case",
+    "explicit-comparison",
+    "multi-case-sequence",
+    "source-authored-composite",
+    "redrawn-single",
+}
+MULTI_SOURCE_GRANULARITY = {"explicit-comparison", "multi-case-sequence"}
 
 
 def flatten_text(value: Any) -> Iterable[str]:
@@ -177,6 +185,7 @@ def main() -> int:
         image for image in source.get("images", [])
         if isinstance(image, dict) and "thumbnail" not in str(image.get("path", "")).lower()
     ]
+    source_image_ids = {image.get("id") for image in source_images if image.get("id")}
     source_ids = {node.get("id") for node in source_nodes}
     source_order = {node.get("id"): node.get("order") for node in source_nodes}
     slides = deck.get("slides")
@@ -291,14 +300,16 @@ def main() -> int:
             1 for slide in slides
             if isinstance((slide.get("visual_plan") or {}).get("template_motif"), dict)
         )
-        required_motifs = max(2, len(normal_knowledge) // 8)
+        required_motifs = max(4, len(normal_knowledge) // 5)
         if template_motif_count < required_motifs:
             errors.append(
                 f"long decks must plan Canva-native template motif use before local PPT generation; "
                 f"found {template_motif_count}, expected at least {required_motifs}"
             )
-        if len(source_images) >= 6:
+        source_image_rich_threshold = max(6, (len(normal_knowledge) + 2) // 3)
+        if len(source_images) >= source_image_rich_threshold:
             review = course.get("image_generation_review")
+            source_image_coverage = course.get("source_image_coverage")
             generated_slides = [
                 slide for slide in slides
                 if (slide.get("visual_plan") or {}).get("asset_type") == "generated-image"
@@ -331,6 +342,99 @@ def main() -> int:
                     f"source-rich long decks must include generated teaching case images; "
                     f"found {len(generated_slides)}, expected at least {required_generated}"
                 )
+            if not isinstance(source_image_coverage, list):
+                errors.append("source-rich decks must include course.source_image_coverage for every non-thumbnail source image")
+            else:
+                coverage_by_id: dict[str, dict[str, Any]] = {}
+                for item in source_image_coverage:
+                    if not isinstance(item, dict):
+                        errors.append("course.source_image_coverage entries must be objects")
+                        continue
+                    image_id = item.get("source_image_id")
+                    if image_id in coverage_by_id:
+                        errors.append(f"course.source_image_coverage repeats source image {image_id}")
+                    if image_id:
+                        coverage_by_id[str(image_id)] = item
+                    if image_id not in source_image_ids:
+                        errors.append(f"course.source_image_coverage references unknown source image {image_id}")
+                    status = item.get("status")
+                    if status not in {"used", "omitted"}:
+                        errors.append(f"source image {image_id} coverage status must be used or omitted")
+                    if status == "used":
+                        slide_numbers = item.get("slide_numbers")
+                        if not isinstance(slide_numbers, list) or not slide_numbers:
+                            errors.append(f"source image {image_id} marked used but has no slide_numbers")
+                        elif not all(number in actual_numbers for number in slide_numbers):
+                            errors.append(f"source image {image_id} maps to an unknown slide number")
+                        if not str(item.get("treatment", "")).strip():
+                            errors.append(f"source image {image_id} marked used but has no treatment")
+                    if status == "omitted" and len(str(item.get("reason", "")).strip()) < 12:
+                        errors.append(f"source image {image_id} omitted without a concrete reason")
+                missing_coverage = sorted(str(image_id) for image_id in source_image_ids if image_id not in coverage_by_id)
+                if missing_coverage:
+                    errors.append(
+                        "course.source_image_coverage is missing source images: "
+                        + ", ".join(missing_coverage[:12])
+                    )
+        else:
+            review = course.get("image_generation_review")
+            source_image_coverage = course.get("source_image_coverage")
+            generated_slides = [
+                slide for slide in slides
+                if (slide.get("visual_plan") or {}).get("asset_type") == "generated-image"
+            ]
+            required_generated = max(4, (len(normal_knowledge) * 2 + 4) // 5)
+            generation_unavailable = (
+                isinstance(review, dict)
+                and str(review.get("generation_route_status", "")).strip() == "unavailable"
+            )
+            if not isinstance(review, dict) or review.get("status") != "completed":
+                errors.append("image-poor long decks must complete course.image_generation_review before local PPT generation")
+            else:
+                if int(review.get("source_case_image_count") or 0) != len(source_images):
+                    errors.append(
+                        "image-poor decks must record source_case_image_count as the usable "
+                        f"non-thumbnail source image count ({len(source_images)})"
+                    )
+                if int(review.get("candidates_considered") or 0) < required_generated:
+                    errors.append(
+                        "image-poor decks must consider enough generated teaching-image candidates; "
+                        f"expected at least {required_generated}"
+                    )
+                if not isinstance(review.get("generated_slide_numbers"), list):
+                    errors.append("image-poor decks must list generated_slide_numbers or an unavailable fallback")
+                elif not generation_unavailable and len(review.get("generated_slide_numbers")) < required_generated:
+                    errors.append(
+                        f"image-poor long decks should use generated teaching images substantially; "
+                        f"found {len(review.get('generated_slide_numbers'))}, expected at least {required_generated}"
+                    )
+                if generation_unavailable:
+                    fallbacks = review.get("fallback_slide_numbers")
+                    if not isinstance(fallbacks, list) or len(fallbacks) < required_generated:
+                        errors.append(
+                            "when generation is unavailable, image-poor decks must list enough "
+                            "fallback_slide_numbers using editable diagrams"
+                        )
+            if not generation_unavailable and len(generated_slides) < required_generated:
+                errors.append(
+                    f"image-poor long decks should render generated teaching-image slides; "
+                    f"found {len(generated_slides)}, expected at least {required_generated}"
+                )
+            if source_images:
+                if not isinstance(source_image_coverage, list):
+                    errors.append("image-poor decks with source images must include course.source_image_coverage")
+                else:
+                    coverage_ids = {
+                        item.get("source_image_id")
+                        for item in source_image_coverage
+                        if isinstance(item, dict)
+                    }
+                    missing_coverage = sorted(str(image_id) for image_id in source_image_ids if image_id not in coverage_ids)
+                    if missing_coverage:
+                        errors.append(
+                            "course.source_image_coverage is missing image-poor source images: "
+                            + ", ".join(missing_coverage[:12])
+                        )
         design_review = course.get("page_design_review")
         required_design_dimensions = {"title-scale", "alignment", "proximity", "contrast", "image-caption", "contact-sheet"}
         if not isinstance(design_review, dict) or design_review.get("status") != "completed":
@@ -391,8 +495,15 @@ def main() -> int:
                 errors.append(f"{label} template_motif.kind is unsupported")
             if not template_motif.get("local_preview_path"):
                 errors.append(f"{label} template_motif must provide local_preview_path for local PPT layout review")
-            if not template_motif.get("canva_asset_id"):
+            canva_asset_id = str(template_motif.get("canva_asset_id", "")).strip()
+            if not canva_asset_id:
                 errors.append(f"{label} template_motif must provide the Canva asset id used after import")
+            elif (
+                canva_asset_id.lower().startswith("pending")
+                or "inserted after import" in canva_asset_id.lower()
+                or "canva native asset id" in canva_asset_id.lower()
+            ):
+                errors.append(f"{label} template_motif.canva_asset_id is still a placeholder, not a verified Canva native asset")
             replacement = template_motif.get("canva_replacement") or {}
             if not isinstance(replacement, dict) or replacement.get("mode") != "replace_placeholder":
                 errors.append(f"{label} template_motif must use canva_replacement.mode replace_placeholder")
@@ -487,6 +598,48 @@ def main() -> int:
                         errors.append(f"{label} image assets must use an image-integrated layout")
                     if not screen.get("caption"):
                         errors.append(f"{label} image asset lacks learner-facing visual interpretation")
+                if asset_type in {"source-image", "redrawn-source-image"}:
+                    visual_source_image_ids = visual_plan.get("source_image_ids")
+                    if not isinstance(visual_source_image_ids, list) or not visual_source_image_ids:
+                        errors.append(f"{label} source-image visual must list visual_plan.source_image_ids")
+                        visual_source_image_ids = []
+                    else:
+                        unknown_images = [
+                            str(image_id) for image_id in visual_source_image_ids
+                            if image_id not in source_image_ids
+                        ]
+                        if unknown_images:
+                            errors.append(
+                                f"{label} visual_plan.source_image_ids contains unknown source images: "
+                                + ", ".join(unknown_images[:8])
+                            )
+                    case_granularity = str(visual_plan.get("case_granularity", "")).strip()
+                    if case_granularity not in ALLOWED_SOURCE_GRANULARITY:
+                        errors.append(f"{label} source-image visual must record a valid case_granularity")
+                    if len(visual_source_image_ids) > 3:
+                        errors.append(
+                            f"{label} combines {len(visual_source_image_ids)} independent source images; "
+                            "source-image slides may use at most 3 readable source images"
+                        )
+                    elif len(visual_source_image_ids) > 1:
+                        if asset_type == "source-image" and len(visuals) < len(visual_source_image_ids):
+                            errors.append(f"{label} multiple source images must have one visible visual entry per source image")
+                        if case_granularity not in MULTI_SOURCE_GRANULARITY:
+                            errors.append(f"{label} uses multiple source images but is not marked explicit-comparison or multi-case-sequence")
+                        if len(str(visual_plan.get("case_grouping_reason", "")).strip()) < 20:
+                            errors.append(f"{label} multiple source images require case_grouping_reason")
+                        image_area_ratio = visual_plan.get("image_area_ratio")
+                        if not isinstance(image_area_ratio, (int, float)):
+                            errors.append(f"{label} multiple source images require visual_plan.image_area_ratio")
+                        elif not 0.45 <= float(image_area_ratio) <= 0.72:
+                            errors.append(f"{label} multiple source images must reserve 45%-72% slide area for images")
+                        min_source_image_area_ratio = visual_plan.get("min_source_image_area_ratio")
+                        if not isinstance(min_source_image_area_ratio, (int, float)):
+                            errors.append(f"{label} multiple source images require visual_plan.min_source_image_area_ratio")
+                        elif float(min_source_image_area_ratio) < 0.12:
+                            errors.append(f"{label} smallest source image is too small to be readable")
+                        if isinstance(text_area_ratio, (int, float)) and float(text_area_ratio) > 0.38:
+                            errors.append(f"{label} text area is too large for a readable multi-source-image slide")
                 if asset_type == "generated-image":
                     route = str(visual_plan.get("generation_route", "")).strip()
                     prompt_brief = str(visual_plan.get("prompt_brief", "")).strip()

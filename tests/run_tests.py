@@ -91,7 +91,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
             "slide_number": number,
             "template_reference": f"page {((number - 1) % 8) + 1}",
             "layout_family": "cover" if number == 1 else "knowledge",
-            "native_motif": "planned" if number in {1, 8} else "none",
+            "native_motif": "planned" if number in {1, 8, 10, 12} else "none",
             "local_ppt_decision": "按参考模板页先确定文字列宽、视觉区和 motif 位置，再生成本地 PPT。",
         }
         for number in range(1, 17)
@@ -106,6 +106,18 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         "candidates_considered": 3,
         "rationale": "源图充足但仍补一张文字较多页面的教学案例图。",
     }
+    course["source_image_coverage"] = [
+        {
+            "source_image_id": f"img{number:03d}",
+            "status": "used" if number in {2, 3, 4} else "omitted",
+            "slide_numbers": [number] if number in {2, 3, 4} else [],
+            "treatment": "single-case" if number in {2, 3, 4} else "omitted-duplicate",
+            "reason": "fixture source case is shown as a readable single-case slide"
+            if number in {2, 3, 4}
+            else "fixture image intentionally omitted because this synthetic source-rich test only needs enough images to exercise coverage gates",
+        }
+        for number in range(1, 9)
+    ]
     course["page_design_review"] = {
         "status": "completed",
         "reference_method": "对照选定 Canva 模板 contact sheet 和 page-design-quality.md 完成页面设计复核。",
@@ -155,14 +167,20 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
             slide["layout"] = "image-right" if index % 2 == 0 else "image-left-dark"
             slide["visuals"] = [{"path": f"assets/case-{index}.png", "alt": "源案例图"}]
             slide["visual_plan"]["asset_type"] = "source-image"
+            slide["visual_plan"]["source_image_ids"] = [f"img{index:03d}"]
+            slide["visual_plan"]["case_granularity"] = "single-case"
+            slide["visual_plan"]["case_grouping_reason"] = ""
         if index == 6:
             slide["layout"] = "image-right"
             slide["visuals"] = [{"path": "assets/generated/case.png", "alt": "生成案例图"}]
             slide["visual_plan"]["asset_type"] = "generated-image"
+            slide["visual_plan"]["source_image_ids"] = []
+            slide["visual_plan"]["case_granularity"] = "not-source-image"
+            slide["visual_plan"]["case_grouping_reason"] = ""
             slide["visual_plan"]["generation_route"] = "gpt-image-2"
             slide["visual_plan"]["imagegen_priority"] = "preferred"
             slide["visual_plan"]["prompt_brief"] = "具体课程场景的无文字教学案例图"
-        if index == 8:
+        if index in {8, 10, 12}:
             slide["visual_plan"]["template_motif"] = valid_template_motif("visual-anchor")
         slides.append(slide)
 
@@ -379,6 +397,32 @@ def main() -> int:
         missing_source_priority_path.write_text(json.dumps(missing_source_priority, ensure_ascii=False), encoding="utf-8")
         missing_source_priority_report = audit(temp, missing_source_priority_path, source_rich_long_source_path, expect=1)
         assert any("source_case_priority" in error or "reused_source_slide_numbers" in error for error in missing_source_priority_report["errors"])
+
+        source_collage_path = temp / "source-rich-collage.json"
+        source_collage = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        source_collage["slides"][1]["visual_plan"]["source_image_ids"] = ["img002", "img003", "img004", "img005"]
+        source_collage["slides"][1]["visual_plan"]["case_granularity"] = "explicit-comparison"
+        source_collage["slides"][1]["visual_plan"]["case_grouping_reason"] = "故意把多个独立源图塞进同一页，用于验证审计会阻止案例拼图。"
+        source_collage_path.write_text(json.dumps(source_collage, ensure_ascii=False), encoding="utf-8")
+        source_collage_report = audit(temp, source_collage_path, source_rich_long_source_path, expect=1)
+        assert any("at most 3" in error or "independent source images" in error for error in source_collage_report["errors"])
+
+        source_three_images_path = temp / "source-rich-three-images.json"
+        source_three_images = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        source_three_images["slides"][1]["visual_plan"]["source_image_ids"] = ["img002", "img003", "img004"]
+        source_three_images["slides"][1]["visuals"] = [
+            {"path": "assets/case-2.png", "alt": "源案例图 2"},
+            {"path": "assets/case-3.png", "alt": "源案例图 3"},
+            {"path": "assets/case-4.png", "alt": "源案例图 4"},
+        ]
+        source_three_images["slides"][1]["visual_plan"]["case_granularity"] = "multi-case-sequence"
+        source_three_images["slides"][1]["visual_plan"]["case_grouping_reason"] = "三张源图按原始顺序展示同一分支的递进案例，教师可在一页中逐张讲解。"
+        source_three_images["slides"][1]["visual_plan"]["text_area_ratio"] = 0.36
+        source_three_images["slides"][1]["visual_plan"]["image_area_ratio"] = 0.56
+        source_three_images["slides"][1]["visual_plan"]["min_source_image_area_ratio"] = 0.16
+        source_three_images_path.write_text(json.dumps(source_three_images, ensure_ascii=False), encoding="utf-8")
+        source_three_images_report = audit(temp, source_three_images_path, source_rich_long_source_path)
+        assert source_three_images_report["ok"]
 
         missing_page_design_path = temp / "source-rich-missing-page-design.json"
         missing_page_design = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))

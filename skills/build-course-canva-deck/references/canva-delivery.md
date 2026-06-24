@@ -45,10 +45,11 @@ After import:
    - prefer `update_fill` on that proxy element to replace it with `canva_asset_id`, preserving the already-approved PPT position and scale;
    - if `update_fill` is unsupported for that element, delete the proxy element and insert the native Canva asset at the same scaled box;
    - never leave the proxy image underneath an overlaid native Canva element.
-4. Retrieve page previews and inspect the complete deck.
-5. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, and layout consistency.
-6. Apply corrections in one editing transaction when possible.
-7. Show every returned thumbnail and a complete contact sheet to the user.
+4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, local proxy match result, native `canva_asset_id`, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, or `blocked` without explicit user approval.
+5. Retrieve page previews and inspect the complete deck.
+6. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, and layout consistency.
+7. Apply corrections in one editing transaction when possible.
+8. Show every returned thumbnail and a complete contact sheet to the user.
 
 ## Approval rule
 

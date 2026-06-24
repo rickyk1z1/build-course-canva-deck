@@ -36,6 +36,10 @@ Production metadata may exist in internal notes, but never in visible screen fie
 
 - Every normal knowledge slide has a `visual_plan` mapped to a source node.
 - Every knowledge branch that can use a case image or demonstration image has one; exceptions must be explicit and justified.
+- Every non-thumbnail source image is accounted for in `course.source_image_coverage` as used or intentionally omitted with a concrete reason.
+- Every `source-image` or `redrawn-source-image` slide records `visual_plan.source_image_ids` and `visual_plan.case_granularity`.
+- Newly created collages that combine more than three independent source image files into one slide are rejected. Split them into multiple learner pages unless the source image file itself is already a composite.
+- Slides that combine two or three independent source images must record `case_grouping_reason`, `image_area_ratio`, and `min_source_image_area_ratio`, and the rendered images must be readable rather than thumbnail-like.
 - `visual_plan.integration` is `knowledge-page`; production-stage lists are rejected.
 - The visual is actually represented in the slide as a source image, redrawn source image, generated image, editable diagram, or editable table.
 - Slides with source or generated images use `image-left`, `image-right`, or another layout that visibly places the image inside the knowledge page.
@@ -47,6 +51,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Full-deck contact-sheet inspection must check template fidelity and layout variety: the deck should follow the Canva template language and avoid a long run of identical page layouts.
 - Full-deck contact-sheet inspection must also check page-design quality: title scale, body density, alignment axes, contrast hierarchy, proximity grouping, image/caption relationship, and whether the page reads like a designed slide rather than a formatted document.
 - Every slide records `visual_plan.template_reference` naming the reference template page/family, at least two inherited layout features, and the adaptation decision used before local PPT generation.
+- Slide count must be driven by source-node and source-image coverage, not by the size of the selected template page bank. A deck compressed to roughly the template page count while omitting usable cases fails.
 - For decks longer than 12 pages, automated layout rhythm checks must reject:
   - more than 60% of normal knowledge pages using the same layout family;
   - fewer than three background color modes across normal knowledge pages;
