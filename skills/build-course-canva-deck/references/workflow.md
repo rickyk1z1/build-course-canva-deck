@@ -81,8 +81,28 @@ Build `deck-spec.json` with this minimum shape:
         "slide_number": 1,
         "template_reference": "page 1 / cover hero-right",
         "layout_family": "cover",
-        "native_motif": "hero-right grainy star previewed locally and replaced in Canva",
+        "native_motif": "source page 1 vector star copied from the chosen template after import",
         "local_ppt_decision": "narrow title column before PPT generation so the motif has a stable right-side anchor"
+      }
+    ],
+    "template_native_element_inventory": [
+      {
+        "source_design_id": "DAHM5fsVEB0",
+        "source_page": 1,
+        "source_element_id": "template-page-1-hero-star",
+        "source_element_type": "vector",
+        "visual_role": "large hero visual anchor",
+        "usable_layout_families": ["cover", "dark hero", "center-anchor"],
+        "reuse_limit": "hero or major transition only"
+      },
+      {
+        "source_design_id": "DAHM5fsVEB0",
+        "source_page": 7,
+        "source_element_id": "template-page-7-side-rail-shape",
+        "source_element_type": "shape",
+        "visual_role": "side rail / small accent",
+        "usable_layout_families": ["image-left-dark", "image-right-dark"],
+        "reuse_limit": "at most a few section pages; do not repeat on every slide"
       }
     ],
     "image_generation_review": {
@@ -171,7 +191,14 @@ Build `deck-spec.json` with this minimum shape:
         "layout_variant": "center-anchor",
         "template_motif": {
           "kind": "hero-right",
-          "canva_asset_id": "MAEeKPWZP8I",
+          "native_element_ref": {
+            "source_design_id": "DAHM5fsVEB0",
+            "source_page": 1,
+            "source_element_id": "template-page-1-hero-star",
+            "source_element_type": "vector",
+            "source_element_role": "large hero visual anchor",
+            "copied_from_existing_template": true
+          },
           "local_preview_path": "required local raster preview used in the PPTX before Canva import",
           "reference_template_page": 1,
           "placement_basis": "follow the template's large right-side centered motif; narrow the text column and wrap the title instead of pushing the motif into a corner",
@@ -181,12 +208,19 @@ Build `deck-spec.json` with this minimum shape:
             "text_column_width": 560,
             "title_break_strategy": "manual or deterministic wrap before PPT generation",
             "motif_box": {"left": 680, "top": 60, "width": 600, "height": 600},
-            "native_canva_scale": 1.5
+            "native_canva_scale": 1.5,
+            "protected_zones": [
+              {"name": "title", "left": 72, "top": 140, "width": 560, "height": 190},
+              {"name": "explanation", "left": 72, "top": 360, "width": 560, "height": 170},
+              {"name": "footer", "left": 72, "top": 684, "width": 360, "height": 24},
+              {"name": "page-number", "left": 1160, "top": 676, "width": 60, "height": 30}
+            ]
           },
           "canva_replacement": {
-            "mode": "replace_placeholder",
-            "match_strategy": "after Canva import, match the local preview proxy by page index and motif_box position, then update_fill to canva_asset_id",
-            "fallback": "delete the local preview proxy and insert the native Canva asset at the same scaled box; never overlay both"
+            "mode": "copy_template_element",
+            "match_strategy": "after Canva import, match the local preview proxy by page index and motif_box position, then remove or replace it",
+            "source_copy_strategy": "copy the recorded existing vector element from the chosen template page and paste it into the imported deck at the recorded scaled box",
+            "fallback": "stop for an accessible duplicate or browser fallback; never replace this with a searched library asset"
           },
           "collision_check": {
             "status": "clear",
@@ -206,11 +240,14 @@ Allowed layouts: `cover`, `roadmap`, `light`, `dark`, `orange`/`accent`, `image-
 
 `visual_plan.template_motif` is not cover-specific. Use it on any slide that reuses a template-native Canva element or a distinctive template motif. The motif must be planned before PPTX generation:
 
+- choose the motif from `course.template_native_element_inventory`, not from a Canva library search or unrelated design;
+- include `native_element_ref` with selected template design ID, source page, source element ID, element type, role, and `copied_from_existing_template: true`;
 - include a `local_preview_path` so the generated local PPTX/contact sheet previews the final intended position and scale;
-- include `local_ppt_layout` with text column width, title/wrapping decision, and a 1280x720 `motif_box`;
-- treat `canva_asset_id` as the native asset to insert after Canva import at the scaled coordinates, not as a reason to skip local PPT review;
-- set `canva_replacement.mode` to `replace_placeholder`: the local preview proxy must be replaced with the native Canva asset, or deleted before inserting the native asset at the same box. It must never remain underneath an overlaid native asset;
+- include `local_ppt_layout` with text column width, title/wrapping decision, a 1280x720 `motif_box`, and `protected_zones` for title, body, captions/teaching blocks, footer, page number, and any main visual that must stay readable;
+- treat the native template element as something to copy/reuse after Canva import at the scaled coordinates, not as a reason to skip local PPT review;
+- set `canva_replacement.mode` to `copy_template_element` for vector/shape/group/native template elements: the local preview proxy must be removed or replaced by the copied template element at the same box. It must never remain underneath an overlaid native asset;
 - list the structural modules or regions the motif replaces. If the motif needs more space, narrow or move text modules in the PPT layout instead of drifting the motif into an arbitrary corner.
+- use multiple distinct template elements across long decks. If every planned motif references the same `source_element_id`, the plan fails even when counts pass.
 
 Every slide must include `visual_plan.template_reference`, even when it does not use a native Canva motif:
 
@@ -236,9 +273,9 @@ For decks longer than 12 pages, every normal knowledge slide must also set `visu
 
 For decks longer than 12 pages, build a template-page mapping table before PPT generation. The mapping must spread slides across multiple reference pages/page families from the selected template. Do not map most normal knowledge pages to one generic two-column reference. Automated QA rejects long decks with too few distinct template references, a dominant reference family, or long runs of the same reference.
 
-For decks longer than 12 pages, `course.template_page_mapping` is required before local PPT generation. It must list every slide, the chosen template reference page/page family, the layout family, any native motif planned for that slide, and the local PPT decision that makes the chosen template composition work. Do not build the local PPT until this table exists.
+For decks longer than 12 pages, `course.template_page_mapping` and `course.template_native_element_inventory` are required before local PPT generation when the template has reusable native elements. `template_page_mapping` must list every slide, the chosen template reference page/page family, the layout family, any native motif planned for that slide, and the local PPT decision that makes the chosen template composition work. `template_native_element_inventory` must list the existing template elements available for reuse; never invent element IDs after the fact. Do not build the local PPT until these tables exist.
 
-For decks longer than 12 pages, Canva-native template element use is mandatory when the selected template contains reusable native motifs or structural assets. Plan these in `visual_plan.template_motif` before local PPT generation; use local raster preview proxies only to verify position, scale, collision, and contact-sheet rhythm. After Canva import, replace those proxies with the native Canva assets using the recorded `replace_placeholder` route. A long deck that uses only generic PPT shapes/images and no planned native template motif fails QA. Placeholder asset IDs such as `pending`, `inserted after import`, or descriptive strings are not valid final motif plans.
+For decks longer than 12 pages, Canva-native template element use is mandatory when the selected template contains reusable native motifs or structural assets. Plan these in `visual_plan.template_motif` before local PPT generation; use local raster preview proxies only to verify position, scale, collision, and contact-sheet rhythm. After Canva import, copy/reuse the recorded existing template elements using the recorded `copy_template_element` route. A long deck that uses only generic PPT shapes/images and no planned native template motif fails QA. Placeholder IDs, arbitrary Canva library asset IDs, non-template design IDs, and a single repeated motif source are not valid final motif plans.
 
 Always run an image-generation review before local PPT generation. Source images remain the first choice for nodes they directly teach, and this priority must be recorded in `course.image_generation_review.source_case_priority: "source-first"` with `reused_source_slide_numbers` when usable source cases exist. If the deck is image-poor, generated teaching images are a primary build input rather than a small supplement. Image-poor means no usable non-thumbnail case images, too few case images for the number of normal knowledge slides, or a detailed outline with high text density but low case-image coverage. In those cases, generate concrete text-free teaching images for metaphor-heavy and abstract pages unless image generation is unavailable; use editable diagrams only when the visual is mainly arrows, labels, comparisons, or tables. Record `generated_after_source_review: true`, generated candidate counts, selected slide numbers, or fallback slide numbers before building.
 

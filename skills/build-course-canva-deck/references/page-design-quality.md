@@ -110,6 +110,9 @@ A passing contact sheet must show:
 - body copy visibly secondary to title and image evidence;
 - aligned modules and stable margins;
 - captions close to images;
+- Canva-native motif proxies act as structural template pieces rather than small stickers in arbitrary corners;
+- every motif clears the title, body copy, captions, footer, page number, and main teaching image;
+- motif sources vary across the deck instead of repeating one template element on every motif page;
 - no page that reads like a dense document excerpt;
 - no accidental single-character title wrap;
 - no overuse of horizontal rules, black bars, or uniform bullets.

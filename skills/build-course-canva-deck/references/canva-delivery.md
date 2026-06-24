@@ -41,13 +41,15 @@ After import:
 2. Read all rich text and scan forbidden language.
 3. If any slide uses `visual_plan.template_motif`, execute the native motif replacement plan before visual approval:
    - use the local PPT `local_preview_path` image only as a local preview proxy;
+   - verify each motif's `native_element_ref` points to an existing native vector/shape/group/frame element in the chosen template or accessible duplicate; do not replace this with a Canva library search result or unrelated asset ID;
    - match the imported proxy by page index and `local_ppt_layout.motif_box` position/size;
-   - prefer `update_fill` on that proxy element to replace it with `canva_asset_id`, preserving the already-approved PPT position and scale;
-   - if `update_fill` is unsupported for that element, delete the proxy element and insert the native Canva asset at the same scaled box;
+   - for vector/shape/group/frame motifs, copy or reuse the recorded existing template element and paste/place it at the already-approved scaled box, then delete or replace the local proxy;
+   - use media `update_fill` only for motifs whose recorded template source is actually an image/frame fill; it does not satisfy vector motif reuse;
+   - if the connector cannot copy/reuse the native template element, stop for an accessible duplicate or explicit browser fallback rather than substituting a random Canva asset;
    - never leave the proxy image underneath an overlaid native Canva element.
-4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, local proxy match result, native `canva_asset_id`, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, or `blocked` without explicit user approval.
+4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, source template design/page/element ID, element type, local proxy match result, final Canva element result, collision status, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, `non_template_asset`, `overlaps_text`, `repeated_single_element`, or `blocked` without explicit user approval.
 5. Retrieve page previews and inspect the complete deck.
-6. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, and layout consistency.
+6. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, motif diversity, no motif/text overlap, and layout consistency.
 7. Apply corrections in one editing transaction when possible.
 8. Show every returned thumbnail and a complete contact sheet to the user.
 
