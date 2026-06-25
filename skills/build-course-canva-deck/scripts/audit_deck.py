@@ -55,6 +55,17 @@ TEMPLATE_NATIVE_ELEMENT_TYPES = {
     "image-frame",
 }
 TEMPLATE_MOTIF_REPLACEMENT_MODES = {"copy_template_element", "replace_placeholder"}
+BLOCKED_CANVA_MOTIF_STATUSES = {
+    "pending",
+    "proxy_only",
+    "unmatched",
+    "non_template_asset",
+    "overlaps_text",
+    "repeated_single_element",
+    "blocked",
+    "failed",
+}
+VERIFIED_CANVA_MOTIF_STATUSES = {"verified", "replaced", "native_replaced", "completed"}
 VECTOR_COPY_ELEMENT_TYPES = {
     "vector",
     "shape",
@@ -211,6 +222,7 @@ def main() -> int:
     parser.add_argument("--report", required=True, type=Path)
     parser.add_argument("--pptx", type=Path)
     parser.add_argument("--layout-dir", type=Path)
+    parser.add_argument("--canva-motif-report", type=Path)
     args = parser.parse_args()
 
     deck = json.loads(args.deck_spec.read_text(encoding="utf-8"))
@@ -560,6 +572,8 @@ def main() -> int:
                 errors.append("course.page_design_review must list design issues fixed before Canva import")
 
     mapped: list[str] = []
+    mapped_entries: list[tuple[str, int, dict[str, Any]]] = []
+    planned_motifs: list[dict[str, Any]] = []
     previous_min_order = 0
     exclusions = [str(value) for value in course.get("explicit_exclusions", [])]
     exclusions.extend(str(value) for value in curriculum.get("excluded_neighbor_topics", []))
@@ -596,6 +610,11 @@ def main() -> int:
             errors.append(f"{label} visual_plan.layout_variant must name the actual rendered composition family")
         template_motif = slide_visual_plan.get("template_motif")
         if isinstance(template_motif, dict):
+            planned_motifs.append({
+                "slide_number": index,
+                "key": template_motif_key(template_motif),
+                "label": label,
+            })
             if template_motif.get("kind") not in TEMPLATE_MOTIF_KINDS:
                 errors.append(f"{label} template_motif.kind is unsupported")
             if not template_motif.get("local_preview_path"):
@@ -831,6 +850,7 @@ def main() -> int:
                 errors.append(f"{label} maps unknown source node {node_id}")
             else:
                 mapped.append(node_id)
+                mapped_entries.append((node_id, index, slide))
         orders = sorted(source_order[node_id] for node_id in node_ids if node_id in source_order)
         if orders:
             if orders[0] < previous_min_order:
@@ -858,12 +878,68 @@ def main() -> int:
     missing = [node_id for node_id in source_ids if node_id not in mapped]
     if missing:
         errors.append(f"source coverage is incomplete; missing {len(missing)} nodes: {', '.join(sorted(missing)[:12])}")
-    duplicates = sorted({node_id for node_id in mapped if mapped.count(node_id) > 1})
-    if duplicates:
-        errors.append(f"source coverage maps nodes more than once: {', '.join(duplicates[:12])}")
+    duplicate_ids = sorted({node_id for node_id in mapped if mapped.count(node_id) > 1})
+    invalid_duplicates: list[str] = []
+    split_kinds = {"split-continuation", "case-continuation", "source-image-continuation"}
+    for node_id in duplicate_ids:
+        entries = [(slide_number, slide) for current, slide_number, slide in mapped_entries if current == node_id]
+        for slide_number, slide in entries[1:]:
+            kind = str(slide.get("source_coverage_kind", "")).strip()
+            reason = str(slide.get("source_split_reason", "")).strip()
+            if kind not in split_kinds or len(reason) < 20:
+                invalid_duplicates.append(f"{node_id} on slide {slide_number}")
+    if invalid_duplicates:
+        errors.append(
+            "source coverage maps nodes more than once without a declared split reason: "
+            + ", ".join(invalid_duplicates[:12])
+        )
     mapped_orders = [source_order[node_id] for node_id in mapped if node_id in source_order]
     if mapped_orders != sorted(mapped_orders):
         errors.append("source-node mappings are not monotonic across slides")
+
+    if args.canva_motif_report:
+        report_payload = json.loads(args.canva_motif_report.read_text(encoding="utf-8"))
+        if isinstance(report_payload, list):
+            report_rows = report_payload
+        elif isinstance(report_payload, dict):
+            report_rows = report_payload.get("motifs") or report_payload.get("rows") or []
+        else:
+            report_rows = []
+        if not isinstance(report_rows, list):
+            errors.append("Canva native motif report must be a list or contain motifs/rows")
+            report_rows = []
+        rows_by_identity: dict[tuple[int, str], dict[str, Any]] = {}
+        for row in report_rows:
+            if not isinstance(row, dict):
+                errors.append("Canva native motif report rows must be objects")
+                continue
+            slide_number = row.get("slide_number")
+            try:
+                slide_number_int = int(slide_number)
+            except (TypeError, ValueError):
+                errors.append("Canva native motif report rows must include numeric slide_number")
+                continue
+            key = ":".join(
+                str(row.get(field, "")).strip()
+                for field in ("source_design_id", "source_page", "source_element_id")
+                if str(row.get(field, "")).strip()
+            )
+            rows_by_identity[(slide_number_int, key)] = row
+        for motif in planned_motifs:
+            identity = (int(motif["slide_number"]), str(motif["key"]))
+            row = rows_by_identity.get(identity)
+            if not row:
+                errors.append(
+                    f"{motif['label']} planned Canva-native template motif is missing from the final motif report"
+                )
+                continue
+            status = str(row.get("final_status") or row.get("finalStatus") or row.get("status") or "").strip()
+            if status in BLOCKED_CANVA_MOTIF_STATUSES:
+                errors.append(f"{motif['label']} Canva-native template motif final status is blocked: {status}")
+            elif status not in VERIFIED_CANVA_MOTIF_STATUSES:
+                errors.append(
+                    f"{motif['label']} Canva-native template motif final status must be verified/replaced/completed, got {status or 'empty'}"
+                )
 
     pptx_slides = None
     if args.pptx:

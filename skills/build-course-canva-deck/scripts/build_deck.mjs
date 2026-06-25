@@ -289,6 +289,41 @@ async function addImage(slide, visual, position, fit = "cover") {
   return slide.images.add({ blob: info.bytes, contentType: info.contentType, alt: info.alt, fit, position });
 }
 
+function imageGridPositions(position, count) {
+  const total = Math.max(1, Math.min(3, count));
+  if (total === 1) return [position];
+  const gap = 16;
+  if (total === 2) {
+    const width = (position.width - gap) / 2;
+    return [0, 1].map((index) => ({
+      left: position.left + index * (width + gap),
+      top: position.top,
+      width,
+      height: position.height,
+    }));
+  }
+  const width = (position.width - gap * 2) / 3;
+  return [0, 1, 2].map((index) => ({
+    left: position.left + index * (width + gap),
+    top: position.top,
+    width,
+    height: position.height,
+  }));
+}
+
+async function addVisualGallery(slide, visuals, position, defaultFit = "contain") {
+  const selected = (visuals || []).filter((visual) => visual?.path).slice(0, 3);
+  if (!selected.length) return [];
+  const slots = imageGridPositions(position, selected.length);
+  const added = [];
+  for (const [index, visual] of selected.entries()) {
+    const fit = visual.fit || (selected.length > 1 ? "contain" : defaultFit);
+    const image = await addImage(slide, visual, slots[index], fit);
+    if (image) added.push(image);
+  }
+  return added;
+}
+
 function motifFor(item) {
   return item.template_motif || item.visual_plan?.template_motif || null;
 }
@@ -433,7 +468,7 @@ async function buildImageSlide(presentation, item) {
   const slide = presentation.slides.add();
   slide.background.fill = dark ? C.black : theme === "orange" ? C.orange : C.cream;
   addHeader(slide, item, theme);
-  const visual = (item.visuals || [])[0];
+  const visuals = item.visuals || [];
   const imageLeft = imageSideFor(item.layout) === "left";
   let imagePosition = imageLeft
     ? { left: 72, top: 205, width: 620, height: 355 }
@@ -528,7 +563,7 @@ async function buildImageSlide(presentation, item) {
 
   if (textPanel) addBox(slide, { ...textPanel, name: `text-field-${variant}-${item.number}` });
   if (imageFrame) addBox(slide, { ...imageFrame, name: `image-field-${variant}-${item.number}` });
-  await addImage(slide, visual, imagePosition, visual?.fit || "contain");
+  await addVisualGallery(slide, visuals, imagePosition, "contain");
   addCaption(slide, item, textTheme, captionPosition);
   addExplanation(slide, item, textTheme, explanationPosition);
   const pointColumns = variant === "center-anchor" ? 3 : 1;
@@ -542,11 +577,19 @@ async function buildImageSlide(presentation, item) {
   return slide;
 }
 
-function buildComparison(presentation, item) {
+async function buildComparison(presentation, item) {
   const slide = presentation.slides.add();
   slide.background.fill = C.cream;
   addHeader(slide, item, "light");
-  addExplanation(slide, item, "light", { left: 72, top: 205, width: 760, height: 86 });
+  const visuals = item.visuals || [];
+  const hasVisuals = visuals.some((visual) => visual?.path);
+  addExplanation(slide, item, "light", { left: 72, top: 205, width: hasVisuals ? 700 : 760, height: 86 });
+  if (hasVisuals) {
+    const visualBox = { left: 830, top: 196, width: 330, height: 105 };
+    addBox(slide, { left: 812, top: 184, width: 366, height: 146, fill: C.white, name: `compare-visual-field-${item.number}` });
+    await addVisualGallery(slide, visuals, visualBox, "contain");
+    addCaption(slide, item, "light", { left: 830, top: 306, width: 330, height: 42 });
+  }
   const blocks = screenFor(item).blocks || [];
   const left = blocks[0] || { heading: "对比 A", items: bulletsFor(item).slice(0, 3) };
   const right = blocks[1] || { heading: "对比 B", items: bulletsFor(item).slice(3) };
@@ -601,7 +644,7 @@ async function main() {
     let slide;
     if (item.layout === "cover") slide = await buildCover(presentation, item);
     else if (String(item.layout).startsWith("image-left") || String(item.layout).startsWith("image-right")) slide = await buildImageSlide(presentation, item);
-    else if (item.layout === "comparison" || item.layout === "table") slide = buildComparison(presentation, item);
+    else if (item.layout === "comparison" || item.layout === "table") slide = await buildComparison(presentation, item);
     else slide = buildTextSlide(presentation, item);
     if (item.layout !== "cover") await addTemplateMotifPreview(slide, item);
   }

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import base64
 from pathlib import Path
 
 
@@ -26,13 +27,44 @@ def run(command: list[str], *, expect: int = 0) -> subprocess.CompletedProcess[s
     return result
 
 
-def audit(temp: Path, deck: Path, source: Path, *, expect: int = 0) -> dict:
+def audit(temp: Path, deck: Path, source: Path, *, expect: int = 0, canva_motif_report: Path | None = None) -> dict:
     report = temp / f"{deck.stem}-report.json"
+    command = [
+        sys.executable, str(SCRIPTS / "audit_deck.py"),
+        "--deck-spec", str(deck),
+        "--source-map", str(source),
+        "--report", str(report),
+    ]
+    if canva_motif_report:
+        command.extend(["--canva-motif-report", str(canva_motif_report)])
     run(
-        [sys.executable, str(SCRIPTS / "audit_deck.py"), "--deck-spec", str(deck), "--source-map", str(source), "--report", str(report)],
+        command,
         expect=expect,
     )
     return json.loads(report.read_text(encoding="utf-8"))
+
+
+PNG_FIXTURES = [
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC",
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGNk+M8AAwIBAUlQJ+IAAAAASUVORK5CYII=",
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGNgYPgPAAEDAQDqXc6EAAAAAElFTkSuQmCC",
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGNgoBMAAABpAAGlzzfEAAAAAElFTkSuQmCC",
+]
+
+
+def write_png_assets(asset_dir: Path, count: int = 4) -> list[str]:
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    paths: list[str] = []
+    for index, raw in enumerate(PNG_FIXTURES[:count], start=1):
+        path = asset_dir / f"case-{index}.png"
+        path.write_bytes(base64.b64decode(raw))
+        paths.append(str(path.relative_to(asset_dir.parent)))
+    return paths
+
+
+def pptx_media_count(path: Path) -> int:
+    with zipfile.ZipFile(path) as archive:
+        return len([name for name in archive.namelist() if name.startswith("ppt/media/")])
 
 
 def valid_template_motif(
@@ -356,6 +388,50 @@ def main() -> int:
         overlapping_motif_report = audit(temp, overlapping_motif_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("overlaps protected zone" in error for error in overlapping_motif_report["errors"])
 
+        canva_report_deck_path = temp / "canva-report-deck.json"
+        canva_report_deck = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        canva_report_deck["slides"][0]["visual_plan"]["template_motif"] = valid_template_motif(
+            "visual-anchor",
+            source_page=1,
+            source_element_id="template-star-small",
+        )
+        canva_report_deck_path.write_text(json.dumps(canva_report_deck, ensure_ascii=False), encoding="utf-8")
+        bad_canva_report_path = temp / "bad-canva-native-motif-report.json"
+        bad_canva_report_path.write_text(json.dumps([
+            {
+                "slide_number": 1,
+                "source_design_id": "DAHM5fsVEB0",
+                "source_page": 1,
+                "source_element_id": "template-star-small",
+                "final_status": "proxy_only",
+            }
+        ], ensure_ascii=False), encoding="utf-8")
+        bad_canva_report = audit(
+            temp,
+            canva_report_deck_path,
+            FIXTURES / "source-map-detailed.json",
+            expect=1,
+            canva_motif_report=bad_canva_report_path,
+        )
+        assert any("proxy_only" in error for error in bad_canva_report["errors"])
+        good_canva_report_path = temp / "good-canva-native-motif-report.json"
+        good_canva_report_path.write_text(json.dumps([
+            {
+                "slide_number": 1,
+                "source_design_id": "DAHM5fsVEB0",
+                "source_page": 1,
+                "source_element_id": "template-star-small",
+                "final_status": "verified",
+            }
+        ], ensure_ascii=False), encoding="utf-8")
+        good_canva_report = audit(
+            temp,
+            canva_report_deck_path,
+            FIXTURES / "source-map-detailed.json",
+            canva_motif_report=good_canva_report_path,
+        )
+        assert good_canva_report["ok"]
+
         image_not_integrated_path = temp / "image-not-integrated.json"
         image_not_integrated = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
         image_not_integrated["slides"][1]["layout"] = "light"
@@ -451,6 +527,64 @@ def main() -> int:
         assert "compact ? 16 : 17" in builder_source
         assert "text.length > 150 ? 16 : text.length > 105 ? 17 : 18" in builder_source
         assert "size: 15,\n    color: dark ? C.white : C.black" in builder_source
+
+        # Builder must render every declared image, including multi-source image pages and comparison visuals.
+        image_asset_dir = temp / "builder-assets" / "assets"
+        image_paths = write_png_assets(image_asset_dir, 4)
+        image_deck = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        image_deck["slides"][1]["layout"] = "image-right"
+        image_deck["slides"][1]["visuals"] = [
+            {"path": image_paths[0], "alt": "源案例图 1"},
+            {"path": image_paths[1], "alt": "源案例图 2"},
+            {"path": image_paths[2], "alt": "源案例图 3"},
+        ]
+        image_deck["slides"][1]["visual_plan"]["asset_type"] = "source-image"
+        image_deck["slides"][1]["visual_plan"]["source_image_ids"] = ["img001", "img002", "img003"]
+        image_deck["slides"][1]["visual_plan"]["case_granularity"] = "multi-case-sequence"
+        image_deck["slides"][1]["visual_plan"]["case_grouping_reason"] = "三张源图按原始顺序展示同一分支的递进案例，教师可在一页中逐张讲解。"
+        image_deck["slides"][1]["visual_plan"]["text_area_ratio"] = 0.36
+        image_deck["slides"][1]["visual_plan"]["image_area_ratio"] = 0.56
+        image_deck["slides"][1]["visual_plan"]["min_source_image_area_ratio"] = 0.16
+        image_deck["slides"][2]["layout"] = "comparison"
+        image_deck["slides"][2]["visuals"] = [{"path": image_paths[3], "alt": "对比案例图"}]
+        image_deck_path = temp / "builder-assets" / "deck-spec.json"
+        image_deck_path.write_text(json.dumps(image_deck, ensure_ascii=False), encoding="utf-8")
+        image_workspace = temp / "builder-workspace"
+        image_output = temp / "builder-assets" / "image-deck.pptx"
+        run([
+            "node", str(SCRIPTS / "build_deck.mjs"),
+            "--spec", str(image_deck_path),
+            "--output", str(image_output),
+            "--workspace", str(image_workspace),
+        ])
+        assert pptx_media_count(image_output) >= 4
+
+        # A dense source node may be split across consecutive slides when the split is declared.
+        split_deck = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        continuation = json.loads(json.dumps(split_deck["slides"][1], ensure_ascii=False))
+        continuation["number"] = 3
+        continuation["title"] = "编码还需要单独解释体积和播放压力"
+        continuation["source_coverage_kind"] = "split-continuation"
+        continuation["source_split_reason"] = "同一源节点包含两个需要分开讲解的教学单位，拆页后仍保持原节点顺序。"
+        split_deck["slides"][2]["number"] = 4
+        split_deck["slides"] = [split_deck["slides"][0], split_deck["slides"][1], continuation, split_deck["slides"][2]]
+        split_deck_path = temp / "split-source-node.json"
+        split_deck_path.write_text(json.dumps(split_deck, ensure_ascii=False), encoding="utf-8")
+        split_report = audit(temp, split_deck_path, FIXTURES / "source-map-detailed.json")
+        assert split_report["ok"]
+
+        # PDF hierarchy checks must be explicitly recorded before source validation can pass in PDF mode.
+        pdf_map = json.loads((FIXTURES / "source-map-detailed.json").read_text(encoding="utf-8"))
+        pdf_map["source_type"] = "pdf"
+        pdf_map["outline_mode"] = None
+        pdf_map["mode_declared_by_user"] = False
+        pdf_map_path = temp / "pdf-source-map.json"
+        pdf_map_path.write_text(json.dumps(pdf_map, ensure_ascii=False), encoding="utf-8")
+        run([sys.executable, str(SCRIPTS / "validate_source_map.py"), str(pdf_map_path), "--require-pdf-visual-check"], expect=1)
+        run([
+            sys.executable, str(SCRIPTS / "validate_source_map.py"), str(pdf_map_path),
+            "--pdf-visual-check", "--mode", "detailed", "--write", "--require-mode", "--require-pdf-visual-check",
+        ])
 
         missing_mapping_path = temp / "source-rich-missing-mapping.json"
         missing_mapping = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
@@ -572,6 +706,14 @@ def main() -> int:
             output = temp / "contact-sheet.jpg"
             run([sys.executable, str(SCRIPTS / "make_contact_sheet.py"), "--input-dir", str(image_dir), "--output", str(output)])
             assert output.exists() and output.stat().st_size > 0
+
+        svg_image_dir = temp / "svg-images"
+        svg_asset_paths = write_png_assets(svg_image_dir, 3)
+        for index, relative in enumerate(svg_asset_paths, start=1):
+            (svg_image_dir / f"slide-{index:02d}.png").write_bytes((svg_image_dir.parent / relative).read_bytes())
+        svg_output = temp / "contact-sheet.svg"
+        run([sys.executable, str(SCRIPTS / "make_contact_sheet.py"), "--input-dir", str(svg_image_dir), "--output", str(svg_output)])
+        assert "<svg" in svg_output.read_text(encoding="utf-8")
 
     print("all tests passed")
     return 0

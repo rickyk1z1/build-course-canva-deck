@@ -7,12 +7,46 @@ import argparse
 import math
 import re
 from pathlib import Path
+from html import escape
 
-from PIL import Image, ImageDraw, ImageFont
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    Image = ImageDraw = ImageFont = None
 
 
 def natural_key(path: Path) -> list[object]:
     return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", path.name)]
+
+
+def write_svg_contact_sheet(files: list[Path], output: Path, *, cols: int, thumb_width: int, gap: int) -> Path:
+    cols = max(1, cols)
+    thumb_height = round(thumb_width * 9 / 16)
+    label_height = 34
+    card_height = thumb_height + label_height
+    rows = math.ceil(len(files) / cols)
+    width = cols * thumb_width + (cols + 1) * gap
+    height = rows * card_height + (rows + 1) * gap
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
+        '<rect width="100%" height="100%" fill="#D8D2CC"/>',
+    ]
+    for index, path in enumerate(files):
+        x = gap + (index % cols) * (thumb_width + gap)
+        y = gap + (index // cols) * (card_height + gap)
+        lines.append(f'<rect x="{x}" y="{y}" width="{thumb_width}" height="{card_height}" fill="#FFFFFF"/>')
+        lines.append(
+            f'<text x="{x + 10}" y="{y + 22}" font-family="Arial, sans-serif" '
+            f'font-size="14" fill="#1C1C1C">{index + 1:02d}  {escape(path.stem)}</text>'
+        )
+        lines.append(
+            f'<image href="{escape(path.resolve().as_uri())}" x="{x}" y="{y + label_height}" '
+            f'width="{thumb_width}" height="{thumb_height}" preserveAspectRatio="xMidYMid meet"/>'
+        )
+    lines.append("</svg>")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return output
 
 
 def main() -> int:
@@ -35,6 +69,16 @@ def main() -> int:
     )
     if not files:
         raise SystemExit("no slide images found")
+    if Image is None or args.output.suffix.lower() == ".svg":
+        output = args.output if args.output.suffix.lower() == ".svg" else args.output.with_suffix(".svg")
+        print(write_svg_contact_sheet(
+            files,
+            output,
+            cols=args.cols,
+            thumb_width=args.thumb_width,
+            gap=args.gap,
+        ))
+        return 0
     font = ImageFont.load_default()
     cards: list[Image.Image] = []
     for index, path in enumerate(files, start=1):

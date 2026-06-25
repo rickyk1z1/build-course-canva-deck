@@ -7,6 +7,7 @@
 - Node IDs are unique and ordered.
 - Parent nodes precede children.
 - Embedded images and unreadable regions are accounted for.
+- PDF sources record `pdf_visual_hierarchy_verified: true` after rendered-page inspection.
 
 ## Content gate
 
@@ -14,6 +15,7 @@
 - Shared terminology matches existing lessons.
 - Prerequisite knowledge is only recapped as needed; neighboring lessons are not duplicated.
 - Every included source node maps to at least one slide.
+- A source node may map to more than one slide only when continuation slides declare `source_coverage_kind` as `split-continuation`, `case-continuation`, or `source-image-continuation`, with a concrete `source_split_reason`.
 - Slide source-node order is monotonic.
 - Detailed mode contains no added-content records.
 - Sparse additions map to original nodes, use allowed addition kinds, have `direct` relevance, and include evidence URLs.
@@ -78,6 +80,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Canva page count equals the PPTX page count.
 - Every page has been previewed.
 - Rich-text scan contains zero forbidden terms.
+- When `visual_plan.template_motif` exists, `canva-native-motif-report.json` contains one verified row per planned motif and the final audit with `--canva-motif-report` passes.
 - The original template remains unchanged.
 - Draft changes are committed only after explicit user approval.
 - Saved design is re-read and verified before delivery.

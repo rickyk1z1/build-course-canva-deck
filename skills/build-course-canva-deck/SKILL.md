@@ -13,7 +13,7 @@ Create a complete recording presentation from a course knowledge outline. Treat 
 2. If sources conflict or overlap, ask the user to choose one authoritative source. Do not merge them by assumption.
 3. After inspecting the authoritative source, ask the user to reply exactly with either `细纲` or `粗纲`.
 4. Do not infer the mode from length, hierarchy, file type, or apparent detail. Do not proceed until the user chooses.
-5. Record the choice in `source-map.json` with `validate_source_map.py --mode detailed|sparse --write`.
+5. Record the choice in `source-map.json` with `validate_source_map.py --mode detailed|sparse --write`. For PDF sources, also pass `--pdf-visual-check` after rendering and visually inspecting the page hierarchy.
 
 Before authoring, read [references/curriculum-system.md](references/curriculum-system.md). Discover the existing curriculum map, neighboring lessons, shared terminology, and this lesson's role. If the workspace does not reveal the lesson's position, ask the user for the missing curriculum context instead of inventing it.
 
@@ -30,17 +30,17 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 2. Run `scripts/extract_source.py` to create `source-map.json`. For PDFs, also render and visually inspect every relevant page; extracted text alone is not hierarchy evidence.
 3. Complete the mandatory source and mode checkpoint above.
 4. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
-5. Build a source coverage matrix in source order. Include every valid node exactly once or intentionally map a tightly related group to one slide.
+5. Build a source coverage matrix in source order. Include every valid node at least once. If one dense source node must split across consecutive slides, mark continuation slides with `source_coverage_kind` and `source_split_reason`; otherwise duplicate mappings fail QA.
 6. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
 7. Write two separate layers:
    - learner-facing screen copy that can be understood without narration;
    - lecture notes for oral transitions and emphasis, never rendered on slides.
 8. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page.
 9. Read [references/design-system.md](references/design-system.md) and [references/page-design-quality.md](references/page-design-quality.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
-10. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
+10. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import. `make_contact_sheet.py` writes a raster sheet when Pillow is available and an SVG sheet otherwise.
 11. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.
 12. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
-13. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
+13. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link. If template-native motifs were planned, run the final audit with `--canva-motif-report canva-native-motif-report.json`.
 
 ## Hard boundaries
 
@@ -72,10 +72,10 @@ Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage
 ## Resources
 
 - `scripts/extract_source.py`: extract a canonical source map from supported formats.
-- `scripts/validate_source_map.py`: validate hierarchy and record the user-declared mode.
-- `scripts/audit_deck.py`: enforce coverage, mode, scope, screen-copy, and PPTX text gates.
+- `scripts/validate_source_map.py`: validate hierarchy, record the user-declared mode, and record PDF visual hierarchy checks.
+- `scripts/audit_deck.py`: enforce coverage, mode, scope, screen-copy, PPTX text gates, and final Canva native motif report gates.
 - `scripts/build_deck.mjs`: generate editable 16:9 slides using the selected template profile.
-- `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet.
+- `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet as raster or SVG fallback.
 - `references/visual-system.md`: mandatory rules for source case images, generated diagrams, and slide-level visual plans.
 - `references/design-system.md`: mandatory rules for Canva template fidelity, fonts, colors, and layout rhythm.
 - `references/page-design-quality.md`: mandatory rules for title scale, alignment, proximity, contrast, image evidence blocks, and contact-sheet design review.

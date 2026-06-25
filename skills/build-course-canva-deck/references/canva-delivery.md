@@ -47,7 +47,7 @@ After import:
    - use media `update_fill` only for motifs whose recorded template source is actually an image/frame fill; it does not satisfy vector motif reuse;
    - if the connector cannot copy/reuse the native template element, stop for an accessible duplicate or explicit browser fallback rather than substituting a random Canva asset;
    - never leave the proxy image underneath an overlaid native Canva element.
-4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, source template design/page/element ID, element type, local proxy match result, final Canva element result, collision status, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, `non_template_asset`, `overlaps_text`, `repeated_single_element`, or `blocked` without explicit user approval.
+4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, source template design/page/element ID, element type, local proxy match result, final Canva element result, collision status, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, `non_template_asset`, `overlaps_text`, `repeated_single_element`, or `blocked` without explicit user approval. Run `audit_deck.py --canva-motif-report canva-native-motif-report.json` before returning the final link; accepted final statuses are `verified`, `replaced`, `native_replaced`, or `completed`.
 5. Retrieve page previews and inspect the complete deck.
 6. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, motif diversity, no motif/text overlap, and layout consistency.
 7. Apply corrections in one editing transaction when possible.
@@ -59,7 +59,7 @@ Default to one final review checkpoint. Internal content, visual, and layout rev
 
 If a Canva editing transaction exists, explicitly ask whether to save the shown changes. Do not commit until the user clearly approves. Cancel if the user rejects the draft.
 
-After commit, re-read design metadata and rich text. Return the edit URL only after page count and forbidden-language checks pass.
+After commit, re-read design metadata and rich text. Return the edit URL only after page count, forbidden-language checks, and the final Canva motif report audit pass.
 
 ## Failure handling
 
