@@ -38,6 +38,7 @@ This file guides agents who maintain this skill repository. It is not the runtim
 - Do not weaken source-order, visible evidence, sibling enumeration, source-image coverage, or Canva-template safety gates for convenience.
 - Do not overwrite original template assets or generated reference assets unless the user explicitly asks.
 - If user feedback reveals a repeatable failure mode, update the relevant runtime reference and add or adjust a test when the failure is script-enforceable.
+- After any user-requested skill repository change, run the appropriate validation, commit, and push to `origin/main` immediately. Skip only when the user explicitly asks for local-only work, validation fails and cannot be fixed in the same turn, or GitHub authentication/network access is blocked.
 
 ## Validation
 

@@ -22,3 +22,5 @@
 - 2026-06-26T02:53:12+0800 [CODE] Added `requirements-dev.txt` with `PyYAML>=6.0,<7` and documented the install command in README.md and AGENTS.md so skill validation does not rely on undocumented local setup.
 - 2026-06-26T02:56:08+0800 [TOOL] Full `tests/run_tests.py` initially failed because fixture deck specs were missing `source_node_treatments` required by the current QA gate.
 - 2026-06-26T02:56:08+0800 [CODE] Updated detailed/sparse deck fixtures and the synthetic long-deck test helper so mapped source nodes include current `screen_evidence` treatments; `tests/run_tests.py`, audit density tests, and skill validation now pass.
+- 2026-06-26T03:04:29+0800 [USER] User requested that every future skill modification be synced to GitHub immediately after the work is done.
+- 2026-06-26T03:04:29+0800 [DECISION] Future user-requested changes to this skill repository should be validated, committed, and pushed to `origin/main` in the same turn unless the user requests local-only work or validation/auth/network blocks the push.
