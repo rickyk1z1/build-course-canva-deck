@@ -24,3 +24,7 @@
 - 2026-06-26T02:56:08+0800 [CODE] Updated detailed/sparse deck fixtures and the synthetic long-deck test helper so mapped source nodes include current `screen_evidence` treatments; `tests/run_tests.py`, audit density tests, and skill validation now pass.
 - 2026-06-26T03:04:29+0800 [USER] User requested that every future skill modification be synced to GitHub immediately after the work is done.
 - 2026-06-26T03:04:29+0800 [DECISION] Future user-requested changes to this skill repository should be validated, committed, and pushed to `origin/main` in the same turn unless the user requests local-only work or validation/auth/network blocks the push.
+- 2026-06-26T03:06:49+0800 [USER] User revised the sync policy and requested confirmation before every future GitHub push.
+- 2026-06-26T03:06:49+0800 [DECISION] Future user-requested changes to this skill repository should still be validated and committed locally, but pushing to `origin/main` requires explicit user confirmation immediately before the push.
+- 2026-06-26T03:09:51+0800 [USER] User clarified that `AGENTS.md` should not be synced or committed to GitHub and is only local maintenance guidance for skill edits.
+- 2026-06-26T03:09:51+0800 [DECISION] Keep root `AGENTS.md` as a local-only ignored file; Git should track only repository/runtime docs, tests, scripts, assets, and continuity records.
