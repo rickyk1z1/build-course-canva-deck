@@ -4,6 +4,7 @@
 
 - One authoritative source is explicitly selected.
 - A user-declared mode is recorded; mode is never inferred.
+- If workers are used, `scratch/agent-state/role-registry.json` exists and each repeated worker invocation uses the same stable `role_id` with prior state included in its brief.
 - Node IDs are unique and ordered.
 - Parent nodes precede children.
 - Embedded images and unreadable regions are accounted for.

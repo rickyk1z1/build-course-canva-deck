@@ -39,6 +39,8 @@ Before dispatching a worker, the director creates one scoped brief under `scratc
 Each brief must include:
 
 - `role_name`: the Chinese worker name.
+- `role_id`: the stable logical role ID for this course run.
+- `invocation_id`: the specific call or gate, such as `pre-dispatch`, `after-slide-plan`, or `before-build`.
 - `objective`: the exact proposal to produce.
 - `allowed_read_paths`: exact files, extracted slices, rendered pages, or reference documents the worker may read.
 - `forbidden_reads`: broad files or systems the worker must not open, such as the raw source, neighboring courses, template bank, Canva design, or unrelated references when not needed.
@@ -46,25 +48,60 @@ Each brief must include:
 - `source_node_scope`: all nodes, a contiguous node range, or explicit node IDs.
 - `mode`: `detailed` or `sparse`, copied from the user-declared `细纲` or `粗纲`.
 - `boundary_summary`: curriculum scope, excluded neighboring topics, and handoffs relevant to this worker.
+- `prior_state_paths`: the role-state files and previous outputs this invocation must read before working.
 - `acceptance_checks`: concrete checks the director will run before using the proposal.
 - `open_questions`: context gaps the worker should report instead of guessing.
 
 Worker rule: read the brief first, then read only `allowed_read_paths`. If additional context is required, write a `context_request` entry in the proposal or QA findings and stop that part of the task. Do not broaden your own read scope.
+
+## Role continuity
+
+The five worker names are logical roles, not separate identities per dispatch. The director owns a role registry:
+
+- `scratch/agent-state/role-registry.json`
+- `scratch/agent-state/course-producer.state.json`
+- `scratch/agent-state/script-supervisor.state.json`
+- `scratch/agent-state/teacher-writer.state.json`
+- `scratch/agent-state/storyboard-designer.state.json`
+- `scratch/agent-state/final-reviewer.state.json`
+
+Use these stable `role_id` values:
+
+- `course-producer` for 课程统筹师
+- `script-supervisor` for 原稿场记
+- `teacher-writer` for 课堂编剧
+- `storyboard-designer` for 视觉分镜师
+- `final-reviewer` for 成片审片员
+
+A role may have many invocations, but each invocation must continue from the same role state. This rule applies to all five workers, not only 成片审片员. If the runtime starts a fresh subagent process, the director must still pass the prior state and previous outputs in `allowed_read_paths`; the fresh process is only a physical execution detail, not a new logical worker.
+
+Workers do not directly mutate role-state files. Each proposal or findings file may include a `state_update` object. The director reviews the proposal, resolves conflicts, then writes the updated role-state file. If the prior state is missing, stale, or contradictory, the director reconstructs it from existing proposal/findings files before dispatching another invocation.
+
+Examples:
+
+- A second 课程统筹师 pass revising curriculum boundaries must read `course-producer.state.json` and the prior `source-context.proposal.json`.
+- A second 原稿场记 pass splitting dense source groups must read `script-supervisor.state.json`, the prior slide plan, and the director's merge notes.
+- A second 课堂编剧 pass revising screen copy must read `teacher-writer.state.json`, prior copy proposal, accepted slide plan, and unresolved copy findings.
+- A second 视觉分镜师 pass revising images or layout must read `storyboard-designer.state.json`, prior visual plan, executed image task results, and layout findings.
+- A second 成片审片员 pass must read `final-reviewer.state.json`, prior findings, accepted waivers, and fixes made since the last gate.
+
+The 成片审片员 is especially stateful. All four gates must use `role_id: final-reviewer`. Later briefs must include prior `supervisor-findings`, unresolved issues, accepted waivers, and fixes made since the prior gate. Do not create an independent second 成片审片员 that starts with a blank memory or re-audits without the previous finding ledger.
 
 ## Dispatch sequence
 
 The director does not need to run every worker at the same time. Use staged dispatch so downstream workers receive curated upstream proposals rather than re-reading broad context.
 
 1. 总导演 performs source intake, source extraction, mode recording, curriculum/reference discovery, and initial source-image inventory.
-2. 成片审片员 reviews all first-stage briefs before any content worker starts.
-3. 课程统筹师 and 原稿场记 may run in parallel because their write paths and read scopes do not overlap materially.
-4. 总导演 reviews those proposals, resolves conflicts, and creates a narrower brief for 课堂编剧.
-5. 课堂编剧 writes learner-facing screen copy from the approved source-node plan and allowed excerpts.
-6. 总导演 reviews the copy proposal and creates a narrower brief for 视觉分镜师.
-7. 视觉分镜师 plans visuals, layout capacity, template motif use, and `image_generation_tasks` from the slide plan, screen copy, source-image inventory, and selected template references.
-8. 总导演 executes approved `image_generation_tasks`, writes image assets, records asset paths, and updates the durable deck spec.
-9. 成片审片员 checks after every proposal, before director merge, and before build/import.
-10. 总导演 alone merges proposals into durable files, runs scripts, builds PPTX, imports into Canva, edits Canva, requests final approval, and returns the final link.
+2. 总导演 creates `scratch/agent-state/role-registry.json` and initial per-role state files.
+3. 成片审片员 reviews all first-stage briefs before any content worker starts, using `role_id: final-reviewer` and writing a `state_update`.
+4. 课程统筹师 and 原稿场记 may run in parallel because their write paths and read scopes do not overlap materially.
+5. 总导演 reviews those proposals, merges any `state_update`, resolves conflicts, and creates a narrower brief for 课堂编剧.
+6. 课堂编剧 writes learner-facing screen copy from the approved source-node plan and allowed excerpts.
+7. 总导演 reviews the copy proposal and creates a narrower brief for 视觉分镜师.
+8. 视觉分镜师 plans visuals, layout capacity, template motif use, and `image_generation_tasks` from the slide plan, screen copy, source-image inventory, and selected template references.
+9. 总导演 executes approved `image_generation_tasks`, writes image assets, records asset paths, and updates the durable deck spec.
+10. 成片审片员 checks after every proposal, before director merge, and before build/import as continuing invocations of `final-reviewer`.
+11. 总导演 alone merges proposals into durable files, runs scripts, builds PPTX, imports into Canva, edits Canva, requests final approval, and returns the final link.
 
 ## 总导演 / build-course-canva-deck
 
@@ -75,12 +112,13 @@ Own all durable writes and external actions:
 - `deck-spec.json`
 - screen-copy and recording-script files, if produced
 - `scratch/agent-briefs/*.brief.md` or `*.brief.json`
+- `scratch/agent-state/*.state.json`
 - generated image assets and image asset manifests
 - PPTX generation
 - QA reports
 - Canva import, Canva edits, and final approval
 
-The director dispatches the five proposal workers, merges proposals, resolves conflicts, executes approved image-generation tasks, reruns deterministic scripts, and fixes failures. It must never let a worker write final files, edit the source, modify a Canva template, touch a Canva design, call image-generation tools, or save final image assets.
+The director dispatches the five proposal workers, maintains their logical role state, merges proposals, resolves conflicts, executes approved image-generation tasks, reruns deterministic scripts, and fixes failures. It must never let a worker write final files, edit the source, modify a Canva template, touch a Canva design, call image-generation tools, or save final image assets.
 
 The director should be the only role that reads all broad context by default. It may pass extracted slices, summaries, node ranges, image inventories, and relevant reference documents to workers, but it should not pass full source or full template context unless that worker has a direct verification need.
 
@@ -257,12 +295,13 @@ Outputs:
 - `scratch/supervisor-log.md`
 - `scratch/supervisor-findings.json`
 - `scratch/qa-findings.md`
+- `state_update` inside the current findings file for the director to merge into `scratch/agent-state/final-reviewer.state.json`
 
 Run checks at four gates:
 
-1. Before worker dispatch: authoritative source, mode, bounded worker briefs, allowed reads, forbidden reads, and scratch-only write paths.
+1. Before worker dispatch: authoritative source, mode, bounded worker briefs, stable `role_id`, prior state, allowed reads, forbidden reads, and scratch-only write paths.
 2. After every proposal: role boundaries, source order, complete enumerations, no repeated/early wording, no narration-only knowledge, valid `image_generation_tasks`, and no unauthorized file reads or writes.
 3. Before director merge: one-to-one coverage feasibility, monotonic order, distinct evidence, layout capacity, executable image-generation tasks, and unresolved conflicts.
 4. Before build/import: deterministic `audit_deck.py` result, rendered PPTX same-slide evidence, generated-image assets or documented fallbacks, Canva preflight, and zero unresolved findings.
 
-The 成片审片员 must not author slide text, slide plans, visual plans, image-generation tasks, or final files. It can require the director to rerun a worker, narrow a brief, provide missing excerpts, revise a prompt, execute or bypass an image-generation task, or split a slide.
+The 成片审片员 must not author slide text, slide plans, visual plans, image-generation tasks, or final files. It can require the director to rerun a worker, narrow a brief, provide missing excerpts, revise a prompt, execute or bypass an image-generation task, split a slide, or reconstruct missing role state before the next gate.

@@ -19,7 +19,9 @@ Never overwrite source files.
 
 When subagents are available for a course-deck build or revision, optimize for quality and keep worker outputs in the external scratch workspace. Workers are advisory only. Use the five-agent proposal worker set from `agent-hierarchy.md` unless subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
 
-The orchestrator must route context instead of letting every worker read the same broad materials. Before dispatch, create bounded task briefs under `scratch/agent-briefs/`. Each brief lists the worker's exact objective, allowed read paths, forbidden reads, write path, source-node scope, mode, boundary summary, acceptance checks, and open questions. Workers read their brief first and then only the files or excerpts listed in `allowed_read_paths`; if they need more context, they write a `context_request` instead of opening broad source, curriculum, template, or Canva files on their own.
+The orchestrator must route context instead of letting every worker read the same broad materials. Before dispatch, create bounded task briefs under `scratch/agent-briefs/` and a role registry under `scratch/agent-state/`. Each brief lists the worker's `role_id`, `invocation_id`, exact objective, allowed read paths, forbidden reads, write path, source-node scope, mode, boundary summary, prior role state, acceptance checks, and open questions. Workers read their brief first and then only the files or excerpts listed in `allowed_read_paths`; if they need more context, they write a `context_request` instead of opening broad source, curriculum, template, or Canva files on their own.
+
+Role continuity is mandatory for every worker. A worker may be invoked multiple times, but it remains the same logical role across the course run. Repeated calls to `课程统筹师`, `原稿场记`, `课堂编剧`, `视觉分镜师`, or `成片审片员` must use that role's stable `role_id` and cumulative state. If the execution environment starts a fresh subagent each time, the orchestrator must pass prior role state and previous outputs, then merge the worker's proposed `state_update` into `scratch/agent-state/<role_id>.state.json`.
 
 The staged worker set is:
 
@@ -31,6 +33,12 @@ The staged worker set is:
 
 The scratch workspace contains controller briefs and worker proposals such as:
 
+- `scratch/agent-state/role-registry.json`
+- `scratch/agent-state/course-producer.state.json`
+- `scratch/agent-state/script-supervisor.state.json`
+- `scratch/agent-state/teacher-writer.state.json`
+- `scratch/agent-state/storyboard-designer.state.json`
+- `scratch/agent-state/final-reviewer.state.json`
 - `scratch/agent-briefs/source-context.brief.md`
 - `scratch/agent-briefs/slide-plan.brief.md`
 - `scratch/agent-briefs/screen-copy.brief.md`
@@ -46,7 +54,7 @@ The scratch workspace contains controller briefs and worker proposals such as:
 
 The orchestrator is the only writer of durable course files and the only actor allowed to build PPTX files, import into Canva, edit Canva, or commit Canva changes. If subagents are unavailable or unsafe for the current run, the orchestrator performs the same phases sequentially and records the limitation.
 
-Use the 成片审片员 whenever any worker is used. The 成片审片员 does not author content. It audits worker briefs, proposal files, role boundaries, allowed-read compliance, source-order fidelity, duplicate/early wording risks, generated-image task quality, rendered-output risks, unresolved conflicts, and readiness gates. Run 成片审片 checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. The orchestrator must resolve every 成片审片 finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
+Use the 成片审片员 whenever any worker is used. The 成片审片员 does not author content. It audits worker briefs, proposal files, role boundaries, allowed-read compliance, source-order fidelity, duplicate/early wording risks, generated-image task quality, rendered-output risks, unresolved conflicts, and readiness gates. Run 成片审片 checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. All gates continue the same `final-reviewer` role state; do not create several independent reviewers with the same display name. Apply the same continuity rule to revision passes for the other four workers. The orchestrator must resolve every 成片审片 finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
 
 ## Source intake
 
