@@ -19,7 +19,7 @@ The director must act as the router and reviewer. It reads the broad source and 
 - `课程统筹师`: thinks like a course producer. It decides where this lesson sits, what it should teach, what it should hand off, and what neighboring lessons must own instead.
 - `原稿场记`: thinks like a script supervisor. It preserves source order, continuity, sibling lists, examples, and source images so nothing quietly disappears.
 - `课堂编剧`: thinks like a teacher-writer. It turns approved source points into self-contained learner-facing screen copy.
-- `视觉分镜师`: thinks like a storyboard designer. It decides how each slide should be seen, which cases need images, which source images to reuse, and which generated images the director should create.
+- `视觉分镜师`: thinks like a storyboard designer. It works in staged passes: first triage how slides should be seen and which cases/source images matter, then finalize template fit, motif use, layout capacity, and approved generated-image tasks after screen copy is stable.
 - `成片审片员`: thinks like a final reviewer. It checks whether the work can become a reliable learner-facing deck without authoring new content.
 
 ## Working language
@@ -82,7 +82,7 @@ Examples:
 - A second 课程统筹师 pass revising curriculum boundaries must read `course-producer.state.json` and the prior `source-context.proposal.json`.
 - A second 原稿场记 pass splitting dense source groups must read `script-supervisor.state.json`, the prior slide plan, and the director's merge notes.
 - A second 课堂编剧 pass revising screen copy must read `teacher-writer.state.json`, prior copy proposal, accepted slide plan, and unresolved copy findings.
-- A second 视觉分镜师 pass revising images or layout must read `storyboard-designer.state.json`, prior visual plan, executed image task results, and layout findings.
+- A second 视觉分镜师 pass revising images or layout must read `storyboard-designer.state.json`, prior visual triage/final plan parts, executed image task results, and layout findings.
 - A second 成片审片员 pass must read `final-reviewer.state.json`, prior findings, accepted waivers, and fixes made since the last gate.
 
 The 成片审片员 is especially stateful. All four gates must use `role_id: final-reviewer`. Later briefs must include prior `supervisor-findings`, unresolved issues, accepted waivers, and fixes made since the prior gate. Do not create an independent second 成片审片员 that starts with a blank memory or re-audits without the previous finding ledger.
@@ -96,12 +96,13 @@ The director does not need to run every worker at the same time. Use staged disp
 3. 成片审片员 reviews all first-stage briefs before any content worker starts, using `role_id: final-reviewer` and writing a `state_update`.
 4. 课程统筹师 and 原稿场记 may run in parallel because their write paths and read scopes do not overlap materially.
 5. 总导演 reviews those proposals, merges any `state_update`, resolves conflicts, and creates a narrower brief for 课堂编剧.
-6. 课堂编剧 writes learner-facing screen copy from the approved source-node plan and allowed excerpts.
-7. 总导演 reviews the copy proposal and creates a narrower brief for 视觉分镜师.
-8. 视觉分镜师 plans visuals, layout capacity, template motif use, and `image_generation_tasks` from the slide plan, screen copy, source-image inventory, and selected template references.
-9. 总导演 executes approved `image_generation_tasks`, writes image assets, records asset paths, and updates the durable deck spec.
-10. 成片审片员 checks after every proposal, before director merge, and before build/import as continuing invocations of `final-reviewer`.
-11. 总导演 alone merges proposals into durable files, runs scripts, builds PPTX, imports into Canva, edits Canva, requests final approval, and returns the final link.
+6. After the slide plan is approved, 总导演 may run 课堂编剧 and the first 视觉分镜师 `visual-triage` invocation in parallel. Visual triage uses the slide plan, source-image inventory, and a compact template profile; it does not write production prompts or final motif placements.
+7. 课堂编剧 writes learner-facing screen copy from the approved source-node plan and allowed excerpts.
+8. 总导演 reviews copy and visual triage, resolves slide splits or source-image decisions, then creates narrower final visual briefs.
+9. 视觉分镜师 finalizes visuals, layout capacity, template motif use, and approved `image_generation_tasks` from the stable screen copy. For long decks, split this into contiguous slide ranges under the same `role_id`, such as `visual-finalize-slides-01-12` and `visual-finalize-slides-13-24`.
+10. 总导演 executes approved `image_generation_tasks`, writes image assets, records asset paths, and updates the durable deck spec.
+11. 成片审片员 checks after every proposal, before director merge, and before build/import as continuing invocations of `final-reviewer`.
+12. 总导演 alone merges proposals into durable files, runs scripts, builds PPTX, imports into Canva, edits Canva, requests final approval, and returns the final link.
 
 ## 总导演 / build-course-canva-deck
 
@@ -222,14 +223,14 @@ Must not move later source-node wording into earlier pages unless the source alr
 
 ## 视觉分镜师
 
-Purpose: plan the teachable visual and layout system before the director builds the PPTX.
+Purpose: plan the teachable visual and layout system before the director builds the PPTX, without making one long visual pass the bottleneck.
 
 Default allowed reads:
 
 - its director brief
-- director-approved slide plan and screen-copy proposal
+- director-approved slide plan and, for final visual passes, the approved screen-copy proposal
 - source image inventory, selected rendered source images, and generated-image review notes listed in the brief
-- selected template profile, selected template reference pages, and only the visual, design, and page-quality references listed in the brief
+- selected template profile, prebuilt template-native element inventory, selected template reference pages, and only the visual, design, and page-quality references listed in the brief
 
 Default forbidden reads:
 
@@ -239,20 +240,29 @@ Default forbidden reads:
 - Canva designs or templates directly, unless the director brief authorizes a read-only template inventory check
 - image-generation tools, final image asset directories, PPTX build outputs, and Canva import/edit actions
 
-Output:
+Outputs:
 
-- `scratch/visual-plan.proposal.json`
+- `scratch/visual-triage.proposal.json` for early visual triage
+- `scratch/visual-plan.part-NN.proposal.json` for long-deck range proposals when used
+- `scratch/visual-plan.proposal.json` for the director-reviewed merged visual proposal
 
 Must include:
 
-- visual asset type per slide
+- visual asset type per slide, or per slide range when the brief is split
 - source image usage or omission reasons
-- generated-image candidates when needed
-- complete `image_generation_tasks` for every generated case image or illustration the director should execute
-- template page mapping and native motif plan
-- layout capacity checks showing every required bullet, block, and enumeration can render
+- generated-image candidates when needed, plus `generated_bypass_reason` when source images or editable diagrams make generation unnecessary
+- complete `image_generation_tasks` only for generated case images or illustrations already approved by the director
+- template page mapping and native motif plan, using the director-provided template inventory rather than rediscovering the whole template
+- layout capacity checks showing every required bullet, block, and enumeration can render, with high-risk pages checked first
 - split recommendations when a layout cannot fit the source content
 - any `context_request` for missing template inventory, image dimensions, or motif collision risks
+
+Phased invocation rules:
+
+- `visual-triage` runs after the slide plan and can run in parallel with 课堂编剧. It decides source-image reuse, likely visual asset type, candidate generated-image pages, and obvious split/layout risks. It must not write production prompts, final native motif coordinates, or exhaustive per-slide template copy.
+- `visual-finalize` runs only after screen copy is stable. It fills `visual_plan.template_reference`, `layout_variant`, source-image granularity fields, native motif plans, and final layout-capacity notes for its assigned slide range.
+- For decks longer than 18 pages, prefer contiguous range briefs over one all-deck visual pass. Every range brief must include `range_start`, `range_end`, prior `storyboard-designer.state.json`, accepted triage decisions, and cross-range rhythm constraints. The director merges range proposals and resolves conflicts.
+- Prompt detail is staged. Triage records `prompt_brief`, teaching goal, and reference inputs. Full `prompt`, `negative_prompt`, candidate count, and selection criteria are required only after the director approves a slide for generated imagery. If no generated imagery is needed in a source-rich deck, record a concrete `generated_bypass_reason` instead.
 
 Each `image_generation_tasks` item must include:
 

@@ -453,8 +453,8 @@ def main() -> int:
                 slide for slide in slides
                 if (slide.get("visual_plan") or {}).get("asset_type") in {"source-image", "redrawn-source-image"}
             ]
-            required_generated = max(1, len(normal_knowledge) // 10)
-            required_source_reuse = max(2, min(len(source_images), required_generated + 1))
+            recommended_generated = max(1, len(normal_knowledge) // 10)
+            required_source_reuse = max(2, min(len(source_images), recommended_generated + 1))
             if not isinstance(review, dict) or review.get("status") != "completed":
                 errors.append("source-rich long decks must complete course.image_generation_review before local PPT generation")
             elif review.get("source_case_priority") != "source-first":
@@ -463,19 +463,31 @@ def main() -> int:
                 errors.append("course.image_generation_review must list enough reused_source_slide_numbers before generated additions")
             elif review.get("generated_after_source_review") is not True:
                 errors.append("course.image_generation_review must confirm generated_after_source_review")
-            elif not isinstance(review.get("generated_slide_numbers"), list) or not review.get("generated_slide_numbers"):
-                errors.append("course.image_generation_review must list generated_slide_numbers for source-rich long decks")
-            elif int(review.get("candidates_considered") or 0) < required_generated:
-                errors.append("course.image_generation_review must consider candidate pages for generated teaching cases")
+            else:
+                generated_slide_numbers = review.get("generated_slide_numbers")
+                generated_bypass_reason = str(review.get("generated_bypass_reason", "")).strip()
+                if not isinstance(generated_slide_numbers, list):
+                    errors.append("course.image_generation_review must list generated_slide_numbers, even when no generated images are selected")
+                    generated_slide_numbers = []
+                if generated_slide_numbers:
+                    if int(review.get("candidates_considered") or 0) < len(generated_slide_numbers):
+                        errors.append("course.image_generation_review must consider every selected generated teaching case")
+                    if len(generated_slides) < len(generated_slide_numbers):
+                        errors.append(
+                            f"source-rich long decks planned {len(generated_slide_numbers)} generated teaching case images "
+                            f"but rendered only {len(generated_slides)}"
+                        )
+                elif generated_slides:
+                    errors.append("course.image_generation_review generated_slide_numbers is empty but generated-image slides are present")
+                elif len(generated_bypass_reason) < 20:
+                    errors.append(
+                        "source-rich long decks without generated images must record a concrete generated_bypass_reason "
+                        "explaining why no remaining text-heavy or abstract page needs a generated teaching case"
+                    )
             if len(source_case_slides) < required_source_reuse:
                 errors.append(
                     f"source-rich long decks must reuse source case images before generated additions; "
                     f"found {len(source_case_slides)}, expected at least {required_source_reuse}"
-                )
-            if len(generated_slides) < required_generated:
-                errors.append(
-                    f"source-rich long decks must include generated teaching case images; "
-                    f"found {len(generated_slides)}, expected at least {required_generated}"
                 )
             if not isinstance(source_image_coverage, list):
                 errors.append("source-rich decks must include course.source_image_coverage for every non-thumbnail source image")

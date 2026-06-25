@@ -166,6 +166,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         "generated_after_source_review": True,
         "generated_slide_numbers": [6],
         "candidates_considered": 3,
+        "generated_bypass_reason": "",
         "rationale": "源图充足但仍补一张文字较多页面的教学案例图。",
     }
     course["source_image_coverage"] = [
@@ -483,6 +484,28 @@ def main() -> int:
         missing_generated_path.write_text(json.dumps(missing_generated, ensure_ascii=False), encoding="utf-8")
         missing_generated_report = audit(temp, missing_generated_path, source_rich_long_source_path, expect=1)
         assert any("generated" in error or "image_generation_review" in error for error in missing_generated_report["errors"])
+
+        no_generated_with_bypass_path = temp / "source-rich-no-generated-with-bypass.json"
+        no_generated_with_bypass = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        no_generated_with_bypass["course"]["image_generation_review"]["generated_slide_numbers"] = []
+        no_generated_with_bypass["course"]["image_generation_review"]["candidates_considered"] = 0
+        no_generated_with_bypass["course"]["image_generation_review"]["generated_bypass_reason"] = (
+            "源案例图已经覆盖主要演示页，剩余抽象页使用可编辑对比图和流程图更清晰，因此不需要额外位图生成。"
+        )
+        for slide in no_generated_with_bypass["slides"]:
+            if slide["visual_plan"].get("asset_type") == "generated-image":
+                slide["layout"] = "comparison"
+                slide["visuals"] = []
+                slide["visual_plan"]["asset_type"] = "editable-diagram"
+                slide["visual_plan"]["source_image_ids"] = []
+                slide["visual_plan"]["case_granularity"] = "not-source-image"
+                slide["visual_plan"]["generation_route"] = ""
+                slide["visual_plan"]["prompt_brief"] = ""
+                slide["visual_plan"]["imagegen_priority"] = "not-needed"
+                slide["visual_plan"]["imagegen_bypass_reason"] = "该页用可编辑对比图比位图更容易承载标签和讲解关系。"
+        no_generated_with_bypass_path.write_text(json.dumps(no_generated_with_bypass, ensure_ascii=False), encoding="utf-8")
+        no_generated_with_bypass_report = audit(temp, no_generated_with_bypass_path, source_rich_long_source_path)
+        assert no_generated_with_bypass_report["ok"]
 
         missing_source_priority_path = temp / "source-rich-missing-source-priority.json"
         missing_source_priority = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))

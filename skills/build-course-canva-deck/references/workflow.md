@@ -42,10 +42,13 @@ The scratch workspace contains controller briefs and worker proposals such as:
 - `scratch/agent-briefs/source-context.brief.md`
 - `scratch/agent-briefs/slide-plan.brief.md`
 - `scratch/agent-briefs/screen-copy.brief.md`
+- `scratch/agent-briefs/visual-triage.brief.md`
 - `scratch/agent-briefs/visual-plan.brief.md`
 - `scratch/agent-briefs/quality-gate.brief.md`
 - `scratch/source-context.proposal.json`
 - `scratch/slide-plan.proposal.json`
+- `scratch/visual-triage.proposal.json`
+- `scratch/visual-plan.part-NN.proposal.json`
 - `scratch/visual-plan.proposal.json`
 - `scratch/screen-copy.proposal.json`
 - `scratch/supervisor-log.md`
@@ -53,6 +56,8 @@ The scratch workspace contains controller briefs and worker proposals such as:
 - `scratch/qa-findings.md`
 
 The orchestrator is the only writer of durable course files and the only actor allowed to build PPTX files, import into Canva, edit Canva, or commit Canva changes. If subagents are unavailable or unsafe for the current run, the orchestrator performs the same phases sequentially and records the limitation.
+
+Visual planning is intentionally staged. After the slide plan is approved, the orchestrator may dispatch `visual-triage` under `role_id: storyboard-designer` in parallel with 课堂编剧. Triage only decides source-image reuse, visual asset type, generated-image candidates, and obvious layout/split risks. After screen copy is stable, use one or more `visual-finalize` briefs for template references, native motif placements, layout capacity, and approved `image_generation_tasks`. Long decks should use contiguous range briefs instead of one very large visual brief, while preserving the same `storyboard-designer` role state.
 
 Use the 成片审片员 whenever any worker is used. The 成片审片员 does not author content. It audits worker briefs, proposal files, role boundaries, allowed-read compliance, source-order fidelity, duplicate/early wording risks, generated-image task quality, rendered-output risks, unresolved conflicts, and readiness gates. Run 成片审片 checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. All gates continue the same `final-reviewer` role state; do not create several independent reviewers with the same display name. Apply the same continuity rule to revision passes for the other four workers. The orchestrator must resolve every 成片审片 finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
 
@@ -163,6 +168,7 @@ Build `deck-spec.json` with this minimum shape:
       "generated_after_source_review": true,
       "generated_slide_numbers": [6, 14],
       "candidates_considered": 4,
+      "generated_bypass_reason": "",
       "rationale": "source case images are used first where they directly teach the node; generated cases only supplement text-heavy or abstract pages"
     },
     "image_generation_tasks": [
@@ -357,7 +363,7 @@ For decks longer than 12 pages, `course.template_page_mapping` and `course.templ
 
 For decks longer than 12 pages, Canva-native template element use is mandatory when the selected template contains reusable native motifs or structural assets. Plan these in `visual_plan.template_motif` before local PPT generation; use local raster preview proxies only to verify position, scale, collision, and contact-sheet rhythm. After Canva import, copy/reuse the recorded existing template elements using the recorded `copy_template_element` route. A long deck that uses only generic PPT shapes/images and no planned native template motif fails QA. Placeholder IDs, arbitrary Canva library asset IDs, non-template design IDs, and a single repeated motif source are not valid final motif plans.
 
-Always run an image-generation review before local PPT generation. Source images remain the first choice for nodes they directly teach, and this priority must be recorded in `course.image_generation_review.source_case_priority: "source-first"` with `reused_source_slide_numbers` when usable source cases exist. If the deck is image-poor, generated teaching images are a primary build input rather than a small supplement. Image-poor means no usable non-thumbnail case images, too few case images for the number of normal knowledge slides, or a detailed outline with high text density but low case-image coverage. In those cases, generate concrete text-free teaching images for metaphor-heavy and abstract pages unless image generation is unavailable; use editable diagrams only when the visual is mainly arrows, labels, comparisons, or tables. Record `generated_after_source_review: true`, generated candidate counts, selected slide numbers, or fallback slide numbers before building. When workers are used, the 视觉分镜师 proposes `course.image_generation_tasks`; the 总导演 executes the approved tasks, saves selected assets into the course asset folder, records `execution_status`, `selected_asset_path`, or fallback details, and only then builds the PPTX.
+Always run an image-generation review before local PPT generation. Source images remain the first choice for nodes they directly teach, and this priority must be recorded in `course.image_generation_review.source_case_priority: "source-first"` with `reused_source_slide_numbers` when usable source cases exist. In source-rich decks, first preserve and account for the source images; then review the remaining text-heavy or abstract pages that have no source image. Add generated teaching cases only where those pages need a richer visual example. Do not generate images merely to satisfy a count. If source images and editable diagrams already cover the teaching need, `generated_slide_numbers` may be an empty list only when `generated_bypass_reason` explains the decision concretely. If the deck is image-poor, generated teaching images are a primary build input rather than a small supplement. Image-poor means no usable non-thumbnail case images, too few case images for the number of normal knowledge slides, or a detailed outline with high text density but low case-image coverage. In those cases, generate concrete text-free teaching images for metaphor-heavy and abstract pages unless image generation is unavailable; use editable diagrams only when the visual is mainly arrows, labels, comparisons, or tables. Record `generated_after_source_review: true`, generated candidate counts, selected slide numbers, bypass reason, or fallback slide numbers before building. When workers are used, the 视觉分镜师 proposes `course.image_generation_tasks` only for approved generated pages; the 总导演 executes the approved tasks, saves selected assets into the course asset folder, records `execution_status`, `selected_asset_path`, or fallback details, and only then builds the PPTX.
 
 For sparse mode, every `added_content` item must contain:
 

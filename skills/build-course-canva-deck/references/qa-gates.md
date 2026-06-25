@@ -59,7 +59,8 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Visuals have learner-facing interpretation in the same slide.
 - Generated images contain no baked-in Chinese text; labels are editable slide text.
 - Generated image plans include a generation route and prompt brief; `gpt-image-2` is the preferred route for rich bitmap examples when available, while editable diagrams remain preferred for label-heavy teaching graphics.
-- When workers are used, generated image plans come from 视觉分镜师 as `image_generation_tasks`; the 总导演 executes approved tasks, saves assets, records asset paths, and documents fallbacks before PPTX generation.
+- When workers are used, generated image candidates can start in 视觉分镜师 `visual-triage`, but complete `image_generation_tasks` are required only for director-approved generated pages. The 总导演 executes approved tasks, saves assets, records asset paths, and documents fallbacks before PPTX generation.
+- Source-rich decks must preserve source images first, then add generated images only for remaining no-source-image text or abstract pages that need richer visual cases. They may skip generated images only when `course.image_generation_review.generated_slide_numbers` is an empty list and `generated_bypass_reason` concretely explains why no such remaining page needs generation. Image-poor decks still require substantial generated-image planning unless generation is unavailable.
 - Generated images must be concrete teaching scenes, cases, or demonstrations. Abstract geometry, generic icon collages, and decorative workflow-looking placeholders fail even if they are visually polished.
 - Illustrated knowledge slides target about 40% text area; pages needing more text should split rather than shrink the visual.
 - Full-deck contact-sheet inspection must check template fidelity and layout variety: the deck should follow the Canva template language and avoid a long run of identical page layouts.
