@@ -11,7 +11,7 @@
 ## Content gate
 
 - `curriculum_context` identifies the overall system, module, and this lesson's role.
-- If any worker was used, Supervisor findings are resolved before `deck-spec.json` is treated as build-ready. Waivers must identify a concrete tool/capability blocker or explicit user instruction; convenience and speed are not valid waiver reasons.
+- If any worker was used, 成片审片 findings are resolved before `deck-spec.json` is treated as build-ready. Waivers must identify a concrete tool/capability blocker or explicit user instruction; convenience and speed are not valid waiver reasons.
 - Shared terminology matches existing lessons.
 - Prerequisite knowledge is only recapped as needed; neighboring lessons are not duplicated.
 - Every included source node maps to at least one slide.
@@ -58,6 +58,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Visuals have learner-facing interpretation in the same slide.
 - Generated images contain no baked-in Chinese text; labels are editable slide text.
 - Generated image plans include a generation route and prompt brief; `gpt-image-2` is the preferred route for rich bitmap examples when available, while editable diagrams remain preferred for label-heavy teaching graphics.
+- When workers are used, generated image plans come from 视觉分镜师 as `image_generation_tasks`; the 总导演 executes approved tasks, saves assets, records asset paths, and documents fallbacks before PPTX generation.
 - Generated images must be concrete teaching scenes, cases, or demonstrations. Abstract geometry, generic icon collages, and decorative workflow-looking placeholders fail even if they are visually polished.
 - Illustrated knowledge slides target about 40% text area; pages needing more text should split rather than shrink the visual.
 - Full-deck contact-sheet inspection must check template fidelity and layout variety: the deck should follow the Canva template language and avoid a long run of identical page layouts.

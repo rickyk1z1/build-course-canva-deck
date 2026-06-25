@@ -31,41 +31,43 @@ Optimize for the best possible deck quality. When subagents are available and th
 Read [references/agent-hierarchy.md](references/agent-hierarchy.md) before dispatching workers. The hierarchy is:
 
 ```text
-Controller Agent / build-course-canva-deck
-├── Source & Curriculum Agent
-├── Source Fidelity Agent
-├── Learning Copy Agent
-├── Visual Layout Agent
-└── Quality Gate Agent
+总导演 / build-course-canva-deck
+├── 课程统筹师
+├── 原稿场记
+├── 课堂编剧
+├── 视觉分镜师
+└── 成片审片员
 ```
 
-- **Controller Agent / build-course-canva-deck** owns all durable writes and external actions: `source-map.json`, `curriculum-context.json`, `deck-spec.json`, PPTX generation, QA reports, Canva import, Canva edits, and final approval.
-- **Source & Curriculum Agent** inspects sources, curriculum role, neighboring lessons, and scope boundaries, then writes only `scratch/source-context.proposal.json`.
-- **Source Fidelity Agent** maps source nodes to slide groups, preserves sibling enumerations, accounts for source images, flags duplicate/early wording, and writes only `scratch/slide-plan.proposal.json`.
-- **Learning Copy Agent** writes learner-facing screen copy and per-node evidence, then writes only `scratch/screen-copy.proposal.json`.
-- **Visual Layout Agent** plans generated/source visuals, template pages, native motifs, and layout capacity, then writes only `scratch/visual-plan.proposal.json`.
-- **Quality Gate Agent** audits prompts, proposals, source-order fidelity, rendered-output risks, and merge readiness, then writes only `scratch/supervisor-log.md`, `scratch/supervisor-findings.json`, or `scratch/qa-findings.md`.
+- **总导演 / build-course-canva-deck** owns all durable writes and external actions: `source-map.json`, `curriculum-context.json`, `deck-spec.json`, PPTX generation, generated image asset writes, QA reports, Canva import, Canva edits, and final approval.
+- **课程统筹师** inspects only the controller-provided source identity, source summary, curriculum files, neighboring lessons, and scope boundaries, then writes only `scratch/source-context.proposal.json`.
+- **原稿场记** maps source nodes to slide groups, preserves sibling enumerations, accounts for source images, flags duplicate/early wording, and writes only `scratch/slide-plan.proposal.json`.
+- **课堂编剧** writes learner-facing screen copy and per-node evidence from approved source-node excerpts, then writes only `scratch/screen-copy.proposal.json`.
+- **视觉分镜师** plans generated/source visuals, template pages, native motifs, layout capacity, and complete `image_generation_tasks` from the slide plan and screen copy, then writes only `scratch/visual-plan.proposal.json`.
+- **成片审片员** audits worker briefs, proposals, source-order fidelity, generated-image task quality, rendered-output risks, and merge readiness, then writes only `scratch/supervisor-log.md`, `scratch/supervisor-findings.json`, or `scratch/qa-findings.md`.
 
-Workers must never modify final course files, the original source, the selected Canva template, or any Canva design. The Quality Gate Agent also must not author screen copy, slide plans, visual plans, or final files; it checks compliance only. The Controller Agent merges proposals, resolves conflicts, verifies source-node coverage, runs audit scripts, and fixes failures. Do not create a separate lecture-notes worker or a sixth QA worker. Do not reduce worker count for convenience or speed; reduce only for capability limits, explicit user direction, or non-deck read-only questions.
+Before dispatching any worker, the controller must create a scoped brief in `scratch/agent-briefs/<role>.brief.md` or `scratch/agent-briefs/<role>.brief.json`. Each brief must list the worker's exact task, allowed read paths or excerpts, forbidden reads, write path, acceptance checks, source-node range, and unresolved questions. Workers must read only their brief plus the files explicitly listed in `allowed_read_paths`. If a worker needs more context, it records a request in its proposal instead of independently reading broad source, curriculum, template, or Canva files.
 
-Supervisor checks run at four gates:
+Workers must never modify final course files, the original source, the selected Canva template, or any Canva design. The 成片审片员 also must not author screen copy, slide plans, visual plans, generated-image tasks, or final files; it checks compliance only. The 总导演 merges proposals, resolves conflicts, executes approved image-generation tasks, verifies source-node coverage, runs audit scripts, and fixes failures. Do not create a separate lecture-notes worker or a sixth QA worker. Do not reduce worker count for convenience or speed; reduce only for capability limits, explicit user direction, or non-deck read-only questions.
 
-1. **Before worker dispatch:** verify the authoritative source is selected, `细纲`/`粗纲` is recorded, worker prompts include scope boundaries, and each worker has a write path limited to `scratch/`.
+成片审片 checks run at four gates:
+
+1. **Before worker dispatch:** verify the authoritative source is selected, `细纲`/`粗纲` is recorded, every worker brief has a bounded task, allowed read list, forbidden read list, scope boundaries, and a write path limited to `scratch/`.
 2. **After each proposal:** verify the worker stayed inside its role, did not write final files, did not skip source order, did not invent neighboring content, did not collapse sibling enumerations, did not introduce repeated/early wording, and did not rely on narration-only knowledge.
 3. **Before orchestrator merge:** verify slide-node coverage can remain one-to-one, source order is monotonic, visual obligations are represented, layout capacity can render every required item, and proposal conflicts are explicitly resolved by the orchestrator.
-4. **Before build/import:** verify `audit_deck.py` has passed or failures are being fixed, rendered PPTX text contains same-slide source evidence, Canva template access rules are respected, no draft save/commit happens before user approval, and no Supervisor findings remain unresolved. Waive a Supervisor finding only for a documented tool/capability blocker or explicit user instruction; never waive for convenience or speed.
+4. **Before build/import:** verify `audit_deck.py` has passed or failures are being fixed, rendered PPTX text contains same-slide source evidence, generated-image tasks have been executed or explicitly bypassed, Canva template access rules are respected, no draft save/commit happens before user approval, and no 成片审片 findings remain unresolved. Waive a 成片审片 finding only for a documented tool/capability blocker or explicit user instruction; never waive for convenience or speed.
 
 ## Required workflow
 
 1. Read [references/workflow.md](references/workflow.md) and create an external scratch workspace.
 2. Run `scripts/extract_source.py` to create `source-map.json`. For PDFs, also render and visually inspect every relevant page; extracted text alone is not hierarchy evidence.
 3. Complete the mandatory source and mode checkpoint above.
-4. If using workers, dispatch the five proposal-only workers for source/context, slide architecture and fidelity, visual/layout planning, screen copy, and Supervisor/QA; otherwise perform those phases sequentially in the orchestrator.
+4. If using workers, create scoped worker briefs under `scratch/agent-briefs/`, run the pre-dispatch 成片审片员 check, then dispatch the five proposal-only workers in the staged order from `agent-hierarchy.md`; otherwise perform those phases sequentially in the orchestrator.
 5. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
 6. Build a source coverage matrix in source order. Include every valid node exactly once; if a tightly related group shares one slide, keep it within the QA density limit and record per-node learner-facing evidence in `source_node_treatments`.
 7. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
 8. Write one learner-facing screen-copy layer that can be understood without narration. Optional `speaker_notes` may exist only as short internal transition hints and must never contain knowledge required for comprehension.
-9. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page.
+9. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan and, where generation is needed, complete `image_generation_tasks`. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page. The 总导演 executes approved generation tasks and writes image assets; workers do not call image-generation tools or save final assets.
 10. Read [references/design-system.md](references/design-system.md) and [references/page-design-quality.md](references/page-design-quality.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
 11. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
 12. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.

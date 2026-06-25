@@ -17,8 +17,25 @@ Never overwrite source files.
 
 ## Proposal-only multi-agent workspace
 
-When subagents are available for a course-deck build or revision, optimize for quality and keep worker outputs in the external scratch workspace. Workers are advisory only. Use the five-agent proposal worker set from `agent-hierarchy.md` unless subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question. Workers may write proposal files such as:
+When subagents are available for a course-deck build or revision, optimize for quality and keep worker outputs in the external scratch workspace. Workers are advisory only. Use the five-agent proposal worker set from `agent-hierarchy.md` unless subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
 
+The orchestrator must route context instead of letting every worker read the same broad materials. Before dispatch, create bounded task briefs under `scratch/agent-briefs/`. Each brief lists the worker's exact objective, allowed read paths, forbidden reads, write path, source-node scope, mode, boundary summary, acceptance checks, and open questions. Workers read their brief first and then only the files or excerpts listed in `allowed_read_paths`; if they need more context, they write a `context_request` instead of opening broad source, curriculum, template, or Canva files on their own.
+
+The staged worker set is:
+
+- `课程统筹师`
+- `原稿场记`
+- `课堂编剧`
+- `视觉分镜师`
+- `成片审片员`
+
+The scratch workspace contains controller briefs and worker proposals such as:
+
+- `scratch/agent-briefs/source-context.brief.md`
+- `scratch/agent-briefs/slide-plan.brief.md`
+- `scratch/agent-briefs/screen-copy.brief.md`
+- `scratch/agent-briefs/visual-plan.brief.md`
+- `scratch/agent-briefs/quality-gate.brief.md`
 - `scratch/source-context.proposal.json`
 - `scratch/slide-plan.proposal.json`
 - `scratch/visual-plan.proposal.json`
@@ -29,7 +46,7 @@ When subagents are available for a course-deck build or revision, optimize for q
 
 The orchestrator is the only writer of durable course files and the only actor allowed to build PPTX files, import into Canva, edit Canva, or commit Canva changes. If subagents are unavailable or unsafe for the current run, the orchestrator performs the same phases sequentially and records the limitation.
 
-The five workers are Source & Curriculum Agent, Source Fidelity Agent, Learning Copy Agent, Visual Layout Agent, and Quality Gate Agent. Use the Quality Gate Agent whenever any worker is used. The Quality Gate Agent does not author content. It audits worker prompts, proposal files, role boundaries, source-order fidelity, duplicate/early wording risks, rendered-output risks, unresolved conflicts, and readiness gates. Run Quality Gate checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. The orchestrator must resolve every Quality Gate finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
+Use the 成片审片员 whenever any worker is used. The 成片审片员 does not author content. It audits worker briefs, proposal files, role boundaries, allowed-read compliance, source-order fidelity, duplicate/early wording risks, generated-image task quality, rendered-output risks, unresolved conflicts, and readiness gates. Run 成片审片 checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. The orchestrator must resolve every 成片审片 finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
 
 ## Source intake
 
@@ -140,6 +157,26 @@ Build `deck-spec.json` with this minimum shape:
       "candidates_considered": 4,
       "rationale": "source case images are used first where they directly teach the node; generated cases only supplement text-heavy or abstract pages"
     },
+    "image_generation_tasks": [
+      {
+        "task_id": "imggen-s006-main-case",
+        "slide_number": 6,
+        "source_node_ids": ["n0021"],
+        "teaching_goal": "用一个具体拍摄场景让学员看懂抽象概念",
+        "asset_role": "main-case-illustration",
+        "preferred_route": "gpt-image-2",
+        "prompt": "text-free teaching illustration prompt approved by the director",
+        "negative_prompt": "no Chinese text, no UI labels, no watermark, no decorative abstract symbols",
+        "text_policy": "no_baked_in_text",
+        "reference_inputs": [],
+        "composition_notes": "16:9, leave a clean right-side area for editable labels and captions",
+        "candidate_count": 2,
+        "selection_criteria": "the selected image must make the slide's source node easier to understand at slide size",
+        "fallback_plan": "use an editable before/after diagram if image generation is unavailable",
+        "execution_status": "completed",
+        "selected_asset_path": "assets/generated/imggen-s006-main-case.png"
+      }
+    ],
     "source_image_coverage": [
       {
         "source_image_id": "img001",
@@ -312,7 +349,7 @@ For decks longer than 12 pages, `course.template_page_mapping` and `course.templ
 
 For decks longer than 12 pages, Canva-native template element use is mandatory when the selected template contains reusable native motifs or structural assets. Plan these in `visual_plan.template_motif` before local PPT generation; use local raster preview proxies only to verify position, scale, collision, and contact-sheet rhythm. After Canva import, copy/reuse the recorded existing template elements using the recorded `copy_template_element` route. A long deck that uses only generic PPT shapes/images and no planned native template motif fails QA. Placeholder IDs, arbitrary Canva library asset IDs, non-template design IDs, and a single repeated motif source are not valid final motif plans.
 
-Always run an image-generation review before local PPT generation. Source images remain the first choice for nodes they directly teach, and this priority must be recorded in `course.image_generation_review.source_case_priority: "source-first"` with `reused_source_slide_numbers` when usable source cases exist. If the deck is image-poor, generated teaching images are a primary build input rather than a small supplement. Image-poor means no usable non-thumbnail case images, too few case images for the number of normal knowledge slides, or a detailed outline with high text density but low case-image coverage. In those cases, generate concrete text-free teaching images for metaphor-heavy and abstract pages unless image generation is unavailable; use editable diagrams only when the visual is mainly arrows, labels, comparisons, or tables. Record `generated_after_source_review: true`, generated candidate counts, selected slide numbers, or fallback slide numbers before building.
+Always run an image-generation review before local PPT generation. Source images remain the first choice for nodes they directly teach, and this priority must be recorded in `course.image_generation_review.source_case_priority: "source-first"` with `reused_source_slide_numbers` when usable source cases exist. If the deck is image-poor, generated teaching images are a primary build input rather than a small supplement. Image-poor means no usable non-thumbnail case images, too few case images for the number of normal knowledge slides, or a detailed outline with high text density but low case-image coverage. In those cases, generate concrete text-free teaching images for metaphor-heavy and abstract pages unless image generation is unavailable; use editable diagrams only when the visual is mainly arrows, labels, comparisons, or tables. Record `generated_after_source_review: true`, generated candidate counts, selected slide numbers, or fallback slide numbers before building. When workers are used, the 视觉分镜师 proposes `course.image_generation_tasks`; the 总导演 executes the approved tasks, saves selected assets into the course asset folder, records `execution_status`, `selected_asset_path`, or fallback details, and only then builds the PPTX.
 
 For sparse mode, every `added_content` item must contain:
 

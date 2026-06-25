@@ -92,6 +92,8 @@ Use `gpt-image-2` as the preferred route when a node needs a richer raster case 
 
 An image-generation review is mandatory for every deck, not optional.
 
+When workers are used, the 视觉分镜师 owns the planning layer and the 总导演 owns the execution layer. The 视觉分镜师 must output `image_generation_tasks` for every generated case image or illustration; the 总导演 executes approved tasks, saves selected assets into the course asset folder, records asset paths or fallbacks, and connects the assets to `deck-spec.json`. Workers must not call image-generation tools or save final image assets.
+
 If the outline already contains many case images, inspect and reuse those source cases first wherever they directly teach the current node. Record `source_case_priority: "source-first"` and `reused_source_slide_numbers` in `course.image_generation_review`. After that source-case pass, identify text-heavy or abstract pages where a generated teaching case would improve clarity. For long source-rich decks, at least a few learner pages should normally be `generated-image`; a deck with no source reuse record, no generated-image pages, or no completed review fails QA.
 
 If the outline is image-poor, treat generated teaching images as a primary build input rather than a supplement. This applies in both `细纲` and `粗纲`. Image-poor means any of the following:
@@ -109,6 +111,7 @@ For image-poor decks:
 - Use editable diagrams instead of generated images only for relationship maps, process chains, comparison structures, tables, and label-heavy visuals that must stay fully editable.
 - Do not describe the image-poor plan as "a small number of generated images" unless the deck itself is short and mostly table/process content.
 - Record candidate counts, selected generated slide numbers, and deterministic fallbacks in `course.image_generation_review` so the decision is auditable before PPT generation.
+- Record the executable task list in `course.image_generation_tasks` when generated illustrations are planned.
 
 Do not force raster generation for visuals that are better as editable instructional graphics:
 
