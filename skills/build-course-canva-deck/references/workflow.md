@@ -42,6 +42,8 @@ Create a coverage ledger with one row per included source node:
 
 `source node -> slide number -> treatment -> visual -> status`
 
+The ledger must prove content preservation before any optimization or topology supplement. For every slide, `source_node_treatments` must match `source_node_ids` exactly and in order. Each entry points to an exact visible `screen_evidence` phrase from the slide's title, explanation, bullets, caption, or blocks; metadata-only coverage is a QA failure.
+
 Build `deck-spec.json` with this minimum shape:
 
 ```json
@@ -229,6 +231,14 @@ Build `deck-spec.json` with this minimum shape:
         }
       },
       "source_node_ids": ["n0001"],
+      "source_node_treatments": [
+        {
+          "source_node_id": "n0001",
+          "coverage_status": "preserved",
+          "screen_evidence": "直接陈述结论的标题",
+          "coverage_note": "the original source point is carried into learner-facing copy before any wording optimization"
+        }
+      ],
       "added_content": [],
       "scope_check": {"status": "within-branch", "branch_node_id": "n0001"}
     }
@@ -269,6 +279,8 @@ For decks with source case images, create `course.source_image_coverage` before 
 
 The deck page count is determined by source-node coverage, source-image coverage, learner readability, and the need to explain cases one by one. The selected template page bank is a layout library, not a page-count target. If a 21-page template is selected and the lesson needs 28, 35, or more pages, reuse and adapt the template page families rather than compressing the course back to 21 pages.
 
+Automated QA enforces source-node density. In detailed mode, a normal knowledge slide may map at most 8 source nodes; in sparse mode, at most 10. The whole deck must also meet the same density limit. If a branch exceeds the limit or lacks visible evidence for each mapped node, split it into more learner pages before improving wording, topology, or visuals.
+
 For decks longer than 12 pages, every normal knowledge slide must also set `visual_plan.layout_variant` before local PPT generation. This is the actual composition family the builder must render, not a retrospective description. Use concrete values such as `split-image`, `poster-panel`, `wide-case-band`, `center-anchor`, `gallery-strip`, `close-reading`, `index-grid`, `two-panel`, or another short stable family name. The full deck must distribute these variants across the selected template pages so the contact sheet does not collapse into repeated two-column pages.
 
 For decks longer than 12 pages, build a template-page mapping table before PPT generation. The mapping must spread slides across multiple reference pages/page families from the selected template. Do not map most normal knowledge pages to one generic two-column reference. Automated QA rejects long decks with too few distinct template references, a dominant reference family, or long runs of the same reference.
@@ -296,6 +308,7 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 ## Authoring and visuals
 
 - Preserve source order before optimizing narrative transitions.
+- Preserve every original source node before adding optimization, topology bridges, examples, or visuals. `source_node_treatments.screen_evidence` must be text the learner can actually see.
 - Align the deck with the overall curriculum role, prerequisites, shared terminology, and downstream lessons.
 - Keep neighboring lessons' primary teaching tasks out of this deck; record a handoff instead of duplicating them.
 - Give each knowledge slide one explanation paragraph and usually 3-5 concrete points.

@@ -73,6 +73,17 @@ ALLOWED_SOURCE_GRANULARITY = {
     "redrawn-single",
 }
 MULTI_SOURCE_GRANULARITY = {"explicit-comparison", "multi-case-sequence"}
+SOURCE_NODE_DENSITY_LIMITS = {
+    "detailed": 8,
+    "sparse": 10,
+}
+SOURCE_COVERAGE_STATUSES = {
+    "preserved",
+    "clarified",
+    "visualized",
+    "restructured",
+    "section-heading",
+}
 
 
 def flatten_text(value: Any) -> Iterable[str]:
@@ -90,6 +101,10 @@ def visible_text(slide: dict[str, Any]) -> str:
     screen = slide.get("screen") or {}
     values = [slide.get("title", ""), screen.get("explanation", ""), screen.get("bullets", []), screen.get("caption", ""), screen.get("blocks", [])]
     return "\n".join(flatten_text(values))
+
+
+def normalized_match_text(value: Any) -> str:
+    return re.sub(r"\s+", "", str(value or "")).lower()
 
 
 def pptx_text(path: Path) -> tuple[int, str]:
@@ -251,6 +266,16 @@ def main() -> int:
         slide for slide in slides
         if slide.get("layout") not in {"cover", "summary"} and (slide.get("layout", "light") in KNOWLEDGE_LAYOUTS)
     ]
+    source_density_limit = SOURCE_NODE_DENSITY_LIMITS.get(str(mode))
+    if source_density_limit and len(source_nodes) > 1:
+        minimum_normal_slides = max(1, (len(source_nodes) - 2) // source_density_limit + 1)
+        if len(normal_knowledge) < minimum_normal_slides:
+            errors.append(
+                f"{mode} mode is over-compressed: {len(source_nodes)} included source nodes "
+                f"across {len(normal_knowledge)} normal knowledge slides; expected at least "
+                f"{minimum_normal_slides} normal knowledge slides at the QA density limit "
+                f"of {source_density_limit} source nodes per slide"
+            )
     if len(normal_knowledge) > 12:
         template_page_mapping = course.get("template_page_mapping")
         if not isinstance(template_page_mapping, list) or len(template_page_mapping) != len(slides):
@@ -826,6 +851,53 @@ def main() -> int:
         node_ids = slide.get("source_node_ids") or []
         if not node_ids:
             errors.append(f"{label} has no source-node mapping")
+        if (
+            source_density_limit
+            and layout in KNOWLEDGE_LAYOUTS
+            and layout != "summary"
+            and len(node_ids) > source_density_limit
+        ):
+            errors.append(
+                f"{label} over-compresses source coverage: maps {len(node_ids)} source nodes "
+                f"in {mode} mode; split this branch into more learner pages instead of hiding "
+                "source coverage in metadata"
+            )
+        treatment_ids: list[str] = []
+        treatments = slide.get("source_node_treatments")
+        if not isinstance(treatments, list) or not treatments:
+            errors.append(
+                f"{label} must include source_node_treatments proving every mapped source node "
+                "is present in learner-facing copy"
+            )
+        else:
+            normalized_slide_text = normalized_match_text(text)
+            node_id_values = [str(node_id) for node_id in node_ids]
+            for treatment_index, item in enumerate(treatments, start=1):
+                prefix = f"{label} source_node_treatments[{treatment_index}]"
+                if not isinstance(item, dict):
+                    errors.append(f"{prefix} must be an object")
+                    continue
+                treatment_node_id = str(item.get("source_node_id", "")).strip()
+                treatment_ids.append(treatment_node_id)
+                if treatment_node_id not in node_id_values:
+                    errors.append(f"{prefix} maps {treatment_node_id or 'empty'} outside source_node_ids")
+                coverage_status = str(item.get("coverage_status", "")).strip()
+                if coverage_status not in SOURCE_COVERAGE_STATUSES:
+                    errors.append(
+                        f"{prefix} coverage_status must be one of "
+                        + ", ".join(sorted(SOURCE_COVERAGE_STATUSES))
+                    )
+                evidence = str(item.get("screen_evidence", "")).strip()
+                if len(normalized_match_text(evidence)) < 4:
+                    errors.append(f"{prefix} must include a concrete screen_evidence phrase")
+                elif normalized_match_text(evidence) not in normalized_slide_text:
+                    errors.append(
+                        f"{prefix} screen_evidence is not found in visible title, explanation, bullets, caption, or blocks"
+                    )
+                if len(str(item.get("coverage_note", "")).strip()) < 12:
+                    errors.append(f"{prefix} must explain how the original node was preserved or clarified")
+            if treatment_ids != [str(node_id) for node_id in node_ids]:
+                errors.append(f"{label} source_node_treatments must match source_node_ids exactly and in order")
         for node_id in node_ids:
             if node_id not in source_ids:
                 errors.append(f"{label} maps unknown source node {node_id}")
@@ -893,6 +965,11 @@ def main() -> int:
             "mapped_nodes": len(set(mapped)),
             "slides": len(slides),
             "pptx_slides": pptx_slides,
+            "source_density_limit": source_density_limit,
+            "max_source_nodes_on_slide": max(
+                (len(slide.get("source_node_ids") or []) for slide in slides),
+                default=0,
+            ),
         },
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)

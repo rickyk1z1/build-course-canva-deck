@@ -30,7 +30,7 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 2. Run `scripts/extract_source.py` to create `source-map.json`. For PDFs, also render and visually inspect every relevant page; extracted text alone is not hierarchy evidence.
 3. Complete the mandatory source and mode checkpoint above.
 4. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
-5. Build a source coverage matrix in source order. Include every valid node exactly once or intentionally map a tightly related group to one slide.
+5. Build a source coverage matrix in source order. Include every valid node exactly once; if a tightly related group shares one slide, keep it within the QA density limit and record per-node learner-facing evidence in `source_node_treatments`.
 6. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
 7. Write two separate layers:
    - learner-facing screen copy that can be understood without narration;
@@ -47,12 +47,12 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 - Keep the source's teaching order.
 - Treat every deck as one component of the same self-media and editing curriculum. Preserve shared terminology, prerequisites, difficulty progression, and division of responsibility between lessons.
 - Do not duplicate a neighboring lesson's main teaching task. Record the handoff to that lesson instead of expanding into it.
-- Use one teaching node per slide by default; add slides instead of shrinking body text below 16 pt.
+- Use one teaching node per slide by default; add slides instead of shrinking body text below 16 pt. Do not treat `source_node_ids` as coverage by itself: every mapped source node must have `source_node_treatments` with visible screen evidence.
 - Put definitions, explanations, examples, and visual interpretation on the slide. Do not create question-only or keyword-only pages.
 - Keep source images inside knowledge pages. Never let a screenshot or example image replace the lesson text.
 - Treat source reference images and case images as teaching units, not decoration. Account for every non-thumbnail source image in `course.source_image_coverage`; use one teachable case image per slide by default.
 - A slide may use at most three independent source images, and only when all images remain readable and the visual plan records the image/text ratio and grouping reason. Four or more source images on one slide is a failed collage; split into more slides and explain cases in source order.
-- Deck length follows teaching units, source nodes, and source case images, not the number of pages in the selected template bank. Never compress a course to match a 21-page template; reuse template page families and motifs as needed.
+- Deck length follows teaching units, source nodes, and source case images, not the number of pages in the selected template bank. Never compress a course to match a 21-page template; reuse template page families and motifs as needed. QA rejects over-compressed normal knowledge slides and deck-level source-node density.
 - Do not create a standalone "case images to make later" stage page in the learner deck. Case images and example diagrams must appear on the relevant knowledge pages with learner-facing interpretation.
 - Treat page design as a first-class requirement, not a skin. The template's typography scale, alignment axes, proximity, contrast hierarchy, image slots, and module spacing must be reflected in the local PPT/contact sheet before Canva import.
 - For abstract concepts, build the same kind of concrete visual bridge used in the accepted deck: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels. Do not leave an abstract slide as text only unless `visual_plan.exception_reason` explains why.
@@ -73,7 +73,7 @@ Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage
 
 - `scripts/extract_source.py`: extract a canonical source map from supported formats.
 - `scripts/validate_source_map.py`: validate hierarchy and record the user-declared mode.
-- `scripts/audit_deck.py`: enforce coverage, mode, scope, screen-copy, and PPTX text gates.
+- `scripts/audit_deck.py`: enforce coverage, source-node density, per-node screen evidence, mode, scope, screen-copy, and PPTX text gates.
 - `scripts/build_deck.mjs`: generate editable 16:9 slides using the selected template profile.
 - `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet.
 - `references/visual-system.md`: mandatory rules for source case images, generated diagrams, and slide-level visual plans.

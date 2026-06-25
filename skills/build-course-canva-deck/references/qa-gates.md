@@ -14,6 +14,11 @@
 - Shared terminology matches existing lessons.
 - Prerequisite knowledge is only recapped as needed; neighboring lessons are not duplicated.
 - Every included source node maps to at least one slide.
+- `source_node_ids` alone is not coverage. Every mapped node must have a matching `source_node_treatments` entry in the same order.
+- Each `source_node_treatments` entry must identify the original node, use an allowed preservation status, include a concrete `screen_evidence` phrase that appears in visible slide text, and explain how the node was preserved, clarified, visualized, or restructured.
+- Detailed mode preserves the original outline first, then optimizes wording, layout, topology, and visuals. Topology supplements must not replace, merge away, or summarize away original source nodes.
+- Detailed mode normal knowledge slides may map at most 8 source nodes. Sparse mode normal knowledge slides may map at most 10 source nodes. Split dense branches into consecutive learner pages instead of hiding coverage in metadata.
+- Deck-level slide count must satisfy the same source-node density limit; a 300+ node outline cannot pass as a roughly 21-page deck just because every node ID appears somewhere.
 - Slide source-node order is monotonic.
 - Detailed mode contains no added-content records.
 - Sparse additions map to original nodes, use allowed addition kinds, have `direct` relevance, and include evidence URLs.
