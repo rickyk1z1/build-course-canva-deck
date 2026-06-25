@@ -17,7 +17,7 @@ Never overwrite source files.
 
 ## Proposal-only multi-agent workspace
 
-When subagents are available for a course-deck build or revision, optimize for quality and keep worker outputs in the external scratch workspace. Workers are advisory only. Use the five-agent proposal worker set unless subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question. Workers may write proposal files such as:
+When subagents are available for a course-deck build or revision, optimize for quality and keep worker outputs in the external scratch workspace. Workers are advisory only. Use the five-agent proposal worker set from `agent-hierarchy.md` unless subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question. Workers may write proposal files such as:
 
 - `scratch/source-context.proposal.json`
 - `scratch/slide-plan.proposal.json`
@@ -29,7 +29,7 @@ When subagents are available for a course-deck build or revision, optimize for q
 
 The orchestrator is the only writer of durable course files and the only actor allowed to build PPTX files, import into Canva, edit Canva, or commit Canva changes. If subagents are unavailable or unsafe for the current run, the orchestrator performs the same phases sequentially and records the limitation.
 
-The five workers are Source & Curriculum, Slide Architecture & Fidelity, Visual & Layout Planner, Screen Copy, and Supervisor / QA. Use the Supervisor / QA worker whenever any worker is used. The Supervisor / QA worker does not author content. It audits worker prompts, proposal files, role boundaries, source-order fidelity, duplicate/early wording risks, rendered-output risks, unresolved conflicts, and readiness gates. Run Supervisor checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. The orchestrator must resolve every Supervisor finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
+The five workers are Source & Curriculum Agent, Source Fidelity Agent, Learning Copy Agent, Visual Layout Agent, and Quality Gate Agent. Use the Quality Gate Agent whenever any worker is used. The Quality Gate Agent does not author content. It audits worker prompts, proposal files, role boundaries, source-order fidelity, duplicate/early wording risks, rendered-output risks, unresolved conflicts, and readiness gates. Run Quality Gate checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. The orchestrator must resolve every Quality Gate finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
 
 ## Source intake
 

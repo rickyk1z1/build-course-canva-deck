@@ -26,16 +26,27 @@ Read [references/content-policy.md](references/content-policy.md) before writing
 
 ## Multi-agent orchestration
 
-Optimize for the best possible deck quality. When subagents are available and the user is asking to build or revise a course deck, use the five-agent proposal-only worker set after the source/mode checkpoint. Use a single orchestrator only when subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
+Optimize for the best possible deck quality. When subagents are available and the user is asking to build or revise a course deck, use the five-agent proposal-only hierarchy after the source/mode checkpoint. Use a single orchestrator only when subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
 
-- **Orchestrator** owns all durable writes and external actions: `source-map.json`, `curriculum-context.json`, `deck-spec.json`, PPTX generation, QA reports, Canva import, Canva edits, and final approval.
-- **Source & Curriculum worker** may inspect sources and neighboring lessons, then write only `scratch/source-context.proposal.json`.
-- **Slide Architecture & Fidelity worker** may map source nodes to slide groups, preserve sibling enumerations, flag duplicate/early wording, and write only `scratch/slide-plan.proposal.json`.
-- **Visual & Layout Planner worker** may plan source images, generated images, template pages, native motifs, and layout capacity, then write only `scratch/visual-plan.proposal.json`.
-- **Screen Copy worker** may write learner-facing slide text, then write only `scratch/screen-copy.proposal.json`.
-- **Supervisor / QA worker** continuously audits the orchestration process, worker prompts, proposal outputs, source-order fidelity, rendered-output risks, and merge readiness against this skill's requirements, then writes only `scratch/supervisor-log.md`, `scratch/supervisor-findings.json`, or `scratch/qa-findings.md`. It is mandatory whenever any worker is used.
+Read [references/agent-hierarchy.md](references/agent-hierarchy.md) before dispatching workers. The hierarchy is:
 
-Workers must never modify final course files, the original source, the selected Canva template, or any Canva design. The Supervisor / QA worker also must not author screen copy, slide plans, visual plans, or final files; it checks compliance only. The orchestrator merges proposals, resolves conflicts, verifies source-node coverage, runs audit scripts, and fixes failures. Do not create a separate lecture-notes worker or a sixth QA worker. Do not reduce worker count for convenience or speed; reduce only for capability limits, explicit user direction, or non-deck read-only questions.
+```text
+Controller Agent / build-course-canva-deck
+├── Source & Curriculum Agent
+├── Source Fidelity Agent
+├── Learning Copy Agent
+├── Visual Layout Agent
+└── Quality Gate Agent
+```
+
+- **Controller Agent / build-course-canva-deck** owns all durable writes and external actions: `source-map.json`, `curriculum-context.json`, `deck-spec.json`, PPTX generation, QA reports, Canva import, Canva edits, and final approval.
+- **Source & Curriculum Agent** inspects sources, curriculum role, neighboring lessons, and scope boundaries, then writes only `scratch/source-context.proposal.json`.
+- **Source Fidelity Agent** maps source nodes to slide groups, preserves sibling enumerations, accounts for source images, flags duplicate/early wording, and writes only `scratch/slide-plan.proposal.json`.
+- **Learning Copy Agent** writes learner-facing screen copy and per-node evidence, then writes only `scratch/screen-copy.proposal.json`.
+- **Visual Layout Agent** plans generated/source visuals, template pages, native motifs, and layout capacity, then writes only `scratch/visual-plan.proposal.json`.
+- **Quality Gate Agent** audits prompts, proposals, source-order fidelity, rendered-output risks, and merge readiness, then writes only `scratch/supervisor-log.md`, `scratch/supervisor-findings.json`, or `scratch/qa-findings.md`.
+
+Workers must never modify final course files, the original source, the selected Canva template, or any Canva design. The Quality Gate Agent also must not author screen copy, slide plans, visual plans, or final files; it checks compliance only. The Controller Agent merges proposals, resolves conflicts, verifies source-node coverage, runs audit scripts, and fixes failures. Do not create a separate lecture-notes worker or a sixth QA worker. Do not reduce worker count for convenience or speed; reduce only for capability limits, explicit user direction, or non-deck read-only questions.
 
 Supervisor checks run at four gates:
 
@@ -98,6 +109,7 @@ Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage
 - `scripts/audit_deck.py`: enforce coverage, source-node density, per-node screen evidence, mode, scope, screen-copy, and PPTX text gates.
 - `scripts/build_deck.mjs`: generate editable 16:9 slides using the selected template profile.
 - `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet.
+- `references/agent-hierarchy.md`: five-agent proposal hierarchy and per-role boundaries.
 - `references/visual-system.md`: mandatory rules for source case images, generated diagrams, and slide-level visual plans.
 - `references/design-system.md`: mandatory rules for Canva template fidelity, fonts, colors, and layout rhythm.
 - `references/page-design-quality.md`: mandatory rules for title scale, alignment, proximity, contrast, image evidence blocks, and contact-sheet design review.
