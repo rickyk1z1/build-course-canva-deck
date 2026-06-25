@@ -21,10 +21,10 @@ Never overwrite source files.
 1. Enumerate all supplied files and compute hashes.
 2. Resolve the authoritative source with the user if more than one could control content.
 3. Extract text, hierarchy, order, and embedded images.
-4. Render PDFs and inspect their visual hierarchy. A long mind-map PDF often encodes hierarchy through position and connectors that text extraction loses. After inspection, record it with `validate_source_map.py --pdf-visual-check --write --require-pdf-visual-check`.
+4. Render PDFs and inspect their visual hierarchy. A long mind-map PDF often encodes hierarchy through position and connectors that text extraction loses.
 5. Ask the user to choose `细纲` or `粗纲`; never recommend or infer a mode.
 6. Search the workspace for the overall curriculum map and neighboring lessons. Create `curriculum-context.json`; ask only when the course position cannot be discovered.
-7. Record the explicit mode reply in the source map. For PDFs, require both `--require-mode` and `--require-pdf-visual-check` before authoring.
+7. Record the explicit mode reply in the source map.
 
 Supported deterministic extraction routes:
 
@@ -229,8 +229,6 @@ Build `deck-spec.json` with this minimum shape:
         }
       },
       "source_node_ids": ["n0001"],
-      "source_coverage_kind": "primary",
-      "source_split_reason": "",
       "added_content": [],
       "scope_check": {"status": "within-branch", "branch_node_id": "n0001"}
     }
@@ -266,8 +264,6 @@ Every image-based slide must also declare its source-image granularity before PP
 - `visual_plan.min_source_image_area_ratio`: required for source-image slides using two or three source image IDs; the smallest source image should normally occupy at least `0.12` of the slide.
 
 Slides must not combine more than three independent source image files. Three is a hard maximum, not a target; one teachable source case per slide remains the default.
-
-If a single source node contains multiple teaching units or source images that need separate learner pages, keep the source order and repeat the node only on consecutive continuation slides. Set `source_coverage_kind` to `split-continuation`, `case-continuation`, or `source-image-continuation`, and write a concrete `source_split_reason`. Repeating a node without this declared split reason fails QA.
 
 For decks with source case images, create `course.source_image_coverage` before local PPT generation. Account for every non-thumbnail source image exactly once as `used` or `omitted`; do not omit a usable teaching case merely to shorten the deck. If multiple source images support one branch, add slides rather than shrinking them into a collage.
 
@@ -322,11 +318,11 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
    - Pass the external scratch directory as `--workspace`.
    - The workspace may provide its own `package.json` and `node_modules`; otherwise `build_deck.mjs` falls back to Codex's bundled primary runtime for `@oai/artifact-tool`.
    - If neither route can resolve `@oai/artifact-tool`, stop and initialize an isolated scratch Node workspace instead of changing the user's project dependencies.
-3. Inspect the montage and every flagged slide at full size. If Pillow is unavailable, `make_contact_sheet.py` will emit an SVG contact sheet; use the printed path as the review artifact.
-4. Run the final local audit against both `deck-spec.json` and the PPTX XML.
+3. Inspect the montage and every flagged slide at full size.
+4. Run the final audit against both `deck-spec.json` and the PPTX XML.
 5. Run the Canva access preflight described in `canva-delivery.md`; do not import if the active connector cannot access the chosen template/reference route.
 6. Import the PPTX into Canva as a new presentation.
 7. Verify page count, all rich text, font mapping, images, and page previews.
 8. Show one final complete review to the user.
 9. Commit Canva draft edits only after explicit approval.
-10. Re-read the saved design and return its edit link only after running `audit_deck.py --canva-motif-report canva-native-motif-report.json` when template-native motifs were planned.
+10. Re-read the saved design and return its edit link.

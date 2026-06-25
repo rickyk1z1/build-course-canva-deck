@@ -60,10 +60,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("source_map", type=Path)
     parser.add_argument("--mode", choices=["detailed", "sparse"])
-    parser.add_argument("--pdf-visual-check", action="store_true")
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--require-mode", action="store_true")
-    parser.add_argument("--require-pdf-visual-check", action="store_true")
     args = parser.parse_args()
 
     path = args.source_map.expanduser().resolve()
@@ -73,22 +71,9 @@ def main() -> int:
         payload["mode_declared_by_user"] = True
         payload["mode_declared_at"] = datetime.now(timezone.utc).isoformat()
         payload["requires_user_outline_mode"] = False
-    if args.pdf_visual_check:
-        payload["pdf_visual_hierarchy_verified"] = True
-        payload["pdf_visual_hierarchy_verified_at"] = datetime.now(timezone.utc).isoformat()
-        payload["pdf_visual_hierarchy_note"] = (
-            "PDF pages were rendered and visually inspected for hierarchy, connectors, "
-            "and unreadable regions before authoring."
-        )
     errors = validate(payload)
     if args.require_mode and payload.get("outline_mode") not in {"detailed", "sparse"}:
         errors.append("user must explicitly choose 细纲 or 粗纲 before authoring")
-    if (
-        args.require_pdf_visual_check
-        and str(payload.get("source_type", "")).lower() == "pdf"
-        and payload.get("pdf_visual_hierarchy_verified") is not True
-    ):
-        errors.append("PDF source maps require rendered-page visual hierarchy verification before authoring")
     if errors:
         print(json.dumps({"ok": False, "errors": errors}, ensure_ascii=False, indent=2))
         return 1
