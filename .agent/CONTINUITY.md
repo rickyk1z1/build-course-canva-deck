@@ -20,3 +20,5 @@
 - 2026-06-26T02:48:32+0800 [CODE] Updated SKILL.md, references/agent-hierarchy.md, references/workflow.md, references/qa-gates.md, README.md, and root AGENTS.md with role continuity, role registry, per-role state files, `invocation_id`, `prior_state_paths`, and `state_update` merge rules.
 - 2026-06-26T02:53:12+0800 [USER] User asked whether the skill repository had been synced to GitHub and asked to complete the missing yaml module.
 - 2026-06-26T02:53:12+0800 [CODE] Added `requirements-dev.txt` with `PyYAML>=6.0,<7` and documented the install command in README.md and AGENTS.md so skill validation does not rely on undocumented local setup.
+- 2026-06-26T02:56:08+0800 [TOOL] Full `tests/run_tests.py` initially failed because fixture deck specs were missing `source_node_treatments` required by the current QA gate.
+- 2026-06-26T02:56:08+0800 [CODE] Updated detailed/sparse deck fixtures and the synthetic long-deck test helper so mapped source nodes include current `screen_evidence` treatments; `tests/run_tests.py`, audit density tests, and skill validation now pass.

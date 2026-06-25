@@ -77,6 +77,14 @@
       "source_node_ids": [
         "n0001"
       ],
+      "source_node_treatments": [
+        {
+          "source_node_id": "n0001",
+          "coverage_status": "clarified",
+          "screen_evidence": "编码和格式描述视频的不同方面",
+          "coverage_note": "粗纲根节点被展开为课程入口标题，明确本页围绕编码和格式的区分。"
+        }
+      ],
       "added_content": [
         {
           "text": "编码描述数据整理方法",
@@ -143,6 +151,14 @@
       },
       "source_node_ids": [
         "n0002"
+      ],
+      "source_node_treatments": [
+        {
+          "source_node_id": "n0002",
+          "coverage_status": "clarified",
+          "screen_evidence": "编码是方法，格式是承装数据的容器",
+          "coverage_note": "源节点的区别关系被展开为可见对比标题并在正文中继续解释。"
+        }
       ],
       "added_content": [
         {

@@ -81,6 +81,15 @@ def valid_template_motif(
     }
 
 
+def source_treatment(node_id: str, evidence: str, *, status: str = "preserved") -> dict:
+    return {
+        "source_node_id": node_id,
+        "coverage_status": status,
+        "screen_evidence": evidence,
+        "coverage_note": "synthetic fixture keeps the mapped source node visible through this learner-facing phrase.",
+    }
+
+
 def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     source = {
         "schema_version": 1,
@@ -183,6 +192,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     cover = json.loads(json.dumps(base["slides"][0], ensure_ascii=False))
     cover["number"] = 1
     cover["source_node_ids"] = ["n0001"]
+    cover["source_node_treatments"] = [source_treatment("n0001", "编码与格式", status="section-heading")]
     cover["visual_plan"]["source_node_id"] = "n0001"
     cover["visual_plan"]["layout_variant"] = "hero-cover"
     cover["visual_plan"]["template_motif"] = valid_template_motif("hero-right", source_page=1, source_element_id="template-star-hero")
@@ -209,6 +219,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         slide["layout"] = layout
         slide["title"] = f"节点 {index} 的结论式标题"
         slide["source_node_ids"] = [node_id]
+        slide["source_node_treatments"] = [source_treatment(node_id, slide["title"], status="clarified")]
         slide["visual_plan"]["source_node_id"] = node_id
         slide["visual_plan"]["template_reference"] = {
             "page": ((index - 1) % 8) + 1,
@@ -243,7 +254,9 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
 
     summary = json.loads(json.dumps(base["slides"][-1], ensure_ascii=False))
     summary["number"] = 16
+    summary["title"] = "节点 16 的总结式标题"
     summary["source_node_ids"] = ["n0016"]
+    summary["source_node_treatments"] = [source_treatment("n0016", summary["title"], status="clarified")]
     summary["visual_plan"]["source_node_id"] = "n0016"
     summary["visual_plan"]["layout_variant"] = "summary-blocks"
     slides.append(summary)

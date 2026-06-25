@@ -71,6 +71,14 @@
       "source_node_ids": [
         "n0001"
       ],
+      "source_node_treatments": [
+        {
+          "source_node_id": "n0001",
+          "coverage_status": "section-heading",
+          "screen_evidence": "编码与格式",
+          "coverage_note": "源大纲根节点作为课程标题直接呈现在学员可见页面。"
+        }
+      ],
       "added_content": [],
       "scope_check": {
         "status": "within-branch",
@@ -118,6 +126,14 @@
       "source_node_ids": [
         "n0002"
       ],
+      "source_node_treatments": [
+        {
+          "source_node_id": "n0002",
+          "coverage_status": "clarified",
+          "screen_evidence": "编码负责按照一套规则整理和压缩这些数据",
+          "coverage_note": "源节点的编码定义被改写为更易理解的屏显解释，并保留整理压缩含义。"
+        }
+      ],
       "added_content": [],
       "scope_check": {
         "status": "within-branch",
@@ -164,6 +180,14 @@
       },
       "source_node_ids": [
         "n0003"
+      ],
+      "source_node_treatments": [
+        {
+          "source_node_id": "n0003",
+          "coverage_status": "clarified",
+          "screen_evidence": "格式可以理解为装视频数据的文件箱子",
+          "coverage_note": "源节点的格式定义被保留为文件箱子比喻并出现在学员可见解释中。"
+        }
       ],
       "added_content": [],
       "scope_check": {
