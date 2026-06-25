@@ -5,7 +5,6 @@
 Keep scratch files outside the user's project. Put durable deliverables in `<source-parent>/<course-stem>-课件产物/` unless the user chooses another location:
 
 - `<course-stem>-屏显稿.md`
-- `<course-stem>-录课讲稿.md`
 - `<course-stem>-Canva导入稿.pptx`
 - `curriculum-context.json`
 - `课程体系关联说明.md`
@@ -15,6 +14,22 @@ Keep scratch files outside the user's project. Put durable deliverables in `<sou
 - `canva-design.txt`
 
 Never overwrite source files.
+
+## Proposal-only multi-agent workspace
+
+When subagents are available for a course-deck build or revision, optimize for quality and keep worker outputs in the external scratch workspace. Workers are advisory only. Use the five-agent proposal worker set unless subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question. Workers may write proposal files such as:
+
+- `scratch/source-context.proposal.json`
+- `scratch/slide-plan.proposal.json`
+- `scratch/visual-plan.proposal.json`
+- `scratch/screen-copy.proposal.json`
+- `scratch/supervisor-log.md`
+- `scratch/supervisor-findings.json`
+- `scratch/qa-findings.md`
+
+The orchestrator is the only writer of durable course files and the only actor allowed to build PPTX files, import into Canva, edit Canva, or commit Canva changes. If subagents are unavailable or unsafe for the current run, the orchestrator performs the same phases sequentially and records the limitation.
+
+The five workers are Source & Curriculum, Slide Architecture & Fidelity, Visual & Layout Planner, Screen Copy, and Supervisor / QA. Use the Supervisor / QA worker whenever any worker is used. The Supervisor / QA worker does not author content. It audits worker prompts, proposal files, role boundaries, source-order fidelity, duplicate/early wording risks, rendered-output risks, unresolved conflicts, and readiness gates. Run Supervisor checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. The orchestrator must resolve every Supervisor finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
 
 ## Source intake
 
@@ -43,6 +58,14 @@ Create a coverage ledger with one row per included source node:
 `source node -> slide number -> treatment -> visual -> status`
 
 The ledger must prove content preservation before any optimization or topology supplement. For every slide, `source_node_treatments` must match `source_node_ids` exactly and in order. Each entry points to an exact visible `screen_evidence` phrase from the slide's title, explanation, bullets, caption, or blocks; metadata-only coverage is a QA failure.
+
+Use one distinct evidence phrase per distinct source node on the same slide. Do not reuse a slide title, branch label, or generic summary sentence to mark several different source nodes as covered. The first visible occurrence of those evidence phrases must follow source order on the page.
+
+For detailed outlines, preserve every sibling enumeration as a visible enumeration. If a source node has four peer children, the learner-facing screen copy must show four peer items in source order, or split the group into consecutive slides with one coverage row per item. Do not combine the last items into a single bullet when that makes a layout renderer drop or visually subordinate them. Do not rely on generated images, speaker notes, or `source_node_treatments` metadata to carry missing enumerated items.
+
+Keep distinctive wording in its source position. If a later source node introduces a phrase, do not use that phrase as an earlier slide title or repeated teaching label unless the source already does so. Use a neutral bridge sentence instead, so optimized teaching flow does not blur the original outline sequence.
+
+Screen copy is the only required teaching layer. It must contain the definitions, explanations, examples, conclusions, and visual interpretation needed for a learner to understand the page without narration. Do not create a separate lecture-notes artifact. `speaker_notes` may be empty or contain only short internal transition reminders.
 
 Build `deck-spec.json` with this minimum shape:
 
@@ -164,7 +187,7 @@ Build `deck-spec.json` with this minimum shape:
         "caption": "",
         "blocks": []
       },
-      "speaker_notes": "仅供录课口述",
+      "speaker_notes": "可选内部转场提示；不得承载屏显缺失的关键知识",
       "visuals": [],
       "visual_plan": {
         "teaching_role": "what the visual helps the learner understand",
@@ -308,11 +331,12 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
 ## Authoring and visuals
 
 - Preserve source order before optimizing narrative transitions.
-- Preserve every original source node before adding optimization, topology bridges, examples, or visuals. `source_node_treatments.screen_evidence` must be text the learner can actually see.
+- Preserve every original source node before adding optimization, topology bridges, examples, or visuals. `source_node_treatments.screen_evidence` must be text the learner can actually see in both `deck-spec.json` and the built PPTX slide.
+- Before choosing a layout, check whether the layout renderer can show all required bullets, blocks, and enumerated child nodes. Layout-specific point caps are not a license to truncate; choose a different layout or split the slide.
 - Align the deck with the overall curriculum role, prerequisites, shared terminology, and downstream lessons.
 - Keep neighboring lessons' primary teaching tasks out of this deck; record a handoff instead of duplicating them.
 - Give each knowledge slide one explanation paragraph and usually 3-5 concrete points.
-- Keep a page readable without narration; use notes only for delivery rhythm.
+- Keep every page readable without narration. Optional notes are internal delivery reminders only and cannot compensate for missing screen knowledge.
 - Read `visual-system.md` before visual work.
 - Build a visual plan per knowledge slide; do not create a separate learner-facing page that only lists future case images.
 - Use embedded source visuals before generating replacements.
@@ -332,10 +356,10 @@ Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`
    - The workspace may provide its own `package.json` and `node_modules`; otherwise `build_deck.mjs` falls back to Codex's bundled primary runtime for `@oai/artifact-tool`.
    - If neither route can resolve `@oai/artifact-tool`, stop and initialize an isolated scratch Node workspace instead of changing the user's project dependencies.
 3. Inspect the montage and every flagged slide at full size.
-4. Run the final audit against both `deck-spec.json` and the PPTX XML.
+4. Run the final audit against both `deck-spec.json` and the PPTX XML. The PPTX audit must compare every mapped node's `screen_evidence` against the corresponding rendered slide XML, not just page count and forbidden words.
 5. Run the Canva access preflight described in `canva-delivery.md`; do not import if the active connector cannot access the chosen template/reference route.
 6. Import the PPTX into Canva as a new presentation.
-7. Verify page count, all rich text, font mapping, images, and page previews.
+7. Verify page count, all rich text, font mapping, images, and page previews. When Canva rich text is available, spot-check required `screen_evidence` phrases on the corresponding pages, especially enumerations and source examples.
 8. Show one final complete review to the user.
 9. Commit Canva draft edits only after explicit approval.
 10. Re-read the saved design and return its edit link.

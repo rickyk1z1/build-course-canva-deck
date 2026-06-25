@@ -1,6 +1,6 @@
 ---
 name: build-course-canva-deck
-description: Turn a course outline or knowledge tree into a detailed, learner-facing, editable Canva recording deck that belongs to one coherent self-media, editing-mindset, and video-editing curriculum. Use for PDF, XMind, DOCX, Markdown, TXT, OPML, or FreeMind inputs when Codex must preserve teaching order, distinguish a user-declared detailed outline from a user-declared sparse outline, align terminology and scope with neighboring courses, create screen copy and separate lecture notes, prepare explanatory visuals, build and QA a PPTX, import it into Canva, and request final approval before saving.
+description: Turn a course outline or knowledge tree into a detailed, learner-facing, editable Canva recording deck that belongs to one coherent self-media, editing-mindset, and video-editing curriculum. Use for PDF, XMind, DOCX, Markdown, TXT, OPML, or FreeMind inputs when Codex must preserve teaching order, distinguish detailed versus sparse outlines, align terminology and scope with neighboring courses, create self-contained screen copy, prepare visuals, build and QA a PPTX, import it into Canva, and request final approval before saving.
 ---
 
 # Build Course Canva Deck
@@ -24,31 +24,53 @@ Before authoring, read [references/curriculum-system.md](references/curriculum-s
 
 Read [references/content-policy.md](references/content-policy.md) before writing either mode.
 
+## Multi-agent orchestration
+
+Optimize for the best possible deck quality. When subagents are available and the user is asking to build or revise a course deck, use the five-agent proposal-only worker set after the source/mode checkpoint. Use a single orchestrator only when subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
+
+- **Orchestrator** owns all durable writes and external actions: `source-map.json`, `curriculum-context.json`, `deck-spec.json`, PPTX generation, QA reports, Canva import, Canva edits, and final approval.
+- **Source & Curriculum worker** may inspect sources and neighboring lessons, then write only `scratch/source-context.proposal.json`.
+- **Slide Architecture & Fidelity worker** may map source nodes to slide groups, preserve sibling enumerations, flag duplicate/early wording, and write only `scratch/slide-plan.proposal.json`.
+- **Visual & Layout Planner worker** may plan source images, generated images, template pages, native motifs, and layout capacity, then write only `scratch/visual-plan.proposal.json`.
+- **Screen Copy worker** may write learner-facing slide text, then write only `scratch/screen-copy.proposal.json`.
+- **Supervisor / QA worker** continuously audits the orchestration process, worker prompts, proposal outputs, source-order fidelity, rendered-output risks, and merge readiness against this skill's requirements, then writes only `scratch/supervisor-log.md`, `scratch/supervisor-findings.json`, or `scratch/qa-findings.md`. It is mandatory whenever any worker is used.
+
+Workers must never modify final course files, the original source, the selected Canva template, or any Canva design. The Supervisor / QA worker also must not author screen copy, slide plans, visual plans, or final files; it checks compliance only. The orchestrator merges proposals, resolves conflicts, verifies source-node coverage, runs audit scripts, and fixes failures. Do not create a separate lecture-notes worker or a sixth QA worker. Do not reduce worker count for convenience or speed; reduce only for capability limits, explicit user direction, or non-deck read-only questions.
+
+Supervisor checks run at four gates:
+
+1. **Before worker dispatch:** verify the authoritative source is selected, `细纲`/`粗纲` is recorded, worker prompts include scope boundaries, and each worker has a write path limited to `scratch/`.
+2. **After each proposal:** verify the worker stayed inside its role, did not write final files, did not skip source order, did not invent neighboring content, did not collapse sibling enumerations, did not introduce repeated/early wording, and did not rely on narration-only knowledge.
+3. **Before orchestrator merge:** verify slide-node coverage can remain one-to-one, source order is monotonic, visual obligations are represented, layout capacity can render every required item, and proposal conflicts are explicitly resolved by the orchestrator.
+4. **Before build/import:** verify `audit_deck.py` has passed or failures are being fixed, rendered PPTX text contains same-slide source evidence, Canva template access rules are respected, no draft save/commit happens before user approval, and no Supervisor findings remain unresolved. Waive a Supervisor finding only for a documented tool/capability blocker or explicit user instruction; never waive for convenience or speed.
+
 ## Required workflow
 
 1. Read [references/workflow.md](references/workflow.md) and create an external scratch workspace.
 2. Run `scripts/extract_source.py` to create `source-map.json`. For PDFs, also render and visually inspect every relevant page; extracted text alone is not hierarchy evidence.
 3. Complete the mandatory source and mode checkpoint above.
-4. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
-5. Build a source coverage matrix in source order. Include every valid node exactly once; if a tightly related group shares one slide, keep it within the QA density limit and record per-node learner-facing evidence in `source_node_treatments`.
-6. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
-7. Write two separate layers:
-   - learner-facing screen copy that can be understood without narration;
-   - lecture notes for oral transitions and emphasis, never rendered on slides.
-8. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page.
-9. Read [references/design-system.md](references/design-system.md) and [references/page-design-quality.md](references/page-design-quality.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
-10. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
-11. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.
-12. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
-13. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
+4. If using workers, dispatch the five proposal-only workers for source/context, slide architecture and fidelity, visual/layout planning, screen copy, and Supervisor/QA; otherwise perform those phases sequentially in the orchestrator.
+5. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
+6. Build a source coverage matrix in source order. Include every valid node exactly once; if a tightly related group shares one slide, keep it within the QA density limit and record per-node learner-facing evidence in `source_node_treatments`.
+7. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
+8. Write one learner-facing screen-copy layer that can be understood without narration. Optional `speaker_notes` may exist only as short internal transition hints and must never contain knowledge required for comprehension.
+9. Read [references/visual-system.md](references/visual-system.md), then create a slide-by-slide visual plan. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page.
+10. Read [references/design-system.md](references/design-system.md) and [references/page-design-quality.md](references/page-design-quality.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
+11. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
+12. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.
+13. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
+14. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
 
 ## Hard boundaries
 
 - Keep the source's teaching order.
+- Preserve detailed-outline sibling lists as complete visible lists. Do not let layout point limits, generated images, or metadata coverage remove enumerated items from the rendered PPTX/Canva page.
+- Do not pull distinctive wording from later source nodes into earlier titles or labels unless the source already repeats it there; optimize transitions without blurring the original outline sequence.
 - Treat every deck as one component of the same self-media and editing curriculum. Preserve shared terminology, prerequisites, difficulty progression, and division of responsibility between lessons.
 - Do not duplicate a neighboring lesson's main teaching task. Record the handoff to that lesson instead of expanding into it.
 - Use one teaching node per slide by default; add slides instead of shrinking body text below 16 pt. Do not treat `source_node_ids` as coverage by itself: every mapped source node must have `source_node_treatments` with visible screen evidence.
 - Put definitions, explanations, examples, and visual interpretation on the slide. Do not create question-only or keyword-only pages.
+- Do not create a separate lecture-notes deliverable. Screen copy must carry the teaching; optional `speaker_notes` are internal transition hints only.
 - Keep source images inside knowledge pages. Never let a screenshot or example image replace the lesson text.
 - Treat source reference images and case images as teaching units, not decoration. Account for every non-thumbnail source image in `course.source_image_coverage`; use one teachable case image per slide by default.
 - A slide may use at most three independent source images, and only when all images remain readable and the visual plan records the image/text ratio and grouping reason. Four or more source images on one slide is a failed collage; split into more slides and explain cases in source order.

@@ -43,16 +43,16 @@ For every addition:
 5. Remove it if explaining it requires a new branch not present in the source.
 6. Remove it if it belongs to `excluded_neighbor_topics` or conflicts with the current lesson's `course_role`.
 
-## Screen copy versus lecture notes
+## Screen copy as the teaching layer
 
-Screen copy carries the knowledge. Each normal knowledge slide includes:
+Screen copy carries the knowledge. Each normal knowledge slide must be understandable without narration and includes:
 
 - a conclusion-style title;
 - one self-contained explanation paragraph;
 - 3-5 structured points, comparisons, or steps;
 - a visual interpretation when an image is present.
 
-Lecture notes carry transitions, delivery rhythm, emphasis, and optional spoken examples. Never use lecture notes to compensate for missing screen knowledge, and never render notes or production metadata on a slide.
+Do not create a separate lecture-notes deliverable. Optional `speaker_notes` may exist only as short internal transition reminders, delivery rhythm hints, or emphasis cues. They may be empty. Never use notes to compensate for missing screen knowledge, and never render notes or production metadata on a slide.
 
 ## Metaphors and examples
 

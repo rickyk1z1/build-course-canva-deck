@@ -11,12 +11,18 @@
 ## Content gate
 
 - `curriculum_context` identifies the overall system, module, and this lesson's role.
+- If any worker was used, Supervisor findings are resolved before `deck-spec.json` is treated as build-ready. Waivers must identify a concrete tool/capability blocker or explicit user instruction; convenience and speed are not valid waiver reasons.
 - Shared terminology matches existing lessons.
 - Prerequisite knowledge is only recapped as needed; neighboring lessons are not duplicated.
 - Every included source node maps to at least one slide.
 - `source_node_ids` alone is not coverage. Every mapped node must have a matching `source_node_treatments` entry in the same order.
 - Each `source_node_treatments` entry must identify the original node, use an allowed preservation status, include a concrete `screen_evidence` phrase that appears in visible slide text, and explain how the node was preserved, clarified, visualized, or restructured.
+- Built PPTX text must also contain every `source_node_treatments.screen_evidence` phrase on the same slide. A phrase present in `deck-spec.json`, speaker notes, another slide, or only in an image is not enough.
+- Distinct source nodes on the same slide must use distinct `screen_evidence` phrases unless the original source text is identical. Reusing a generic title or summary sentence for multiple nodes is metadata coverage, not learner-facing coverage.
+- Within a slide, `screen_evidence` phrases must first appear in the same order as `source_node_treatments` and the source outline. If the visible page introduces a later node's phrase before an earlier node's phrase, the slide is out of order even when all phrases exist somewhere on the page.
 - Detailed mode preserves the original outline first, then optimizes wording, layout, topology, and visuals. Topology supplements must not replace, merge away, or summarize away original source nodes.
+- Detailed mode must preserve sibling enumerations completely and in source order. If a source branch lists N peer items, show all N as distinct learner-facing items or split them into consecutive slides; do not merge away the last items, let a layout cap truncate them, or hide them only in a generated image.
+- Do not introduce distinctive wording from a later source node into an earlier slide unless the source itself already uses that wording there. Repeated terms are allowed when the source repeats them; otherwise prefer a neutral paraphrase so the outline sequence stays clear.
 - Detailed mode normal knowledge slides may map at most 8 source nodes. Sparse mode normal knowledge slides may map at most 10 source nodes. Split dense branches into consecutive learner pages instead of hiding coverage in metadata.
 - Deck-level slide count must satisfy the same source-node density limit; a 300+ node outline cannot pass as a roughly 21-page deck just because every node ID appears somewhere.
 - Slide source-node order is monotonic.
@@ -25,6 +31,7 @@
 - Sparse additions do not create new branches or enter neighboring workflows.
 - Visible content contains none of the curriculum context's `excluded_neighbor_topics`.
 - User examples and metaphors are preserved.
+- Screen copy is self-contained. Do not require a separate lecture-notes artifact, and do not put required definitions, examples, conclusions, or visual interpretation only in `speaker_notes`.
 
 ## Learner-facing gate
 
@@ -72,6 +79,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - Images are accompanied by interpretation and do not replace the page's knowledge text.
 - Body text is at least 16 pt; learner-facing captions and tertiary explanations are normally at least 15 pt; ordinary titles are at least 36 pt.
 - No unintended overlap, clipping, title wrapping, broken connectors, or missing images.
+- No silent truncation caused by layout-specific point limits. If the selected layout cannot render every required bullet, block, or enumerated child visibly, switch layout or split the slide before PPTX generation.
 - No accidental single-character title wraps, generic bullet blocks, overused full-width rules, detached captions, or heavy caption bars unless they are inherited from the selected reference template page.
 - Page numbers, headers, fonts, and visual tokens are consistent.
 - The full rendered contact sheet and any flagged page are inspected.
@@ -82,6 +90,7 @@ Production metadata may exist in internal notes, but never in visible screen fie
 - If the canonical template is inaccessible, an accessible duplicate or explicit browser fallback approval is recorded before import.
 - Canva page count equals the PPTX page count.
 - Every page has been previewed.
+- Imported Canva rich text should contain each built PPTX slide's required `screen_evidence` phrases on the corresponding page when the connector exposes rich text. Any missing phrase must be fixed by rebuilding/reimporting or documented as a connector extraction limitation after visual preview.
 - Rich-text scan contains zero forbidden terms.
 - The original template remains unchanged.
 - Draft changes are committed only after explicit user approval.

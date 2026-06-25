@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,14 @@ AUDIT = ROOT / "scripts" / "audit_deck.py"
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def write_pptx(path: Path, slide_texts: list[str]) -> None:
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types></Types>")
+        for index, text in enumerate(slide_texts, start=1):
+            runs = "".join(f"<a:t>{line}</a:t>" for line in text.splitlines())
+            archive.writestr(f"ppt/slides/slide{index}.xml", f"<p:sld>{runs}</p:sld>")
 
 
 def template_reference() -> dict[str, Any]:
@@ -76,6 +85,42 @@ class AuditDeckDensityTest(unittest.TestCase):
                     str(source_path),
                     "--report",
                     str(report_path),
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            return result, report
+
+    def run_audit_with_pptx(
+        self,
+        deck: dict[str, Any],
+        source: dict[str, Any],
+        slide_texts: list[str],
+    ) -> tuple[subprocess.CompletedProcess[str], dict[str, Any]]:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp = Path(temp_dir)
+            deck_path = temp / "deck-spec.json"
+            source_path = temp / "source-map.json"
+            report_path = temp / "qa-report.json"
+            pptx_path = temp / "deck.pptx"
+            write_json(deck_path, deck)
+            write_json(source_path, source)
+            write_pptx(pptx_path, slide_texts)
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT),
+                    "--deck-spec",
+                    str(deck_path),
+                    "--source-map",
+                    str(source_path),
+                    "--report",
+                    str(report_path),
+                    "--pptx",
+                    str(pptx_path),
                 ],
                 text=True,
                 capture_output=True,
@@ -271,6 +316,215 @@ class AuditDeckDensityTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, report["errors"])
         self.assertTrue(report["ok"])
+
+    def test_pptx_slide_text_must_contain_each_source_evidence(self) -> None:
+        nodes = [
+            {"id": f"n{index:04d}", "title": f"Node {index}", "order": index, "include": True}
+            for index in range(1, 4)
+        ]
+        source = {
+            "outline_mode": "detailed",
+            "mode_declared_by_user": True,
+            "nodes": nodes,
+            "images": [],
+        }
+        deck = {
+            "course": {
+                "title": "Rendered evidence regression",
+                "audience": "course creators",
+                "outline_mode": "detailed",
+                "curriculum_context": {
+                    "system_name": "Course system",
+                    "module": "QA",
+                    "course_role": "Verify rendered source evidence",
+                    "excluded_neighbor_topics": [],
+                },
+            },
+            "slides": [
+                {
+                    "number": 1,
+                    "title": "visible-n0001",
+                    "layout": "cover",
+                    "screen": {"explanation": "visible-n0001", "bullets": [], "caption": "", "blocks": []},
+                    "visuals": [],
+                    "visual_plan": {"template_reference": template_reference()},
+                    "source_node_ids": ["n0001"],
+                    "source_node_treatments": coverage_treatments(["n0001"]),
+                    "added_content": [],
+                },
+                {
+                    "number": 2,
+                    "title": "Rendered page carries all evidence",
+                    "layout": "roadmap",
+                    "screen": {
+                        "explanation": "This page claims visible-n0002 and visible-n0003 are present.",
+                        "bullets": [
+                            "visible-n0002 appears in the spec.",
+                            "visible-n0003 appears in the spec.",
+                            "A third point keeps the page valid.",
+                        ],
+                        "caption": "",
+                        "blocks": [],
+                    },
+                    "visuals": [],
+                    "visual_plan": visual_plan("n0002"),
+                    "source_node_ids": ["n0002", "n0003"],
+                    "source_node_treatments": coverage_treatments(["n0002", "n0003"]),
+                    "added_content": [],
+                },
+            ],
+        }
+
+        result, report = self.run_audit_with_pptx(
+            deck,
+            source,
+            [
+                "visible-n0001",
+                "Rendered page carries all evidence\nvisible-n0002",
+            ],
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("built PPTX slide text", "\n".join(report["errors"]))
+
+    def test_distinct_source_nodes_cannot_reuse_the_same_evidence(self) -> None:
+        nodes = [
+            {"id": f"n{index:04d}", "text": f"Node {index}", "order": index, "include": True}
+            for index in range(1, 4)
+        ]
+        source = {
+            "outline_mode": "detailed",
+            "mode_declared_by_user": True,
+            "nodes": nodes,
+            "images": [],
+        }
+        deck = {
+            "course": {
+                "title": "Duplicate evidence regression",
+                "audience": "course creators",
+                "outline_mode": "detailed",
+                "curriculum_context": {
+                    "system_name": "Course system",
+                    "module": "QA",
+                    "course_role": "Reject generic repeated evidence",
+                    "excluded_neighbor_topics": [],
+                },
+            },
+            "slides": [
+                {
+                    "number": 1,
+                    "title": "visible-n0001",
+                    "layout": "cover",
+                    "screen": {"explanation": "visible-n0001", "bullets": [], "caption": "", "blocks": []},
+                    "visuals": [],
+                    "visual_plan": {"template_reference": template_reference()},
+                    "source_node_ids": ["n0001"],
+                    "source_node_treatments": coverage_treatments(["n0001"]),
+                    "added_content": [],
+                },
+                {
+                    "number": 2,
+                    "title": "A generic heading cannot cover details",
+                    "layout": "roadmap",
+                    "screen": {
+                        "explanation": "generic-evidence is visible but too generic for two different nodes.",
+                        "bullets": [
+                            "generic-evidence",
+                            "A second point keeps the page valid.",
+                            "A third point keeps the page valid.",
+                        ],
+                        "caption": "",
+                        "blocks": [],
+                    },
+                    "visuals": [],
+                    "visual_plan": visual_plan("n0002"),
+                    "source_node_ids": ["n0002", "n0003"],
+                    "source_node_treatments": [
+                        {
+                            "source_node_id": "n0002",
+                            "coverage_status": "preserved",
+                            "screen_evidence": "generic-evidence",
+                            "coverage_note": "carried into learner-facing copy",
+                        },
+                        {
+                            "source_node_id": "n0003",
+                            "coverage_status": "preserved",
+                            "screen_evidence": "generic-evidence",
+                            "coverage_note": "carried into learner-facing copy",
+                        },
+                    ],
+                    "added_content": [],
+                },
+            ],
+        }
+
+        result, report = self.run_audit(deck, source)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("repeats screen_evidence", "\n".join(report["errors"]))
+
+    def test_visible_evidence_order_must_follow_source_order(self) -> None:
+        nodes = [
+            {"id": f"n{index:04d}", "text": f"Node {index}", "order": index, "include": True}
+            for index in range(1, 4)
+        ]
+        source = {
+            "outline_mode": "detailed",
+            "mode_declared_by_user": True,
+            "nodes": nodes,
+            "images": [],
+        }
+        deck = {
+            "course": {
+                "title": "Evidence order regression",
+                "audience": "course creators",
+                "outline_mode": "detailed",
+                "curriculum_context": {
+                    "system_name": "Course system",
+                    "module": "QA",
+                    "course_role": "Reject visible evidence order drift",
+                    "excluded_neighbor_topics": [],
+                },
+            },
+            "slides": [
+                {
+                    "number": 1,
+                    "title": "visible-n0001",
+                    "layout": "cover",
+                    "screen": {"explanation": "visible-n0001", "bullets": [], "caption": "", "blocks": []},
+                    "visuals": [],
+                    "visual_plan": {"template_reference": template_reference()},
+                    "source_node_ids": ["n0001"],
+                    "source_node_treatments": coverage_treatments(["n0001"]),
+                    "added_content": [],
+                },
+                {
+                    "number": 2,
+                    "title": "Visible order must match source order",
+                    "layout": "roadmap",
+                    "screen": {
+                        "explanation": "The slide text mentions visible-n0003 before visible-n0002.",
+                        "bullets": [
+                            "visible-n0003 appears first.",
+                            "visible-n0002 appears second.",
+                            "A third point keeps the page valid.",
+                        ],
+                        "caption": "",
+                        "blocks": [],
+                    },
+                    "visuals": [],
+                    "visual_plan": visual_plan("n0002"),
+                    "source_node_ids": ["n0002", "n0003"],
+                    "source_node_treatments": coverage_treatments(["n0002", "n0003"]),
+                    "added_content": [],
+                },
+            ],
+        }
+
+        result, report = self.run_audit(deck, source)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("out of source order", "\n".join(report["errors"]))
 
 
 if __name__ == "__main__":

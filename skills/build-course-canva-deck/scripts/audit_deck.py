@@ -107,15 +107,16 @@ def normalized_match_text(value: Any) -> str:
     return re.sub(r"\s+", "", str(value or "")).lower()
 
 
-def pptx_text(path: Path) -> tuple[int, str]:
+def pptx_text(path: Path) -> tuple[int, list[str], str]:
     with zipfile.ZipFile(path) as archive:
         names = [name for name in archive.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)]
         names.sort(key=lambda name: int(re.search(r"(\d+)", Path(name).stem).group(1)))
-        texts: list[str] = []
+        slide_texts: list[str] = []
         for name in names:
             xml = archive.read(name).decode("utf-8", errors="replace")
-            texts.extend(html.unescape(value) for value in re.findall(r"<a:t>(.*?)</a:t>", xml, flags=re.S))
-        return len(names), "\n".join(texts)
+            texts = [html.unescape(value) for value in re.findall(r"<a:t>(.*?)</a:t>", xml, flags=re.S)]
+            slide_texts.append("\n".join(texts))
+        return len(names), slide_texts, "\n".join(slide_texts)
 
 
 def layout_theme(layout: str) -> str:
@@ -254,6 +255,10 @@ def main() -> int:
     source_image_ids = {image.get("id") for image in source_images if image.get("id")}
     source_ids = {node.get("id") for node in source_nodes}
     source_order = {node.get("id"): node.get("order") for node in source_nodes}
+    source_text_by_id = {
+        str(node.get("id")): str(node.get("text") or node.get("title") or "")
+        for node in source_nodes
+    }
     slides = deck.get("slides")
     if not isinstance(slides, list) or not slides:
         errors.append("deck-spec slides must be non-empty")
@@ -872,6 +877,8 @@ def main() -> int:
         else:
             normalized_slide_text = normalized_match_text(text)
             node_id_values = [str(node_id) for node_id in node_ids]
+            evidence_seen: dict[str, str] = {}
+            previous_evidence_position = -1
             for treatment_index, item in enumerate(treatments, start=1):
                 prefix = f"{label} source_node_treatments[{treatment_index}]"
                 if not isinstance(item, dict):
@@ -888,12 +895,27 @@ def main() -> int:
                         + ", ".join(sorted(SOURCE_COVERAGE_STATUSES))
                     )
                 evidence = str(item.get("screen_evidence", "")).strip()
-                if len(normalized_match_text(evidence)) < 4:
+                normalized_evidence = normalized_match_text(evidence)
+                if len(normalized_evidence) < 4:
                     errors.append(f"{prefix} must include a concrete screen_evidence phrase")
-                elif normalized_match_text(evidence) not in normalized_slide_text:
+                elif normalized_evidence not in normalized_slide_text:
                     errors.append(
                         f"{prefix} screen_evidence is not found in visible title, explanation, bullets, caption, or blocks"
                     )
+                else:
+                    previous_node_id = evidence_seen.get(normalized_evidence)
+                    if previous_node_id and source_text_by_id.get(previous_node_id) != source_text_by_id.get(treatment_node_id):
+                        errors.append(
+                            f"{prefix} repeats screen_evidence already used for source node {previous_node_id}; "
+                            "distinct source nodes need distinct learner-facing evidence"
+                        )
+                    evidence_seen[normalized_evidence] = treatment_node_id
+                    evidence_position = normalized_slide_text.find(normalized_evidence)
+                    if evidence_position < previous_evidence_position:
+                        errors.append(
+                            f"{prefix} screen_evidence appears out of source order in visible slide text: {evidence}"
+                        )
+                    previous_evidence_position = max(previous_evidence_position, evidence_position)
                 if len(str(item.get("coverage_note", "")).strip()) < 12:
                     errors.append(f"{prefix} must explain how the original node was preserved or clarified")
             if treatment_ids != [str(node_id) for node_id in node_ids]:
@@ -939,13 +961,32 @@ def main() -> int:
 
     pptx_slides = None
     if args.pptx:
-        pptx_slides, text = pptx_text(args.pptx)
+        pptx_slides, pptx_slide_texts, text = pptx_text(args.pptx)
         if pptx_slides != len(slides):
             errors.append(f"PPTX page count {pptx_slides} does not match deck-spec {len(slides)}")
         lower = text.lower()
         for term in FORBIDDEN:
             if term.lower() in lower:
                 errors.append(f"PPTX contains forbidden visible text: {term}")
+        for index, slide in enumerate(slides, start=1):
+            if index > len(pptx_slide_texts):
+                continue
+            normalized_pptx_slide_text = normalized_match_text(pptx_slide_texts[index - 1])
+            treatments = slide.get("source_node_treatments")
+            if not isinstance(treatments, list):
+                continue
+            for treatment_index, item in enumerate(treatments, start=1):
+                if not isinstance(item, dict):
+                    continue
+                evidence = str(item.get("screen_evidence", "")).strip()
+                if len(normalized_match_text(evidence)) < 4:
+                    continue
+                if normalized_match_text(evidence) not in normalized_pptx_slide_text:
+                    errors.append(
+                        f"slide {index} source_node_treatments[{treatment_index}] "
+                        "screen_evidence is not found in the built PPTX slide text: "
+                        f"{evidence}"
+                    )
 
     if args.layout_dir and args.layout_dir.exists():
         for path in sorted(args.layout_dir.glob("*.json")):
