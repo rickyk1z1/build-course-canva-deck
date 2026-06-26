@@ -59,12 +59,18 @@ Workers read only their brief plus files listed in `allowed_read_paths`. If a wo
 
 Worker proposals must include a `self_check` section, but it is not a checkbox ritual. Each answer must point to concrete source paths, slide groups, visible phrases, layout decisions, or unresolved risks. Generic answers such as "已检查" or "符合要求" are not mergeable. Do not create a separate final-review worker, lecture-notes worker, or fifth review role.
 
+Use workers to reduce context piling, not to make the process more mechanical. Each worker returns a compact expert handoff that downstream roles can trust without rereading broad context: 课程统筹师 gives a boundary card, 原稿场记 gives the source-order spine, 课堂编剧 gives the zero-basis teaching script spine, and 视觉分镜师 gives the visual-understanding map. The director passes these handoffs, not every upstream file, unless a worker explicitly requests more context.
+
 The director's review is simple and human-facing:
 
 1. After each proposal, check the role's `self_check` before merging.
 2. When the director changes grouping, wording, fallback visuals, or layouts, re-check the affected role standard directly because no worker has reviewed that new change.
 3. Run scripts only as mechanical guards for extraction, coverage, density, forbidden terms, PPTX text, and obvious structural errors. A passing report is never approval by itself.
 4. After rendering, inspect the full deck as a learner: source hierarchy, page logic, readable layout, meaningful labels, no repeated layout run, no overlap, no clipped text, no backstage/source-tracking text, and no page whose structure only makes sense to the producer.
+
+The director also owns the global acceptance contract. A deck is approved only when all of these are true at the same time: source nodes are complete and in order, screen copy is readable without narration, pages are not crowded, layout rhythm visibly changes for teaching reasons, visuals make the current point easier to understand, and Canva delivery is editable and reviewable. No role proposal, script, audit report, or field value can trade one of these standards away.
+
+When any quality issue appears, do not patch only the visible symptom. Mark the current deck as not approved and run a director loop review across the chain: source grouping -> screen copy -> visual plan -> deck spec -> PPTX render/contact sheet -> Canva delivery. Identify which earlier stage allowed the issue, revise the earliest responsible stage, then rebuild and re-review. If an audit passes but the contact sheet or learner review fails, the deck still fails and the workflow/check must be tightened; do not treat field compliance as success.
 
 ## Required Workflow
 
@@ -75,11 +81,11 @@ The director's review is simple and human-facing:
 5. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
 6. Build a source coverage matrix in source order. Include every valid node exactly once. Each slide group must preserve the XMind/source path and sibling order, not just monotonic node IDs.
 7. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
-8. Write one learner-facing screen-copy layer that can be understood without narration. Source order, source path, coverage, and review evidence belong in `source_node_treatments`, the coverage ledger, or notes for the producer, never in rendered slide text. Optional `speaker_notes` may exist only as short internal transition hints and must never contain knowledge required for comprehension or page logic.
+8. Write one learner-facing screen-copy layer and one zero-basis recording script spine that follow the approved source order. Source order, source path, coverage, and review evidence belong in `source_node_treatments`, the coverage ledger, or notes for the producer, never in rendered slide text. Optional `speaker_notes` may exist only as short internal transition hints and must never contain knowledge required for comprehension or page logic.
 9. Read [references/visual-system.md](references/visual-system.md), then create the visual plan in staged passes. For long decks, first create a template style atlas from the selected template's overall layout language, then map each slide to a content-appropriate structure family before PPTX generation. Every normal knowledge slide must reuse a source case image, rebuild a source visual, include a generated teaching image, or use an editable explanatory diagram/table that is fused into the page.
 10. Read [references/design-system.md](references/design-system.md), [references/page-design-quality.md](references/page-design-quality.md), and [references/role-standards.md](references/role-standards.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
 11. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all mechanical errors.
-12. Perform the director's final learner review: title-to-source-path fit, meaningful block labels, page-to-page hierarchy order, layout variety, no overlap, no duplicate text, no pasted template pages, no nonsense comparison/table framing, no production/source-tracking text, and no machine-like field compliance that a human learner cannot read.
+12. Perform the director's final learner review before Canva import. This review has priority over script success: title-to-source-path fit, meaningful block labels, page-to-page hierarchy order, layout variety, no overlap, no duplicate text, no pasted template pages, no nonsense comparison/table framing, no production/source-tracking text, no machine-like field compliance that a human learner cannot read, and no contact-sheet repetition hidden behind unique field names.
 13. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva connector tool-discovery and template access preflights, import the verified PPTX as a new Canva design when the connector import tool is available, and leave the source template unchanged.
 14. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
 15. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
@@ -104,8 +110,9 @@ The director's review is simple and human-facing:
 - Template reuse is atomic. Copy or reuse only the specific verified native element/group/frame needed for the course page. Never paste an entire template page into the final deck as a shortcut for "using template elements"; if the available tool only supports whole-page duplication, record the blocker and use a template-inspired editable composition or ask for an approved fallback.
 - For abstract concepts, build concrete visual bridges: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels.
 - Always run an image-generation review before local PPT generation. Source-rich decks preserve source images first; image-poor decks treat generated teaching images as a primary build input.
-- A generated case image must visibly teach the current source point. Record the knowledge anchor and concrete visible detail before generation, then reject images that only match the mood or palette.
+- A generated case image must visibly teach the current source point. Record the knowledge anchor, concrete visible detail, and quick learner takeaway before generation, then reject images that only match the mood or palette.
 - Generated images must not contain baked-in Chinese, UI labels, watermarks, or promotional text. Labels, arrows, and explanations must be editable slide text.
+- For long decks, record `visual_plan.rendered_pattern` or `visual_plan.thumbnail_pattern` as a plain description of the actual contact-sheet geometry. This is not a compliance label; if the rendered thumbnail contradicts it, the director treats the page as failed and revises the plan/build rather than renaming the field.
 - Never display production language such as `PDF`, `原稿`, `来源文档`, `制作说明`, `图旁注明`, `详细讲稿`, `预计讲解时间`, `视觉说明`, `对应节点`, prompts, placeholders, source-tracking labels, or `Genji 是真想教会你`.
 - Do not modify or overwrite the original Canva template.
 

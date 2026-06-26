@@ -34,6 +34,20 @@ Create short worker briefs under `scratch/agent-briefs/`. A brief should fit on 
 
 Do not create a separate reviewer worker. Every worker owns its own standard, and the director reviews proposals during merge plus performs final learner-facing review.
 
+## Director Acceptance Lock
+
+The director is responsible for the whole deck, not only the current failing checkpoint. Repeated fixes in this skill have clustered around the same non-regression areas: source hierarchy and node coverage, learner-readable screen copy, page crowding and text fit, real layout rhythm, generated-image teaching value, template-native/Canva delivery, and absence of backstage/source-tracking language. These must pass together. A deck with one area fixed and another area regressed is not a partial success.
+
+When any issue is found, treat it as evidence that an upstream loop may be weak:
+
+- source/order issue: review `source_spine`, slide grouping, `source_node_treatments`, and screen evidence before changing only copy;
+- unreadable or shallow page: review source grouping, screen-copy density, visual role, and layout capacity before shrinking text or moving knowledge to notes;
+- repeated layout: review `template_style_atlas`, `template_page_mapping`, `visual_plan.rendered_pattern`, and renderer capability before renaming `layout_variant`;
+- poor generated image: review the source point, `knowledge_anchor`, `observable_teaching_detail`, `instant_takeaway`, prompt brief, and in-slide crop before accepting a prettier image;
+- Canva/native motif problem: review template inventory, local preview proxy, protected zones, and post-import replacement route before calling the deck deliverable.
+
+Fix the earliest responsible stage, rebuild the affected deck, and re-run the full director review. Do not keep patching downstream PPTX/Canva symptoms when the slide plan, screen copy, or visual plan is the source of the regression.
+
 Visual planning is staged:
 
 1. `visual-triage`: source image reuse, visual asset type, generated-image candidates, and obvious layout/split risks.
@@ -157,7 +171,7 @@ Template fidelity is a design requirement, not decoration:
 - Keep pages readable without narration. Notes cannot compensate for missing definitions, examples, evidence, or visual interpretation.
 - Keep production evidence off the screen. Source paths, hierarchy proof, coverage notes, and visual-planning labels belong in spec fields or review files, not in the learner-facing title, explanation, bullets, captions, or blocks.
 - Before choosing a layout, check whether the renderer can show every required bullet, block, and enumerated child. Layout caps are not permission to truncate.
-- Generated illustrations must be concrete teaching scenes or examples. Each generated image must carry a source-linked `knowledge_anchor` and an `observable_teaching_detail` that names what in the picture teaches the point. Reject decorative abstract graphics, generic icons, atmosphere-only scenes, or workflow-looking placeholders that do not clarify the node.
+- Generated illustrations must be concrete teaching scenes or examples. Each generated image must carry a source-linked `knowledge_anchor`, an `observable_teaching_detail` that names what in the picture teaches the point, and an `instant_takeaway` that states what a zero-basis learner should understand quickly. Reject decorative abstract graphics, generic icons, atmosphere-only scenes, or workflow-looking placeholders that do not clarify the node.
 
 ## Human Instructor Finish
 
@@ -166,11 +180,11 @@ The final deck should feel like a careful instructor prepared it for recording, 
 - Does the learner feel the mind-map path unfolding, rather than a rearranged material pool?
 - Does each page have one teacher-like conclusion, a plain explanation, and visible examples or evidence?
 - Do template structure, native motifs, and images make the current idea easier to understand, rather than decorating a generic page?
-- For generated images, can the learner see the knowledge point in a concrete object, action, state, or before/after contrast?
+- For generated images, can the learner see the knowledge point in a concrete object, action, state, or before/after contrast, and understand the intended takeaway within a few seconds?
 - Does the rhythm change because the teaching relationship changes, not because a color or layout name rotated?
 - Would a zero-basis learner understand the page if the instructor paused speaking for a few seconds?
 
-If the answer is no, revise the content or design. Do not deliver a deck merely because audit fields are present.
+If the answer is no, revise the content or design. Do not deliver a deck merely because audit fields are present. If the same failure type has been fixed in earlier work and appears again, stop treating it as a one-page defect; run the director acceptance lock above and revise the workflow handoff that allowed the regression.
 
 ## Build And Delivery
 
@@ -183,6 +197,7 @@ If the answer is no, revise the content or design. Do not deliver a deck merely 
 5. Fix mechanical errors, then perform the director's learner review.
    - Reject any page that reads like a source coverage report, production note, or template-construction note.
    - Reject any long run where the contact sheet shows the same geometry with only color or left/right changes.
+   - Reject any deck whose `visual_plan.rendered_pattern` claims variety that the contact sheet does not show.
    - Reject any final Canva page that contains unedited template copy, logos, placeholder text, or a pasted full template page.
 6. Run the Canva access preflight from `canva-delivery.md`.
 7. Import the verified PPTX into Canva as a new presentation.

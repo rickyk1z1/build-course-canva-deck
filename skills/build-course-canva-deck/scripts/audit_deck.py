@@ -212,6 +212,18 @@ def composition_variant_key(slide: dict[str, Any]) -> str:
     return str(value or "").strip()
 
 
+def rendered_pattern_key(slide: dict[str, Any]) -> str:
+    visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+    reference = visual_plan.get("template_reference") if isinstance(visual_plan.get("template_reference"), dict) else {}
+    value = (
+        visual_plan.get("rendered_pattern")
+        or visual_plan.get("thumbnail_pattern")
+        or reference.get("rendered_pattern")
+        or reference.get("thumbnail_pattern")
+    )
+    return str(value or "").strip()
+
+
 def structural_cluster(slide: dict[str, Any]) -> str:
     layout = str(slide.get("layout", "light"))
     variant = composition_variant_key(slide).lower()
@@ -721,6 +733,53 @@ def main() -> int:
                         "vary the teaching structure, not only the colors or labels"
                     )
                     break
+        rendered_patterns = [rendered_pattern_key(slide) for slide in normal_knowledge]
+        missing_rendered_patterns = [
+            str(slide.get("number"))
+            for slide, pattern in zip(normal_knowledge, rendered_patterns)
+            if not pattern
+        ]
+        if missing_rendered_patterns:
+            errors.append(
+                "long decks must record visual_plan.rendered_pattern or visual_plan.thumbnail_pattern "
+                "for every normal knowledge slide; this must describe the visible contact-sheet geometry, "
+                f"not only the layout name. Missing slides: {', '.join(missing_rendered_patterns[:12])}"
+            )
+        else:
+            distinct_patterns = set(rendered_patterns)
+            if len(distinct_patterns) < 3:
+                errors.append(
+                    f"rendered pattern variety is too low: uses {len(distinct_patterns)} "
+                    f"thumbnail patterns across {len(normal_knowledge)} normal knowledge slides"
+                )
+            pattern_counts = {pattern: rendered_patterns.count(pattern) for pattern in distinct_patterns}
+            dominant_pattern, dominant_pattern_count = max(pattern_counts.items(), key=lambda item: item[1])
+            if dominant_pattern_count / len(normal_knowledge) > 0.32:
+                errors.append(
+                    f"rendered pattern variety is too repetitive: {dominant_pattern} covers "
+                    f"{dominant_pattern_count}/{len(normal_knowledge)} normal knowledge slides"
+                )
+            elif dominant_pattern_count / len(normal_knowledge) > 0.25:
+                warnings.append(
+                    f"rendered pattern variety may be repetitive: {dominant_pattern} covers "
+                    f"{dominant_pattern_count}/{len(normal_knowledge)} normal knowledge slides"
+                )
+            run_pattern, run_pattern_count = max_run(rendered_patterns)
+            if run_pattern_count > 2:
+                errors.append(f"rendered pattern variety has {run_pattern_count} consecutive pages using {run_pattern}")
+            for start in range(0, max(0, len(rendered_patterns) - 8)):
+                window = rendered_patterns[start:start + 9]
+                counts = {pattern: window.count(pattern) for pattern in set(window)}
+                pattern, count = max(counts.items(), key=lambda item: item[1])
+                if count >= 5:
+                    start_slide = normal_knowledge[start].get("number")
+                    end_slide = normal_knowledge[start + 8].get("number")
+                    errors.append(
+                        f"rendered pattern variety has {count}/9 pages with the same thumbnail geometry "
+                        f"({pattern}) from slide {start_slide} to slide {end_slide}; "
+                        "redesign the contact-sheet structure, not only the layout_variant names"
+                    )
+                    break
         template_motif_count = sum(
             1 for slide in slides
             if isinstance((slide.get("visual_plan") or {}).get("template_motif"), dict)
@@ -814,6 +873,8 @@ def main() -> int:
                         errors.append(f"{task_label} must include knowledge_anchor tied to the source point")
                     if len(str(task.get("observable_teaching_detail", "")).strip()) < 12:
                         errors.append(f"{task_label} must include observable_teaching_detail")
+                    if len(str(task.get("instant_takeaway", "")).strip()) < 12:
+                        errors.append(f"{task_label} must include instant_takeaway for a zero-basis learner")
                 task_routes = {
                     str(task.get("generation_route") or task.get("route") or "").strip()
                     for task in image_generation_tasks
@@ -1027,6 +1088,8 @@ def main() -> int:
                 errors.append(f"{label} visual_plan.template_reference must explain how the template layout is adapted to this slide")
         if len(normal_knowledge) > 12 and slide in normal_knowledge and not composition_variant_key(slide):
             errors.append(f"{label} visual_plan.layout_variant must name the actual rendered composition family")
+        if len(normal_knowledge) > 12 and slide in normal_knowledge and not rendered_pattern_key(slide):
+            errors.append(f"{label} visual_plan.rendered_pattern must describe the visible contact-sheet geometry")
         template_motif = slide_visual_plan.get("template_motif")
         if isinstance(template_motif, dict):
             if mentions_whole_template_page_copy(template_motif):
@@ -1276,6 +1339,7 @@ def main() -> int:
                     prompt_brief = str(visual_plan.get("prompt_brief", "")).strip()
                     knowledge_anchor = str(visual_plan.get("knowledge_anchor", "")).strip()
                     observable_detail = str(visual_plan.get("observable_teaching_detail", "")).strip()
+                    instant_takeaway = str(visual_plan.get("instant_takeaway", "")).strip()
                     template_style_bridge = str(visual_plan.get("template_style_bridge", "")).strip()
                     if route not in GENERATED_IMAGE_ROUTES:
                         errors.append(f"{label} generated image must record a supported generation route")
@@ -1287,6 +1351,8 @@ def main() -> int:
                         errors.append(f"{label} generated image must record visual_plan.knowledge_anchor tied to the source point")
                     if len(observable_detail) < 12:
                         errors.append(f"{label} generated image must record visual_plan.observable_teaching_detail")
+                    if len(instant_takeaway) < 12:
+                        errors.append(f"{label} generated image must record visual_plan.instant_takeaway")
                     if len(template_style_bridge) < 12:
                         warnings.append(f"{label} generated image should record visual_plan.template_style_bridge so the case image fits the selected template")
                 if asset_type in {"editable-diagram", "editable-table"} and imagegen_priority == "preferred":

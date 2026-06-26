@@ -14,6 +14,15 @@ If the current runtime cannot dispatch subagents, or requires explicit user auth
 
 The director routes bounded context, merges proposals, makes final durable files, builds/imports the deck, and performs process review plus final learner-facing review. Each worker carries its own quality standard and returns evidence in `self_check`; this distributes quality responsibility without adding a second approval system.
 
+Workers exist to prevent context piling and to apply specialist judgment. Each proposal must include one compact handoff block that downstream workers can read instead of reopening broad context:
+
+- 课程统筹师: `boundary_card` with course job, excluded neighboring topics, shared terms, and downstream handoff.
+- 原稿场记: `source_spine` with ordered slide groups, human-readable source paths, sibling lists, source images, and split risks.
+- 课堂编剧: `teaching_script_spine` with each slide's plain-language point, learner misunderstanding to prevent, spoken explanation beat, and transition to the next source branch.
+- 视觉分镜师: `visual_understanding_map` with each visual's teaching job, image/source decision, generated-image specificity, layout capacity, and template fit.
+
+Do not pass all upstream proposals by default. Pass the approved handoff block plus only the source excerpts, images, or template references needed for the current specialist.
+
 ## Working Language
 
 Use Chinese for worker-facing summaries, proposal prose, slide copy, self-check notes, and handoff notes. Keep JSON keys, file paths, command names, script flags, schema enum values, source IDs, and API/tool identifiers in English.
@@ -95,9 +104,11 @@ Director review responsibilities:
 - Before dispatch: verify source, mode, role brief boundaries, source path context, and required self-check evidence.
 - After each proposal: inspect the proposal's `self_check`; merge only when the role has answered its own standards with concrete evidence.
 - After director edits: re-check any changed source grouping, copy, visual fallback, or layout against the affected role standard.
-- Before PPTX build: confirm coverage matrix, source path order, screen evidence, meaningful labels, visual plan, and layout rhythm.
-- After rendering: review the contact sheet and full-size flagged slides as a learner, not as a script validator.
+- Before PPTX build: confirm coverage matrix, source path order, screen evidence, meaningful labels, visual plan, layout rhythm, and the non-regression set from earlier deck failures: source completeness, readability, page fit, real layout variety, teaching visuals, template fidelity, and Canva deliverability.
+- After rendering: review the contact sheet and full-size flagged slides as a learner, not as a script validator. If a visible result contradicts the plan, the plan is wrong even when its fields are filled.
 - Before delivery: verify Canva page count, forbidden terms, visible evidence, and final page previews.
+
+When any one standard fails, the director reviews the whole chain that produced it. Do not keep a deck "mostly approved" while patching a local symptom; mark it unapproved, revise the earliest responsible proposal or durable file, rebuild, and re-check the other standards that could have regressed.
 
 The director must not create a standalone reviewer role. Mechanical scripts are guards, not approval.
 
@@ -128,6 +139,7 @@ Must include:
 - prerequisites and downstream handoff
 - shared terminology
 - excluded neighboring topics
+- `boundary_card` for downstream roles
 - risks where the lesson could duplicate another lesson
 - `self_check`
 - any `context_request` needed to resolve unclear curriculum position
@@ -167,6 +179,7 @@ Must include:
 - for every slide group, the ancestor path from root to current branch
 - exact sibling enumerations that must remain visible
 - source images that must be used or accounted for
+- `source_spine` for downstream roles
 - warnings for repeated wording, early use of later-node phrases, dense groups, or hierarchy ambiguity
 - proposed slide boundaries that keep coverage within density limits
 - `self_check`
@@ -209,6 +222,7 @@ Must include:
 - conclusion-style titles that follow the source path
 - self-contained explanations
 - complete sibling lists and examples
+- `teaching_script_spine`: slide-by-slide zero-basis explanation beat, plain analogy/example, misunderstanding to prevent, and transition in source order
 - distinct `screen_evidence` phrases for each distinct source node
 - no learner-facing source-path/order/coverage prose such as `本页顺序`
 - sparse-mode additions only when directly mapped and evidenced
@@ -221,6 +235,7 @@ Required `self_check` evidence:
 - `block_label_meaning`: quote structured-layout labels and the real relationship they name. No filler labels.
 - `page_logic`: identify risk pages and how explanation, blocks, and caption support the title.
 - `self_contained`: state where definitions, examples, and visual interpretation are visible on the page.
+- `zero_basis_flow`: quote two or three slides whose spoken explanation moves from concrete example to concept without skipping source order.
 - `evidence_distinct`: each mapped source node has distinct visible evidence on the same slide.
 - `no_backstage_copy`: source path/order/coverage evidence stays in metadata, not rendered screen text.
 - `no_level_shuffle`: name any later-branch wording that was kept out of earlier pages.
@@ -256,11 +271,13 @@ Must include:
 
 - visual asset type per slide or slide range
 - source image usage or omission reasons
+- `visual_understanding_map` for downstream director merge and final review
 - generated-image candidates and concrete bypass reasons
 - approved `image_generation_tasks` only for pages that need generated teaching images
-- for every generated-image candidate, `knowledge_anchor`, `observable_teaching_detail`, and a secondary `template_style_bridge`
+- for every generated-image candidate, `knowledge_anchor`, `observable_teaching_detail`, `instant_takeaway`, and a secondary `template_style_bridge`
 - for long decks, a `template_style_atlas` distilled from the whole selected template's layout language before slide-level mapping
 - template page/style mapping and native motif plan from the director-provided template inventory, or a blocker when atomic native-element copy is unavailable
+- `visual_plan.rendered_pattern` or `visual_plan.thumbnail_pattern` for every normal knowledge slide in long decks, describing the actual contact-sheet geometry in plain words
 - layout capacity checks showing every required bullet, block, and enumeration can render
 - split recommendations when a layout cannot fit the source content
 - layout rhythm plan for long decks
@@ -272,9 +289,9 @@ Required `self_check` evidence:
 - `visual_teaches_node`: state what each planned visual helps the learner understand, and for generated images name the visible object/action/state that carries the knowledge point.
 - `layout_capacity`: name any slide that needs splitting, alternate layout, or wording reduction before build.
 - `meaningful_structure`: comparison/table/two-panel pages have named relationships that match the copy; no filler labels or arbitrary A/B framing.
-- `rhythm_variety`: long decks use several atlas style families and avoid repeated layout runs; background modes, template references, rendered layouts, and composition families vary for a teaching reason.
+- `rhythm_variety`: long decks use several atlas style families and avoid repeated layout runs; background modes, template references, rendered layouts, composition families, and thumbnail geometry vary for a teaching reason. Unique `layout_variant` names do not count when the rendered contact sheet still looks the same.
 - `source_image_priority`: source case images are reused before generated substitutes when they directly teach the node.
-- `generated_case_specificity`: every generated image has a source-linked knowledge anchor and concrete observable teaching detail; no generated image is justified only by atmosphere, palette, or a generic "case scene".
+- `generated_case_specificity`: every generated image has a source-linked knowledge anchor, concrete observable teaching detail, and instant learner takeaway; no generated image is justified only by atmosphere, palette, or a generic "case scene".
 - `native_template_source`: planned native motifs reference the director-provided template inventory; if the tool cannot copy elements atomically, record the blocker instead of inventing inventory.
 - `native_not_proxy`: local raster previews, PPT shapes, SVG lookalikes, Canva search assets, generated textures, and pasted full template pages are not counted as template-native elements.
 - `no_whole_page_paste`: no final course page is made by pasting a full template page.

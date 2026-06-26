@@ -242,6 +242,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
             "generation_route": "gpt-image-2",
             "knowledge_anchor": "节点 6 的文字较多，需要用一个具体场景呈现核心判断。",
             "observable_teaching_detail": "画面中学员能看到一个明确的操作前后状态差异，从而理解该节点的判断。",
+            "instant_takeaway": "零基础学员能立刻看懂这个节点会改变画面结果和判断方式。",
             "template_style_bridge": "延续所选模板的高对比色块、清晰主体和留白标签区，让图片嵌入页面而不突兀。",
             "status": "success",
             "final_asset_path": "assets/generated/case.png",
@@ -289,6 +290,22 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         "gallery-strip", "center-anchor", "poster-panel", "split-image",
         "comparison-strip", "two-panel",
     ]
+    rendered_patterns = [
+        "balanced-two-panel-comparison",
+        "dark-image-evidence-split",
+        "full-field-branch-map",
+        "accent-poster-principle",
+        "compact-index-grid",
+        "flow-roadmap-modules",
+        "close-reading-table",
+        "accent-wide-case-band",
+        "gallery-evidence-strip",
+        "center-anchor-statement",
+        "side-poster-modules",
+        "light-split-evidence",
+        "comparison-strip",
+        "accent-two-panel-case",
+    ]
     slides = [cover]
     source_slide = base["slides"][1]
     for index, layout in enumerate(layouts, start=2):
@@ -309,6 +326,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         }
         slide["visual_plan"]["template_style_family"] = style_families[index - 1]
         slide["visual_plan"]["layout_variant"] = variants[index - 2]
+        slide["visual_plan"]["rendered_pattern"] = rendered_patterns[index - 2]
         if index in {2, 3, 4}:
             slide["layout"] = "image-right" if index % 2 == 0 else "image-left-dark"
             slide["visuals"] = [{"path": f"assets/case-{index}.png", "alt": "源案例图"}]
@@ -328,6 +346,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
             slide["visual_plan"]["prompt_brief"] = "具体课程场景的无文字教学案例图"
             slide["visual_plan"]["knowledge_anchor"] = "节点 6 的文字较多，需要用一个具体场景呈现核心判断。"
             slide["visual_plan"]["observable_teaching_detail"] = "画面中学员能看到一个明确的操作前后状态差异，从而理解该节点的判断。"
+            slide["visual_plan"]["instant_takeaway"] = "零基础学员能立刻看懂这个节点会改变画面结果和判断方式。"
             slide["visual_plan"]["template_style_bridge"] = "延续所选模板的高对比色块、清晰主体和留白标签区，让图片嵌入页面而不突兀。"
         if index in {8, 10, 12}:
             slide["visual_plan"]["template_motif"] = valid_template_motif(
@@ -566,9 +585,11 @@ def main() -> int:
             if slide.get("visual_plan", {}).get("asset_type") == "generated-image":
                 slide["visual_plan"].pop("knowledge_anchor", None)
                 slide["visual_plan"].pop("observable_teaching_detail", None)
+                slide["visual_plan"].pop("instant_takeaway", None)
         for task in generated_missing_teaching_detail["course"]["image_generation_tasks"]:
             task.pop("knowledge_anchor", None)
             task.pop("observable_teaching_detail", None)
+            task.pop("instant_takeaway", None)
         generated_missing_teaching_detail_path.write_text(json.dumps(generated_missing_teaching_detail, ensure_ascii=False), encoding="utf-8")
         generated_missing_teaching_detail_report = audit(
             temp,
@@ -577,7 +598,7 @@ def main() -> int:
             expect=1,
         )
         assert any(
-            "knowledge_anchor" in error or "observable_teaching_detail" in error
+            "knowledge_anchor" in error or "observable_teaching_detail" in error or "instant_takeaway" in error
             for error in generated_missing_teaching_detail_report["errors"]
         )
 

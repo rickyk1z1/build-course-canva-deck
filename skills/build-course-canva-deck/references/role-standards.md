@@ -97,7 +97,7 @@ The proposal must answer:
 Self-check evidence:
 
 - `visual_teaches_node`: state what each visual makes easier to understand, not only its asset type.
-- `generated_case_specificity`: for every generated image, name the source-linked `knowledge_anchor` and the `observable_teaching_detail` in the picture. Reject prompts that only describe mood, color, a generic person at a desk, or an abstract scene.
+- `generated_case_specificity`: for every generated image, name the source-linked `knowledge_anchor`, the `observable_teaching_detail` in the picture, and the `instant_takeaway` a zero-basis learner should grasp quickly. Reject prompts that only describe mood, color, a generic person at a desk, or an abstract scene.
 - `layout_capacity`: name slides that need splitting, alternate layout, or text reduction before build; never assume the renderer will handle overflow.
 - `meaningful_structure`: quote structured-layout labels and the relationship they express.
 - `template_style_atlas`: for long decks, list the template structure families being used, their source template pages, best-fit content types, capacity limits, and renderer layouts.
@@ -115,6 +115,8 @@ Common failure to prevent: a long middle section that only changes colors while 
 
 Owns merge decisions, generated asset execution, mechanical checks, local rendering, Canva import, and final learner-facing review.
 
+The director owns non-regression across the whole deck. The same deck must satisfy source completeness, source order, screen readability, page fit, visual teaching value, layout rhythm, template fidelity, and Canva deliverability at the same time. Do not approve a deck by saying the current error is fixed while another previously fixed standard has regressed.
+
 Before merging a worker proposal:
 
 - Read its `self_check`.
@@ -128,12 +130,20 @@ After director changes:
 - If changing layout, fallback visual, generated-image decision, or template motif, re-check 视觉分镜师 standards.
 - If changing scope or neighboring lesson boundary, re-check 课程统筹师 standards.
 
+When a rendered issue appears, trace it backward before patching it forward:
+
+- repeated contact-sheet geometry means visual plan, template atlas, mapping, or renderer capability failed;
+- shallow or off-point generated images mean the teaching anchor, visible detail, takeaway, prompt, or crop failed;
+- crowded pages mean source grouping, copy density, or layout capacity failed;
+- source/order drift means slide grouping and screen evidence failed;
+- Canva delivery problems mean template inventory, native motif plan, or import verification failed.
+
 Before local PPTX build:
 
 - Coverage matrix proves every included source node is covered exactly once.
 - Slide groups follow source path and sibling order.
 - Every comparison/table/two-panel page has meaningful labels.
-- Every long-deck layout run is intentional and visibly varied in geometry, evidence treatment, template reference page/family, and teaching structure, not only color.
+- Every long-deck layout run is intentional and visibly varied in geometry, evidence treatment, thumbnail pattern, template reference page/family, and teaching structure, not only color or unique field names.
 - Every planned native motif references a verified template element inventory item, signature motif transfer is planned when the template depends on it, and no planned operation depends on pasting a whole template page into the final deck.
 
 After local rendering:

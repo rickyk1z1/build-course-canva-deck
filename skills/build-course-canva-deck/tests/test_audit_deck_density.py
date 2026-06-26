@@ -153,6 +153,14 @@ def long_deck_with_style_sequence(style_ids: list[str]) -> tuple[dict[str, Any],
         "accent-statement": "image-right-orange",
         "plain-explain": "image-left",
     }
+    rendered_pattern_by_style = {
+        "section-roadmap": "full-field-branch-map",
+        "dark-evidence": "dark-image-evidence-split",
+        "meaningful-compare": "balanced-two-panel-comparison",
+        "dense-index": "compact-index-grid",
+        "accent-statement": "accent-statement-visual-band",
+        "plain-explain": "light-explain-evidence-group",
+    }
     slides: list[dict[str, Any]] = [
         {
             "number": 1,
@@ -210,6 +218,7 @@ def long_deck_with_style_sequence(style_ids: list[str]) -> tuple[dict[str, Any],
                     "labels_as_slide_text": True,
                     "template_style_family": style_id,
                     "layout_variant": style_id,
+                    "rendered_pattern": rendered_pattern_by_style[style_id],
                     "template_reference": style_reference(style),
                     "diagram_elements": [{"kind": "module", "label": style_id}],
                 },
@@ -296,6 +305,7 @@ def long_deck_with_generated_fallback(include_route_evidence: bool) -> tuple[dic
     slide["visual_plan"]["prompt_brief"] = "text-free concrete teaching case"
     slide["visual_plan"]["knowledge_anchor"] = "The fallback image still shows the current source point as a concrete teaching case."
     slide["visual_plan"]["observable_teaching_detail"] = "The image shows the learner-visible before and after state that explains the source point."
+    slide["visual_plan"]["instant_takeaway"] = "A zero-basis learner can immediately see why this source point changes the result."
     slide["visual_plan"]["template_style_bridge"] = "The fallback uses the selected template's contrast level and clean image slot."
     deck["course"]["image_generation_tasks"] = [
         {
@@ -303,6 +313,7 @@ def long_deck_with_generated_fallback(include_route_evidence: bool) -> tuple[dic
             "route": "user-provided",
             "knowledge_anchor": "The fallback image still shows the current source point as a concrete teaching case.",
             "observable_teaching_detail": "The image shows the learner-visible before and after state that explains the source point.",
+            "instant_takeaway": "A zero-basis learner can immediately see why this source point changes the result.",
             "template_style_bridge": "The fallback uses the selected template's contrast level and clean image slot.",
             "status": "local_deterministic_fallback",
             "final_asset_path": "/tmp/fallback.png",
@@ -818,6 +829,46 @@ class AuditDeckDensityTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("template style variety", errors)
         self.assertIn("composition variety", errors)
+
+    def test_long_deck_rejects_repeated_rendered_pattern_despite_unique_variants(self) -> None:
+        deck, source = long_deck_with_style_sequence([
+            "section-roadmap",
+            "dark-evidence",
+            "meaningful-compare",
+            "dense-index",
+            "accent-statement",
+            "plain-explain",
+            "section-roadmap",
+            "dark-evidence",
+            "meaningful-compare",
+            "dense-index",
+            "accent-statement",
+            "plain-explain",
+            "section-roadmap",
+            "dark-evidence",
+            "meaningful-compare",
+        ])
+        for index, slide in enumerate(deck["slides"][1:-1], start=1):
+            slide["visual_plan"]["layout_variant"] = f"unique-variant-{index}"
+            slide["visual_plan"]["rendered_pattern"] = "bottom-dual-card-strip"
+
+        result, report = self.run_audit(deck, source)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("rendered pattern", "\n".join(report["errors"]))
+
+    def test_generated_image_requires_instant_takeaway(self) -> None:
+        deck, source = long_deck_with_generated_fallback(include_route_evidence=True)
+        for slide in deck["slides"]:
+            if slide.get("visual_plan", {}).get("asset_type") == "generated-image":
+                slide["visual_plan"].pop("instant_takeaway", None)
+        for task in deck["course"]["image_generation_tasks"]:
+            task.pop("instant_takeaway", None)
+
+        result, report = self.run_audit(deck, source)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("instant_takeaway", "\n".join(report["errors"]))
 
     def test_long_deck_accepts_template_style_atlas_rhythm(self) -> None:
         deck, source = long_deck_with_style_sequence([

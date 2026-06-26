@@ -124,9 +124,10 @@ A passing contact sheet must show:
 - real layout variety without collapsing into repeated two-column pages;
 - no run of three or more knowledge pages that keeps the same thumbnail geometry while only changing color, left/right position, or layout names;
 - no repeated fallback to one dense index/table page family for unrelated teaching nodes;
+- `visual_plan.rendered_pattern` or `visual_plan.thumbnail_pattern` matches what the contact sheet actually shows; different names with the same thumbnail structure still count as repetition;
 - visible use of several template structure families, not only one "safe" information-block structure;
 - body copy visibly secondary to title and image evidence;
-- generated case images show a concrete detail that teaches the current slide's knowledge point, not just an attractive scene in the right color range;
+- generated case images show a concrete detail and quick learner takeaway for the current slide's knowledge point, not just an attractive scene in the right color range;
 - aligned modules and stable margins;
 - captions close to images;
 - Canva-native motif proxies act as structural template pieces rather than small stickers in arbitrary corners;
@@ -138,4 +139,4 @@ A passing contact sheet must show:
 - no accidental single-character title wrap;
 - no overuse of horizontal rules, black bars, or uniform bullets.
 
-If the contact sheet looks technically varied but not designed, revise the layout before Canva import.
+If the contact sheet looks technically varied but not designed, revise the layout before Canva import. If it exposes a failure that has been fixed in an earlier round, run the director acceptance lock instead of making a local cosmetic patch; repeated failures usually mean the upstream slide plan, visual plan, or renderer path is still allowing the old pattern back in.
