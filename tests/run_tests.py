@@ -200,9 +200,9 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     cover["visual_plan"]["template_motif"]["local_ppt_layout"]["motif_box"] = {"left": 700, "top": 70, "width": 560, "height": 560}
 
     layouts = [
-        "comparison", "image-left-dark", "roadmap", "image-right-orange",
-        "table", "image-right", "comparison", "image-left-accent",
-        "image-left-dark", "image-right-dark", "image-right-orange", "image-left",
+        "comparison", "image-left-dark", "roadmap", "roadmap",
+        "table", "image-right", "table", "image-left-accent",
+        "roadmap", "image-right-dark", "roadmap", "table",
         "comparison", "image-right-accent",
     ]
     variants = [
@@ -221,6 +221,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         slide["title"] = f"节点 {index} 的结论式标题"
         slide["source_node_ids"] = [node_id]
         slide["source_node_treatments"] = [source_treatment(node_id, slide["title"], status="clarified")]
+        slide["scope_check"] = {"status": "within-branch", "branch_node_id": node_id}
         slide["visual_plan"]["source_node_id"] = node_id
         slide["visual_plan"]["template_reference"] = {
             "page": ((index - 1) % 8) + 1,
@@ -258,6 +259,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     summary["title"] = "节点 16 的总结式标题"
     summary["source_node_ids"] = ["n0016"]
     summary["source_node_treatments"] = [source_treatment("n0016", summary["title"], status="clarified")]
+    summary["scope_check"] = {"status": "within-branch", "branch_node_id": "n0016"}
     summary["visual_plan"]["source_node_id"] = "n0016"
     summary["visual_plan"]["layout_variant"] = "summary-blocks"
     slides.append(summary)
@@ -280,6 +282,7 @@ def main() -> int:
         by_text = {node["text"]: node for node in extracted["nodes"]}
         assert by_text["编码是整理和压缩视频数据的打包手法。"]["parent_id"] == by_text["编码"]["id"]
         assert by_text["格式是承装视频数据的文件箱子。"]["parent_id"] == by_text["格式"]["id"]
+        assert by_text["编码是整理和压缩视频数据的打包手法。"]["source_path"] == "编码与格式 > 编码 > 编码是整理和压缩视频数据的打包手法。"
         run([sys.executable, str(SCRIPTS / "validate_source_map.py"), str(source_map), "--require-mode"], expect=1)
         run([sys.executable, str(SCRIPTS / "validate_source_map.py"), str(source_map), "--mode", "detailed", "--write", "--require-mode"])
 
@@ -594,6 +597,27 @@ def main() -> int:
         empty_editable_path.write_text(json.dumps(empty_editable, ensure_ascii=False), encoding="utf-8")
         empty_editable_report = audit(temp, empty_editable_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("editable visual" in error for error in empty_editable_report["errors"])
+
+        generic_block_label_path = temp / "generic-block-label.json"
+        generic_block_label = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        generic_block_label["slides"][1]["screen"]["blocks"][0]["heading"] = "结构顺序 A"
+        generic_block_label["slides"][1]["screen"]["blocks"][1]["heading"] = "结构顺序 B"
+        generic_block_label_path.write_text(json.dumps(generic_block_label, ensure_ascii=False), encoding="utf-8")
+        generic_block_label_report = audit(temp, generic_block_label_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("generic or meaningless block label" in error for error in generic_block_label_report["errors"])
+
+        hierarchy_flattened_path = temp / "hierarchy-flattened.json"
+        hierarchy_flattened = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        hierarchy_flattened["slides"][1]["source_node_ids"] = ["n0002", "n0003"]
+        hierarchy_flattened["slides"][1]["source_node_treatments"] = [
+            source_treatment("n0002", "编码负责按照一套规则整理和压缩这些数据", status="clarified"),
+            source_treatment("n0003", "格式可以理解为装视频数据的文件箱子", status="clarified"),
+        ]
+        hierarchy_flattened["slides"][1]["screen"]["explanation"] += " 格式可以理解为装视频数据的文件箱子。"
+        hierarchy_flattened["slides"][1]["scope_check"] = {"status": "within-branch", "branch_node_id": "n0002"}
+        hierarchy_flattened_path.write_text(json.dumps(hierarchy_flattened, ensure_ascii=False), encoding="utf-8")
+        hierarchy_flattened_report = audit(temp, hierarchy_flattened_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("flattens source hierarchy" in error for error in hierarchy_flattened_report["errors"])
 
         # Contact-sheet helper works with generated PNGs.
         try:

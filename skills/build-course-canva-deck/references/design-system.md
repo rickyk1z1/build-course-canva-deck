@@ -35,17 +35,17 @@ For a different template, replace these tokens with the selected template's domi
 - For long decks, distribute slides across multiple template reference pages/page families. A deck that technically alternates colors but repeatedly uses the same underlying rectangular composition still fails template fidelity.
 - For long decks, `build_deck.mjs` must render `visual_plan.layout_variant` into visibly different geometry. Alternating `image-left`, `image-right`, dark, light, and accent pages is not enough when the contact sheet still reads as one repeated two-column layout.
 - Canva-native template elements are mandatory for long decks when the selected template provides reusable motifs or structural assets. Scan the chosen template itself for existing native vector, shape, line, group, frame, side-panel, background-shape, and decorative geometry elements; record them in `course.template_native_element_inventory` with source design ID, page, element ID, element type, visual role, and usable placement families. Canva library search results, one-off media fills, generated raster art, and elements from unrelated designs do not count as template-native elements.
-- For long decks, plan enough native motif usage to be visible across the deck: at least four slides or roughly 20% of normal knowledge slides, whichever is larger when the selected template has reusable assets. Distribute that usage across at least two distinct existing template elements and page families; no single motif element should dominate the motif pages. If the connector cannot copy or reuse a native vector/shape/group element from the template, record the blocker and stop for an accessible duplicate or browser fallback instead of substituting a random Canva asset.
+- For long decks, plan native motif usage where it strengthens the template language and page composition. Use more than one existing template element when motifs recur, and do not let one motif dominate the deck. If the connector cannot copy or reuse a native vector/shape/group element from the template, record the blocker and stop for an accessible duplicate or browser fallback instead of substituting a random Canva asset.
 - Treat large textured template motifs as replacement composition modules, not decorations. This applies to every slide type, not only covers. If a motif replaces a cover strip, focus card, image frame, side panel, background mass, or other structural module, do not generate the replaced module. Place the motif by first following its reference template page position, crop, and scale; if course text forces a change, re-balance the whole page in the local PPT stage so the motif still has a clear anchor, breathing room, and no collision with title, explanation, footer, or page number.
 - For template-native elements, preview the intended element in the generated local PPTX using a raster `local_preview_path` at the intended final position and scale. This raster is only a local preview proxy. The later Canva-native step must copy/reuse the recorded existing template element, delete or replace the proxy, and position the native element at the same approved box; it must not overlay the native element on top of the proxy. Native insertion follows the approved local `motif_box` coordinates after scaling; it must not become a separate post-import layout exploration step.
 - When a template motif competes with text, shrink or move the text area, add deliberate line breaks, or select a different template-like composition family. Do not push the motif into a corner just to avoid a wide text box, and do not keep the motif if the contact sheet shows it touching or covering title, body copy, captions, footer, page number, or the main teaching image.
 - Each planned motif must include machine-checkable protected zones in local PPT coordinates: title, body, captions or teaching blocks, footer, page number, and any main image that must remain readable. A written statement that "collision is clear" is insufficient unless the `motif_box` avoids every protected zone in the local contact sheet.
 - Avoid rounded card grids, pills, badges, button-like labels, excessive borders, and dashboard styling.
 - Keep one dominant visual focus per slide.
-- Convert generic bullets into designed information groups: numbered mini-modules, short labels, columns, or structured cards. A neat list of same-sized bullets is still a weak slide when the reference template uses stronger typographic hierarchy.
+- Convert generic bullets into designed information groups: meaningful labels, columns, or structured modules. Use numbers only for real source order, steps, ranking, or chronology; never add decorative numbering that can be mistaken for course logic.
 - Use long horizontal rules and heavy caption bars only when the selected reference page uses that module. Default to short accent marks, grouped captions, and clear spacing instead.
-- Use approximately 40% text and 50% visual area on illustrated knowledge slides, with the remaining space as breathing room and template structure.
-- Preserve about 10% breathing room through margins and module gaps.
+- Keep a deliberate balance between text, visual evidence, breathing room, and template structure. Do not use a numeric ratio to justify cramped text or token visuals.
+- Preserve breathing room through margins and module gaps.
 - Keep learner-facing body text at 16 pt or larger. Captions and tertiary explanation should normally be at least 15 pt; never use 12-13 pt for content the learner must read.
 - Keep ordinary slide titles at 36 pt or larger and prevent accidental wrapping. Short titles should usually be 46-58 pt; only long Chinese titles should step down toward 36-40 pt.
 - Use images to explain, compare, or demonstrate; do not add decorative stock imagery without teaching value.
@@ -63,7 +63,7 @@ For a different template, replace these tokens with the selected template's domi
 - `light`: cream background, large title, explanation, black/orange information blocks.
 - `dark`: black background, white copy, orange accent and cream secondary block.
 - `orange`: orange background, black title, black/cream information blocks.
-- `image-left` / `image-right`: source or generated image occupies about half the page; explanation, bullets, and caption occupy about 40%.
+- `image-left` / `image-right`: source or generated image and learner-facing explanation share the page with clear hierarchy and enough room for captions.
 - `image-left-dark` / `image-right-dark`: dark-field image page with light copy, accent rule, and a light or accent teaching block.
 - `image-left-orange` / `image-right-orange`: accent-field image page with dark title and light/dark teaching blocks. The name is retained for backwards compatibility; for a non-orange template, treat it as the selected accent color.
 - `comparison`: two clearly labeled sides with both text and visual evidence.
@@ -72,9 +72,9 @@ For a different template, replace these tokens with the selected template's domi
 
 Choose layouts by content relationship, not by alternating colors mechanically.
 
-## Template fidelity gate
+## Template fidelity review
 
-Before final QA, compare the contact sheet against the selected template contact sheet. For the default template, use `assets/template-reference/template-21-pages-contact-sheet.jpg`:
+Before final director review, compare the contact sheet against the selected template contact sheet. For the default template, use `assets/template-reference/template-21-pages-contact-sheet.jpg`:
 
 - `course.template_page_mapping` exists for decks longer than 12 pages and was used before PPT generation;
 - `page-design-quality.md` has been applied to title scale, text grouping, alignment axes, proximity, and image/caption treatment;

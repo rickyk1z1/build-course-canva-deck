@@ -8,7 +8,7 @@ Do not make learner-facing slides that say "next we will make these images", "re
 
 ## Slide-level visual plan
 
-Before building the PPTX, every normal knowledge slide must include a `visual_plan` in `deck-spec.json`:
+Before building the PPTX, every normal knowledge slide must include a short `visual_plan` in `deck-spec.json`. This plan exists so the director can judge the page, not so the worker can fill a form:
 
 ```json
 {
@@ -43,7 +43,7 @@ Allowed `asset_type` values:
 
 1. Extract and reuse source case images when the source already contains a concrete example.
 2. If the source image is low resolution or too dense, redraw it as a cleaner Canva-readable visual without changing the example logic.
-3. For every knowledge branch that can be taught with a case image or demonstration image, create one. Treat this as required by default, not optional decoration.
+3. Give every normal knowledge page a visual bridge when it helps the learner understand the node. The visual may be a source image, redrawn source visual, generated teaching case, editable diagram, editable table, or a deliberate text-only exception.
 4. Prefer `generated-image` through `gpt-image-2` for rich case illustrations and demonstration illustrations, especially familiar-object metaphors, before/after scenes, physical analogies, and abstract concepts that need a concrete picture.
 5. Use `editable-diagram` or `editable-table` only when the visual is mainly arrows, chains, comparisons, labels, or table-like information that must stay editable.
 6. Keep all technical labels as editable slide text. Generated images should contain no baked-in Chinese text.
@@ -90,13 +90,13 @@ Each image-based slide must record:
 
 Use `gpt-image-2` as the preferred route when a node needs a richer raster case image, such as a realistic object analogy, a textured scene, a before/after visual, or a non-text illustration that would be weak as simple shapes. Use the built-in `imagegen` route only when GPT Image 2 is unavailable, fails, or the user explicitly asks for it.
 
-An image-generation review is mandatory for every deck, not optional.
+An image-generation review is mandatory for every deck, but it is a teaching decision, not a quota.
 
 When workers are used, the 视觉分镜师 owns the planning layer and the 总导演 owns the execution layer. The planning layer is staged: `visual-triage` identifies source-image reuse, visual asset types, generated-image candidates, and capacity risks; `visual-finalize` completes template references, native motifs, layout checks, and only the approved `image_generation_tasks`. Long decks may be split into contiguous visual-plan parts under the same `storyboard-designer` role state. The 总导演 executes approved tasks, saves selected assets into the course asset folder, records asset paths or fallbacks, and connects the assets to `deck-spec.json`. Workers must not call image-generation tools or save final image assets.
 
-If the outline already contains many case images, inspect and reuse those source cases first wherever they directly teach the current node. Record `source_case_priority: "source-first"` and `reused_source_slide_numbers` in `course.image_generation_review`. After that source-case pass, identify text-heavy or abstract pages that have no source image and would become clearer with a generated teaching case. For source-rich decks, generated pages are required by teaching need, not by a quota: add them when the remaining non-source-image pages need richer visual cases, and skip them when source cases plus editable diagrams already make the deck visually teachable. A deck with no source reuse record or no completed review fails QA; a deck with no generated pages can pass only when `generated_slide_numbers` is an empty list and `generated_bypass_reason` explains why no remaining text-heavy or abstract page needs a generated case.
+If the outline already contains many case images, inspect and reuse those source cases first wherever they directly teach the current node. Record `source_case_priority: "source-first"` and `reused_source_slide_numbers` in `course.image_generation_review`. After that source-case pass, identify text-heavy or abstract pages that have no source image and would become clearer with a generated teaching case. For source-rich decks, generated pages are required by teaching need, not by a quota: add them when the remaining non-source-image pages need richer visual cases, and skip them when source cases plus editable diagrams already make the deck visually teachable. A deck with no source reuse record or no completed review fails director review; a deck with no generated pages can pass only when `generated_slide_numbers` is an empty list and `generated_bypass_reason` explains why no remaining text-heavy or abstract page needs a generated case.
 
-If the outline is image-poor, treat generated teaching images as a primary build input rather than a supplement. This applies in both `细纲` and `粗纲`. Image-poor means any of the following:
+If the outline is image-poor, treat concrete teaching visuals as a primary build input rather than a late decoration. These may be generated images or editable diagrams/tables, depending on what teaches the node best. This applies in both `细纲` and `粗纲`. Image-poor means any of the following:
 
 - no usable non-thumbnail case images;
 - fewer than six usable non-thumbnail case images in a long deck;
@@ -106,11 +106,11 @@ If the outline is image-poor, treat generated teaching images as a primary build
 For image-poor decks:
 
 - Set `course.image_generation_review.source_case_image_count` to the count of usable non-thumbnail source case images; use `0` only when none exist.
-- For long image-poor decks, make generated-image pages cover a substantial share of normal knowledge slides, normally at least 40%, unless GPT Image 2 and fallback image generation are unavailable.
+- For long image-poor decks, give every major abstract branch at least one concrete visual bridge unless that branch is clearer as a text-led table or process diagram.
 - Generate images for source metaphors, physical analogies, before/after misconceptions, and abstract mindset pages where a learner benefits from seeing a concrete scene.
 - Use editable diagrams instead of generated images only for relationship maps, process chains, comparison structures, tables, and label-heavy visuals that must stay fully editable.
 - Do not describe the image-poor plan as "a small number of generated images" unless the deck itself is short and mostly table/process content.
-- Record candidate counts, selected generated slide numbers, concrete bypass reasons, and deterministic fallbacks in `course.image_generation_review` so the decision is auditable before PPT generation.
+- Record selected generated slide numbers, concrete bypass reasons, and deterministic fallbacks in `course.image_generation_review` so the decision is understandable before PPT generation.
 - Record the executable task list in `course.image_generation_tasks` when generated illustrations are planned.
 
 Do not force raster generation for visuals that are better as editable instructional graphics:
@@ -126,7 +126,7 @@ Do not force raster generation for visuals that are better as editable instructi
 
 If GPT Image 2 and image generation are unavailable or fail, use the best deterministic fallback that still teaches the node: editable SVG/PPTX diagram, redrawn source image, or user-supplied image. Do not replace a needed case visual with an empty text-only slide.
 
-## Concrete teaching image gate
+## Concrete teaching image standard
 
 Generated images must make the learner understand the knowledge point faster. A picture is rejected even if it is visually polished when it is only abstract decoration, generic icons, arbitrary geometric blocks, or a vague "workflow-looking" graphic.
 
@@ -138,8 +138,8 @@ Before building the PPTX, inspect generated images at slide size and ask: "Could
 
 - A case image is an illustration inside a knowledge page, not the whole page.
 - A case image is also not a thumbnail in a collage. If the instructor must explain the case, give it readable space and a dedicated learner-facing interpretation.
-- The page remains text-led: title, explanation, 3-5 points, and visual interpretation stay visible.
-- On illustrated knowledge slides, target about 40% text area, 50% visual area, and 10% breathing room. If the source text needs more space, split into more slides instead of shrinking the visual into a token illustration.
+- The page remains teaching-led: title, explanation, source-preserving points, and visual interpretation stay visible.
+- On illustrated knowledge slides, keep a clear balance between text, visual, and breathing room. If the source text needs more space, split into more slides instead of shrinking the visual into a token illustration or shrinking text until it is unreadable.
 - Captions explain what to look at, not where the image came from.
 - Do not use decorative stock images unless they directly teach the node.
 
@@ -157,19 +157,19 @@ Reject a visual if explaining it requires a new topic branch or a neighboring co
 
 For `细纲` or `粗纲` with image-poor source material, prefer generated metaphor images for the original outline's own analogies and mindset claims, because the deck otherwise becomes an expanded text outline. In `细纲`, the generated image may visualize an existing metaphor, example, contrast, or claim, but must not add new technical branches. In `粗纲`, the generated image may support vertical expansion inside the original branch. Keep generated images text-free and put all labels in editable slide text. Use enough generated images that each major abstract branch has at least one concrete visual bridge, while still keeping every image mapped to an original node.
 
-## QA checklist
+## Review checklist
 
 For every knowledge slide, verify:
 
 - Does the slide have a concrete visual plan mapped to a source node?
-- Is `visual_applicability` marked required for every knowledge branch that can use a case or demonstration image?
+- Is `visual_applicability` justified by teaching need rather than by a visual quota?
 - Was the image-generation review completed when the source has enough case images, did it reuse source cases first, and were suitable text-heavy/abstract pages supplemented instead of leaving all visuals as source reuse?
 - Does `course.source_image_coverage` account for every non-thumbnail source image, and are usable case images mapped to readable slides?
 - Does every source-image slide list `visual_plan.source_image_ids`, keep independent source images to three or fewer, and prove that multi-image pages remain readable?
 - Is the visual actually on the slide, or represented by editable diagram/table shapes?
 - Does the slide explain the image for learners?
 - Is the image integrated with the current node's text rather than replacing it?
-- Is the text area around 40% on illustrated knowledge slides?
+- Does the text/visual balance leave enough space for readable source evidence and a useful visual?
 - Are all labels editable slide text?
 - Do generated images record their generation route and prompt brief in `visual_plan`?
 - Are generated images concrete teaching scenes or cases rather than abstract placeholders?

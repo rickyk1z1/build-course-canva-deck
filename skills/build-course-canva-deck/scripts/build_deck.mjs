@@ -61,11 +61,11 @@ const spec = JSON.parse(await fs.readFile(specPath, "utf8"));
 
 const previewDir = path.join(workspace, "preview");
 const layoutDir = path.join(workspace, "layout");
-const qaDir = path.join(workspace, "qa");
+const inspectionDir = path.join(workspace, "inspection");
 await Promise.all([
   fs.mkdir(previewDir, { recursive: true }),
   fs.mkdir(layoutDir, { recursive: true }),
-  fs.mkdir(qaDir, { recursive: true }),
+  fs.mkdir(inspectionDir, { recursive: true }),
   fs.mkdir(path.dirname(outputPath), { recursive: true }),
 ]);
 
@@ -117,7 +117,6 @@ function addText(slide, text, options) {
     alignment: align,
     verticalAlignment: valign,
     lineSpacing,
-    autoFit: "shrinkText",
     insets: { left: 0, right: 0, top: 0, bottom: 0 },
   };
   return shape;
@@ -130,12 +129,24 @@ function screenFor(slideSpec) {
 function bulletsFor(slideSpec) {
   const screen = screenFor(slideSpec);
   const direct = Array.isArray(screen.bullets) ? screen.bullets : [];
-  const blockItems = (screen.blocks || []).flatMap((block) => block.items || []);
+  const blocks = Array.isArray(screen.blocks) ? screen.blocks : [];
+  const blockItems = blocks.flatMap((block) => {
+    const heading = String(block?.heading || "").trim();
+    const items = Array.isArray(block?.items) ? block.items : [];
+    return items.filter(Boolean).map((item) => {
+      const text = typeof item === "string" ? item : item?.text || "";
+      return heading ? `${heading}：${text}` : text;
+    });
+  });
   return [...direct, ...blockItems].filter(Boolean);
 }
 
 function bulletText(items, max = 6) {
-  return items.slice(0, max).map((item) => `•  ${typeof item === "string" ? item : item.text || ""}`).join("\n");
+  const selected = (items || []).filter(Boolean);
+  if (selected.length > max) {
+    throw new Error(`cover keyword list has ${selected.length} items but this layout supports ${max}; shorten or split the cover keywords`);
+  }
+  return selected.map((item) => `•  ${typeof item === "string" ? item : item.text || ""}`).join("\n");
 }
 
 function splitPoint(item) {
@@ -155,12 +166,16 @@ function addPointList(slide, items, theme, position, options = {}) {
   const {
     max = 4,
     columns = 1,
-    numbered = true,
+    numbered = false,
     fill = "none",
     accent = C.orange,
     compact = false,
   } = options;
-  const selected = items.slice(0, max);
+  const selected = (items || []).filter(Boolean);
+  if (selected.length > max) {
+    const context = options.context || "point list";
+    throw new Error(`${context} has ${selected.length} visible items but this layout supports ${max}; split the slide or choose a layout with enough visible slots`);
+  }
   if (!selected.length) return;
   const dark = theme === "dark";
   const columnGap = 22;
@@ -432,6 +447,7 @@ async function buildImageSlide(presentation, item) {
   const variant = layoutVariantFor(item);
   const slide = presentation.slides.add();
   slide.background.fill = dark ? C.black : theme === "orange" ? C.orange : C.cream;
+  await addTemplateMotifPreview(slide, item);
   addHeader(slide, item, theme);
   const visual = (item.visuals || [])[0];
   const imageLeft = imageSideFor(item.layout) === "left";
@@ -535,59 +551,107 @@ async function buildImageSlide(presentation, item) {
   addPointList(slide, bulletsFor(item), textTheme, bulletsPosition, {
     max: variant === "center-anchor" ? 3 : 4,
     columns: pointColumns,
-    numbered: variant !== "wide-case-band",
+    numbered: false,
     compact: true,
+    context: `slide ${item.number} image-page points`,
   });
   addFooter(slide, item, theme);
   return slide;
 }
 
-function buildComparison(presentation, item) {
+async function buildComparison(presentation, item) {
   const slide = presentation.slides.add();
   slide.background.fill = C.cream;
+  await addTemplateMotifPreview(slide, item);
   addHeader(slide, item, "light");
   addExplanation(slide, item, "light", { left: 72, top: 205, width: 760, height: 86 });
   const blocks = screenFor(item).blocks || [];
-  const left = blocks[0] || { heading: "对比 A", items: bulletsFor(item).slice(0, 3) };
-  const right = blocks[1] || { heading: "对比 B", items: bulletsFor(item).slice(3) };
+  const left = blocks[0] || { heading: "", items: bulletsFor(item).slice(0, 3) };
+  const right = blocks[1] || { heading: "", items: bulletsFor(item).slice(3) };
   addBox(slide, { left: 72, top: 330, width: 520, height: 250, fill: C.black, name: `compare-left-${item.number}` });
   addBox(slide, { left: 628, top: 330, width: 520, height: 250, fill: C.orange, name: `compare-right-${item.number}` });
   addText(slide, left.heading || "", { left: 104, top: 360, width: 456, height: 38, size: 28, color: C.orange, typeface: F.title, bold: true });
-  addPointList(slide, left.items || [], "dark", { left: 104, top: 418, width: 430, height: 120 }, { max: 3, numbered: false, compact: true });
+  addPointList(slide, left.items || [], "dark", { left: 104, top: 418, width: 430, height: 120 }, { max: 3, numbered: false, compact: true, context: `slide ${item.number} left comparison block` });
   addText(slide, right.heading || "", { left: 660, top: 360, width: 456, height: 38, size: 28, color: C.black, typeface: F.title, bold: true });
-  addPointList(slide, right.items || [], "light", { left: 660, top: 418, width: 430, height: 120 }, { max: 3, numbered: false, accent: C.black, compact: true });
+  addPointList(slide, right.items || [], "light", { left: 660, top: 418, width: 430, height: 120 }, { max: 3, numbered: false, accent: C.black, compact: true, context: `slide ${item.number} right comparison block` });
   addFooter(slide, item, "light");
   return slide;
 }
 
-function buildTextSlide(presentation, item) {
+async function buildTable(presentation, item) {
+  const slide = presentation.slides.add();
+  slide.background.fill = C.cream;
+  await addTemplateMotifPreview(slide, item);
+  addHeader(slide, item, "light");
+  addExplanation(slide, item, "light", { left: 72, top: 205, width: 760, height: 78 });
+  const blocks = screenFor(item).blocks || [];
+  if (blocks.length < 2 || blocks.length > 3) {
+    throw new Error(`slide ${item.number} table layout needs 2-3 meaningful columns; split or choose another layout`);
+  }
+  const maxRows = Math.max(...blocks.map((block) => (block.items || []).length));
+  if (maxRows > 4) {
+    throw new Error(`slide ${item.number} table has ${maxRows} rows; split the table so all rows remain readable`);
+  }
+  const left = 72;
+  const top = 326;
+  const width = 1076;
+  const headerHeight = 46;
+  const rowHeight = (250 - headerHeight) / Math.max(1, maxRows);
+  const gap = 12;
+  const colWidth = (width - gap * (blocks.length - 1)) / blocks.length;
+  blocks.forEach((block, col) => {
+    const colLeft = left + col * (colWidth + gap);
+    addBox(slide, { left: colLeft, top, width: colWidth, height: 250, fill: col % 2 === 0 ? C.black : C.orange, name: `table-col-${item.number}-${col}` });
+    addText(slide, block.heading || "", {
+      left: colLeft + 22, top: top + 16, width: colWidth - 44, height: 28,
+      size: 20, color: col % 2 === 0 ? C.orange : C.black, typeface: F.title, bold: true,
+      name: `table-head-${item.number}-${col}`,
+    });
+    (block.items || []).forEach((entry, row) => {
+      addText(slide, typeof entry === "string" ? entry : entry?.text || "", {
+        left: colLeft + 22,
+        top: top + headerHeight + row * rowHeight + 8,
+        width: colWidth - 44,
+        height: rowHeight - 10,
+        size: maxRows >= 4 ? 15 : 16,
+        color: col % 2 === 0 ? C.white : C.black,
+        typeface: F.body,
+        lineSpacing: 1.15,
+        name: `table-cell-${item.number}-${col}-${row}`,
+      });
+    });
+  });
+  addCaption(slide, item, "light", { left: 72, top: 594, width: 760, height: 46 });
+  addFooter(slide, item, "light");
+  return slide;
+}
+
+async function buildTextSlide(presentation, item) {
   const theme = themeFor(item.layout);
   const dark = theme === "dark";
   const orange = theme === "orange";
   const slide = presentation.slides.add();
   slide.background.fill = dark ? C.black : orange ? C.orange : C.cream;
+  await addTemplateMotifPreview(slide, item);
   addHeader(slide, item, theme);
   addExplanation(slide, item, theme, { left: 72, top: 205, width: 720, height: 90 });
-  addText(slide, String(item.number).padStart(2, "0"), {
-    left: 990, top: 172, width: 218, height: 150, size: 96,
-    color: dark ? C.orange : C.black, typeface: F.title, bold: true,
-    align: "right", valign: "middle",
-  });
   const points = bulletsFor(item);
   const split = Math.ceil(points.length / 2);
   addBox(slide, { left: 72, top: 365, width: 520, height: 210, fill: dark ? C.orange : C.black, name: `left-block-${item.number}` });
   addBox(slide, { left: 624, top: 365, width: 520, height: 210, fill: dark ? C.cream : orange ? C.cream : C.orange, name: `right-block-${item.number}` });
   addPointList(slide, points.slice(0, split), dark ? "light" : "dark", { left: 104, top: 398, width: 450, height: 122 }, {
     max: 3,
-    numbered: true,
+    numbered: false,
     accent: dark ? C.black : C.orange,
     compact: true,
+    context: `slide ${item.number} left text block`,
   });
   addPointList(slide, points.slice(split), "light", { left: 656, top: 398, width: 450, height: 122 }, {
     max: 3,
-    numbered: true,
+    numbered: false,
     accent: C.black,
     compact: true,
+    context: `slide ${item.number} right text block`,
   });
   addFooter(slide, item, theme);
   return slide;
@@ -601,9 +665,9 @@ async function main() {
     let slide;
     if (item.layout === "cover") slide = await buildCover(presentation, item);
     else if (String(item.layout).startsWith("image-left") || String(item.layout).startsWith("image-right")) slide = await buildImageSlide(presentation, item);
-    else if (item.layout === "comparison" || item.layout === "table") slide = buildComparison(presentation, item);
-    else slide = buildTextSlide(presentation, item);
-    if (item.layout !== "cover") await addTemplateMotifPreview(slide, item);
+    else if (item.layout === "comparison") slide = await buildComparison(presentation, item);
+    else if (item.layout === "table") slide = await buildTable(presentation, item);
+    else slide = await buildTextSlide(presentation, item);
   }
   for (const [index, slide] of presentation.slides.items.entries()) {
     const stem = `slide-${String(index + 1).padStart(3, "0")}`;
@@ -615,7 +679,7 @@ async function main() {
   const montage = await presentation.export({ format: "webp", montage: true, scale: 1 });
   await fs.writeFile(path.join(previewDir, "deck-montage.webp"), new Uint8Array(await montage.arrayBuffer()));
   const inspect = await presentation.inspect({ kind: "slide,textbox,image,shape,layout", maxChars: 100000 });
-  await fs.writeFile(path.join(qaDir, "inspect.ndjson"), inspect.ndjson);
+  await fs.writeFile(path.join(inspectionDir, "inspect.ndjson"), inspect.ndjson);
   const pptx = await PresentationFile.exportPptx(presentation);
   await pptx.save(outputPath);
   console.log(JSON.stringify({ output: outputPath, slides: slides.length, previewDir, layoutDir }));

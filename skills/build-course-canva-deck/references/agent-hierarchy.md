@@ -1,69 +1,53 @@
-# Agent hierarchy
+# Agent Hierarchy
 
-Use this hierarchy for course-deck builds and substantial revisions when subagents are available. These are proposal-only role workers under one director, not independent durable writers.
-
-The director must act as the router and reviewer. It reads the broad source and reference context first, then sends each worker a bounded task packet. A worker should not independently read the same full source, curriculum, template, or Canva context unless its packet explicitly allows it.
+Use this hierarchy for course-deck builds and substantial revisions when subagents are available. Workers are proposal-only role specialists under one director. There is no standalone final reviewer role.
 
 ```
 总导演 / build-course-canva-deck
 ├── 课程统筹师
 ├── 原稿场记
 ├── 课堂编剧
-├── 视觉分镜师
-└── 成片审片员
+└── 视觉分镜师
 ```
 
-## Role names
+The director routes bounded context, merges proposals, makes final durable files, builds/imports the deck, and performs process review plus final learner-facing review. Each worker carries its own quality standard and returns evidence in `self_check`; this distributes quality responsibility without adding a second approval system.
 
-- `总导演`: owns the final film of the lesson. It routes context, approves proposals, executes asset generation, builds PPTX, imports into Canva, and delivers the editable deck.
-- `课程统筹师`: thinks like a course producer. It decides where this lesson sits, what it should teach, what it should hand off, and what neighboring lessons must own instead.
-- `原稿场记`: thinks like a script supervisor. It preserves source order, continuity, sibling lists, examples, and source images so nothing quietly disappears.
-- `课堂编剧`: thinks like a teacher-writer. It turns approved source points into self-contained learner-facing screen copy.
-- `视觉分镜师`: thinks like a storyboard designer. It works in staged passes: first triage how slides should be seen and which cases/source images matter, then finalize template fit, motif use, layout capacity, and approved generated-image tasks after screen copy is stable.
-- `成片审片员`: thinks like a final reviewer. It checks whether the work can become a reliable learner-facing deck without authoring new content.
+## Working Language
 
-## Working language
+Use Chinese for worker-facing summaries, proposal prose, slide copy, self-check notes, and handoff notes. Keep JSON keys, file paths, command names, script flags, schema enum values, source IDs, and API/tool identifiers in English.
 
-Use Chinese for worker-facing reasoning summaries, findings, proposal prose, slide copy, QA comments, and handoff notes. Keep JSON keys, file paths, command names, script flags, schema enum values, source IDs, and API/tool identifiers in English. Quote or preserve English source text only when it is actual evidence that must remain traceable.
-
-## Director routing contract
+## Director Brief Contract
 
 Before dispatching a worker, the director creates one scoped brief under `scratch/agent-briefs/`:
 
 - `scratch/agent-briefs/source-context.brief.md`
 - `scratch/agent-briefs/slide-plan.brief.md`
 - `scratch/agent-briefs/screen-copy.brief.md`
+- `scratch/agent-briefs/visual-triage.brief.md`
 - `scratch/agent-briefs/visual-plan.brief.md`
-- `scratch/agent-briefs/quality-gate.brief.md`
 
-Each brief must include:
+Each brief should be short enough that the worker can act like a course specialist, not a form-filling process. Include:
 
-- `role_name`: the Chinese worker name.
-- `role_id`: the stable logical role ID for this course run.
-- `invocation_id`: the specific call or gate, such as `pre-dispatch`, `after-slide-plan`, or `before-build`.
-- `objective`: the exact proposal to produce.
-- `allowed_read_paths`: exact files, extracted slices, rendered pages, or reference documents the worker may read.
-- `forbidden_reads`: broad files or systems the worker must not open, such as the raw source, neighboring courses, template bank, Canva design, or unrelated references when not needed.
-- `write_path`: one scratch output path only, or the limited QA paths for 成片审片员.
-- `source_node_scope`: all nodes, a contiguous node range, or explicit node IDs.
-- `mode`: `detailed` or `sparse`, copied from the user-declared `细纲` or `粗纲`.
-- `boundary_summary`: curriculum scope, excluded neighboring topics, and handoffs relevant to this worker.
-- `prior_state_paths`: the role-state files and previous outputs this invocation must read before working.
-- `acceptance_checks`: concrete checks the director will run before using the proposal.
-- `open_questions`: context gaps the worker should report instead of guessing.
+- worker name and exact proposal objective;
+- allowed reads and clearly forbidden broad reads;
+- one write path for the scratch proposal;
+- source node scope, source path context, mode, and curriculum boundary;
+- relevant role standards from `role-standards.md`;
+- concrete evidence the worker must provide in `self_check`;
+- open questions the worker should report instead of guessing;
+- prior proposal or state summary only when this is a revision or range continuation.
 
-Worker rule: read the brief first, then read only `allowed_read_paths`. If additional context is required, write a `context_request` entry in the proposal or QA findings and stop that part of the task. Do not broaden your own read scope.
+Worker rule: read the brief first, then read only `allowed_read_paths`. If additional context is required, write a `context_request` entry and stop that part of the task. Do not broaden your own read scope.
 
-## Role continuity
+## Role Continuity
 
-The five worker names are logical roles, not separate identities per dispatch. The director owns a role registry:
+The four worker names are logical roles, not separate identities per dispatch. For long or multi-pass work, the director keeps a compact state summary so a later invocation of the same role can continue without repeating or contradicting itself:
 
 - `scratch/agent-state/role-registry.json`
 - `scratch/agent-state/course-producer.state.json`
 - `scratch/agent-state/script-supervisor.state.json`
 - `scratch/agent-state/teacher-writer.state.json`
 - `scratch/agent-state/storyboard-designer.state.json`
-- `scratch/agent-state/final-reviewer.state.json`
 
 Use these stable `role_id` values:
 
@@ -71,42 +55,25 @@ Use these stable `role_id` values:
 - `script-supervisor` for 原稿场记
 - `teacher-writer` for 课堂编剧
 - `storyboard-designer` for 视觉分镜师
-- `final-reviewer` for 成片审片员
 
-A role may have many invocations, but each invocation must continue from the same role state. This rule applies to all five workers, not only 成片审片员. If the runtime starts a fresh subagent process, the director must still pass the prior state and previous outputs in `allowed_read_paths`; the fresh process is only a physical execution detail, not a new logical worker.
+A role may have many invocations, but each invocation continues from the same approved state. If the runtime starts a fresh subagent process, the director passes the prior state summary and previous approved output; the fresh process is only an execution detail, not a new logical worker.
 
-Workers do not directly mutate role-state files. Each proposal or findings file may include a `state_update` object. The director reviews the proposal, resolves conflicts, then writes the updated role-state file. If the prior state is missing, stale, or contradictory, the director reconstructs it from existing proposal/findings files before dispatching another invocation.
+Workers do not directly mutate role-state files. They may propose a short `state_update`; the director keeps or rewrites it after reviewing the proposal. Do not make role state more detailed than the work requires.
 
-Examples:
+## Dispatch Sequence
 
-- A second 课程统筹师 pass revising curriculum boundaries must read `course-producer.state.json` and the prior `source-context.proposal.json`.
-- A second 原稿场记 pass splitting dense source groups must read `script-supervisor.state.json`, the prior slide plan, and the director's merge notes.
-- A second 课堂编剧 pass revising screen copy must read `teacher-writer.state.json`, prior copy proposal, accepted slide plan, and unresolved copy findings.
-- A second 视觉分镜师 pass revising images or layout must read `storyboard-designer.state.json`, prior visual triage/final plan parts, executed image task results, and layout findings.
-- A second 成片审片员 pass must read `final-reviewer.state.json`, prior findings, accepted waivers, and fixes made since the last gate.
-
-The 成片审片员 is especially stateful. All four gates must use `role_id: final-reviewer`. Later briefs must include prior `supervisor-findings`, unresolved issues, accepted waivers, and fixes made since the prior gate. Do not create an independent second 成片审片员 that starts with a blank memory or re-audits without the previous finding ledger.
-
-## Dispatch sequence
-
-The director does not need to run every worker at the same time. Use staged dispatch so downstream workers receive curated upstream proposals rather than re-reading broad context.
-
-1. 总导演 performs source intake, source extraction, mode recording, curriculum/reference discovery, and initial source-image inventory.
+1. 总导演 performs source intake, extraction, mode recording, curriculum/reference discovery, and initial source-image inventory.
 2. 总导演 creates `scratch/agent-state/role-registry.json` and initial per-role state files.
-3. 成片审片员 reviews all first-stage briefs before any content worker starts, using `role_id: final-reviewer` and writing a `state_update`.
-4. 课程统筹师 and 原稿场记 may run in parallel because their write paths and read scopes do not overlap materially.
-5. 总导演 reviews those proposals, merges any `state_update`, resolves conflicts, and creates a narrower brief for 课堂编剧.
-6. After the slide plan is approved, 总导演 may run 课堂编剧 and the first 视觉分镜师 `visual-triage` invocation in parallel. Visual triage uses the slide plan, source-image inventory, and a compact template profile; it does not write production prompts or final motif placements.
-7. 课堂编剧 writes learner-facing screen copy from the approved source-node plan and allowed excerpts.
-8. 总导演 reviews copy and visual triage, resolves slide splits or source-image decisions, then creates narrower final visual briefs.
-9. 视觉分镜师 finalizes visuals, layout capacity, template motif use, and approved `image_generation_tasks` from the stable screen copy. For long decks, split this into contiguous slide ranges under the same `role_id`, such as `visual-finalize-slides-01-12` and `visual-finalize-slides-13-24`.
-10. 总导演 executes approved `image_generation_tasks`, writes image assets, records asset paths, and updates the durable deck spec.
-11. 成片审片员 checks after every proposal, before director merge, and before build/import as continuing invocations of `final-reviewer`.
-12. 总导演 alone merges proposals into durable files, runs scripts, builds PPTX, imports into Canva, edits Canva, requests final approval, and returns the final link.
+3. 课程统筹师 and 原稿场记 may run in parallel because their write paths and read scopes do not overlap materially.
+4. 总导演 reviews both proposals against their `self_check`, resolves conflicts, and creates narrower briefs for 课堂编剧 and visual triage.
+5. 课堂编剧 and the first 视觉分镜师 `visual-triage` pass may run in parallel after the slide plan is approved.
+6. 总导演 reviews copy and triage, resolves slide splits or source-image decisions, then creates final visual briefs.
+7. 视觉分镜师 finalizes visuals, layout capacity, template reference use, layout variety, and approved `image_generation_tasks`. Long decks may split this into contiguous slide ranges under the same `role_id`.
+8. 总导演 executes approved image-generation tasks, writes assets, merges proposals into durable files, runs mechanical scripts, builds PPTX, renders the deck, performs final learner-facing review, imports into Canva, and asks for final approval.
 
 ## 总导演 / build-course-canva-deck
 
-Own all durable writes and external actions:
+Owns all durable writes and external actions:
 
 - `source-map.json`
 - `curriculum-context.json`
@@ -116,12 +83,21 @@ Own all durable writes and external actions:
 - `scratch/agent-state/*.state.json`
 - generated image assets and image asset manifests
 - PPTX generation
-- QA reports
+- mechanical audit reports
 - Canva import, Canva edits, and final approval
 
-The director dispatches the five proposal workers, maintains their logical role state, merges proposals, resolves conflicts, executes approved image-generation tasks, reruns deterministic scripts, and fixes failures. It must never let a worker write final files, edit the source, modify a Canva template, touch a Canva design, call image-generation tools, or save final image assets.
+The director should be the only role that reads all broad context by default. It may pass extracted slices, summaries, node ranges, image inventories, and relevant reference documents to workers, but should not pass full source or full template context unless that worker has a direct verification need.
 
-The director should be the only role that reads all broad context by default. It may pass extracted slices, summaries, node ranges, image inventories, and relevant reference documents to workers, but it should not pass full source or full template context unless that worker has a direct verification need.
+Director review responsibilities:
+
+- Before dispatch: verify source, mode, role brief boundaries, source path context, and required self-check evidence.
+- After each proposal: inspect the proposal's `self_check`; merge only when the role has answered its own standards with concrete evidence.
+- After director edits: re-check any changed source grouping, copy, visual fallback, or layout against the affected role standard.
+- Before PPTX build: confirm coverage matrix, source path order, screen evidence, meaningful labels, visual plan, and layout rhythm.
+- After rendering: review the contact sheet and full-size flagged slides as a learner, not as a script validator.
+- Before delivery: verify Canva page count, forbidden terms, visible evidence, and final page previews.
+
+The director must not create a standalone reviewer role. Mechanical scripts are guards, not approval.
 
 ## 课程统筹师
 
@@ -136,7 +112,7 @@ Default allowed reads:
 
 Default forbidden reads:
 
-- full raw source file, unless the director brief says the lesson identity cannot be determined from extracted summaries
+- full raw source file, unless the brief says the lesson identity cannot be determined from extracted summaries
 - template references, visual-system references, PPTX outputs, and Canva designs
 - slide copy proposals or visual proposals
 
@@ -151,26 +127,32 @@ Must include:
 - shared terminology
 - excluded neighboring topics
 - risks where the lesson could duplicate another lesson
+- `self_check`
 - any `context_request` needed to resolve unclear curriculum position
 
-Must not write final files or author slides.
+Required `self_check` evidence:
+
+- `scope_fit`: quote the course role in one clear sentence.
+- `neighbor_boundary`: name overlaps excluded or handed off.
+- `term_consistency`: name shared terms whose meaning was preserved.
+- `no_content_authoring`: confirm no slide copy, slide plans, or visuals were authored.
 
 ## 原稿场记
 
-Purpose: preserve source hierarchy, order, examples, enumerations, continuity, and source images.
+Purpose: preserve source hierarchy, source path, order, examples, enumerations, continuity, and source images.
 
 Default allowed reads:
 
 - its director brief
 - `source-map.json`
 - authoritative source file only when the brief explicitly says raw hierarchy, PDF layout, or embedded image verification is required
-- rendered PDF pages or source image inventory explicitly listed in the brief
+- rendered source pages or source image inventory explicitly listed in the brief
 - boundary summary from 课程统筹师, if already approved by the director
 
 Default forbidden reads:
 
 - neighboring course files beyond the approved boundary summary
-- content-policy, design-system, page-design, template bank, Canva designs, and unrelated references
+- design-system, page-design, template bank, Canva designs, and unrelated references
 - screen copy or visual proposals that would bias source-order planning
 
 Output:
@@ -180,11 +162,21 @@ Output:
 Must include:
 
 - ordered source-node groups
+- for every slide group, the ancestor path from root to current branch
 - exact sibling enumerations that must remain visible
 - source images that must be used or accounted for
-- warnings for repeated wording, early use of later-node phrases, or groups too dense for one slide
-- proposed slide boundaries that keep coverage within the QA density limit
+- warnings for repeated wording, early use of later-node phrases, dense groups, or hierarchy ambiguity
+- proposed slide boundaries that keep coverage within density limits
+- `self_check`
 - any `context_request` for unreadable source hierarchy or images
+
+Required `self_check` evidence:
+
+- `hierarchy_preserved`: cite representative source paths and slide groups.
+- `source_path_visible`: every proposed group has a clear source path and current branch label.
+- `sibling_order`: sibling lists remain complete and in source order, or are split into consecutive slides.
+- `no_material_pool_rewrite`: name any regrouping avoided because it would invent a new narrative.
+- `image_accounting`: every non-thumbnail source image in scope is used, redrawn, or has an omission reason.
 
 Must not improve copy style, generate visuals, or hide source nodes behind metadata.
 
@@ -212,25 +204,35 @@ Output:
 
 Must include:
 
-- conclusion-style titles that follow source order
+- conclusion-style titles that follow the source path
 - self-contained explanations
 - complete sibling lists and examples
 - distinct `screen_evidence` phrases for each distinct source node
 - sparse-mode additions only when directly mapped and evidenced
+- `self_check`
 - any `context_request` for missing evidence, unclear wording, or suspected out-of-scope expansion
 
-Must not move later source-node wording into earlier pages unless the source already repeats it there. Must not put required knowledge only in speaker notes.
+Required `self_check` evidence:
+
+- `title_source_fit`: quote representative titles and their source paths.
+- `block_label_meaning`: quote structured-layout labels and the real relationship they name. No filler labels.
+- `page_logic`: identify risk pages and how explanation, blocks, and caption support the title.
+- `self_contained`: state where definitions, examples, and visual interpretation are visible on the page.
+- `evidence_distinct`: each mapped source node has distinct visible evidence on the same slide.
+- `no_level_shuffle`: name any later-branch wording that was kept out of earlier pages.
+
+Must not put required knowledge only in speaker notes.
 
 ## 视觉分镜师
 
-Purpose: plan the teachable visual and layout system before the director builds the PPTX, without making one long visual pass the bottleneck.
+Purpose: plan teachable visuals and layout before the director builds the PPTX.
 
 Default allowed reads:
 
 - its director brief
-- director-approved slide plan and, for final visual passes, the approved screen-copy proposal
+- director-approved slide plan and, for final visual passes, approved screen copy
 - source image inventory, selected rendered source images, and generated-image review notes listed in the brief
-- selected template profile, prebuilt template-native element inventory, selected template reference pages, and only the visual, design, and page-quality references listed in the brief
+- selected template profile, prebuilt template-native element inventory, selected template reference pages, and only the visual/design/page-quality references listed in the brief
 
 Default forbidden reads:
 
@@ -242,76 +244,32 @@ Default forbidden reads:
 
 Outputs:
 
-- `scratch/visual-triage.proposal.json` for early visual triage
+- `scratch/visual-triage.proposal.json`
 - `scratch/visual-plan.part-NN.proposal.json` for long-deck range proposals when used
 - `scratch/visual-plan.proposal.json` for the director-reviewed merged visual proposal
 
 Must include:
 
-- visual asset type per slide, or per slide range when the brief is split
+- visual asset type per slide or slide range
 - source image usage or omission reasons
-- generated-image candidates when needed, plus `generated_bypass_reason` when source images or editable diagrams make generation unnecessary
-- complete `image_generation_tasks` only for generated case images or illustrations already approved by the director
-- template page mapping and native motif plan, using the director-provided template inventory rather than rediscovering the whole template
-- layout capacity checks showing every required bullet, block, and enumeration can render, with high-risk pages checked first
+- generated-image candidates and concrete bypass reasons
+- approved `image_generation_tasks` only for pages that need generated teaching images
+- template page mapping and native motif plan from the director-provided template inventory
+- layout capacity checks showing every required bullet, block, and enumeration can render
 - split recommendations when a layout cannot fit the source content
+- layout rhythm plan for long decks
+- `self_check`
 - any `context_request` for missing template inventory, image dimensions, or motif collision risks
 
-Phased invocation rules:
+Required `self_check` evidence:
 
-- `visual-triage` runs after the slide plan and can run in parallel with 课堂编剧. It decides source-image reuse, likely visual asset type, candidate generated-image pages, and obvious split/layout risks. It must not write production prompts, final native motif coordinates, or exhaustive per-slide template copy.
-- `visual-finalize` runs only after screen copy is stable. It fills `visual_plan.template_reference`, `layout_variant`, source-image granularity fields, native motif plans, and final layout-capacity notes for its assigned slide range.
-- For decks longer than 18 pages, prefer contiguous range briefs over one all-deck visual pass. Every range brief must include `range_start`, `range_end`, prior `storyboard-designer.state.json`, accepted triage decisions, and cross-range rhythm constraints. The director merges range proposals and resolves conflicts.
-- Prompt detail is staged. Triage records `prompt_brief`, teaching goal, and reference inputs. Full `prompt`, `negative_prompt`, candidate count, and selection criteria are required only after the director approves a slide for generated imagery. If no generated imagery is needed in a source-rich deck, record a concrete `generated_bypass_reason` instead.
-
-Each `image_generation_tasks` item must include:
-
-- `task_id`
-- `slide_number`
-- `source_node_ids`
-- `teaching_goal`
-- `asset_role`
-- `preferred_route`: `gpt-image-2`, `imagegen`, or `editable-diagram-fallback`
-- `prompt`
-- `negative_prompt`
-- `text_policy`: usually `no_baked_in_text`
-- `reference_inputs`: source image IDs or brief excerpts, if any
-- `composition_notes`: aspect ratio, framing, subject, background, and where labels will be added as editable text
-- `candidate_count`
-- `selection_criteria`
-- `fallback_plan`
+- `visual_teaches_node`: state what each planned visual helps the learner understand.
+- `layout_capacity`: name any slide that needs splitting, alternate layout, or wording reduction before build.
+- `meaningful_structure`: comparison/table/two-panel pages have named relationships that match the copy; no filler labels or arbitrary A/B framing.
+- `rhythm_variety`: long decks avoid repeated layout runs and vary background modes, template references, and composition families for a teaching reason.
+- `source_image_priority`: source case images are reused before generated substitutes when they directly teach the node.
+- `native_template_source`: planned native motifs reference the director-provided template inventory.
+- `native_not_proxy`: local raster previews, PPT shapes, and Canva search assets are not counted as template-native elements.
+- `labels_editable`: generated images contain no baked-in Chinese/UI labels; labels remain editable slide text.
 
 Must not call image-generation tools, save final assets, build the PPTX, import into Canva, or replace source content with decorative visuals.
-
-## 成片审片员
-
-Purpose: audit briefs, proposals, generated-image tasks, and rendered outputs without authoring content.
-
-Default allowed reads:
-
-- its director brief
-- all worker briefs being audited
-- proposal files being audited
-- `source-map.json`, source coverage matrix, audit reports, contact sheets, and rendered slide artifacts explicitly listed for the current gate
-- raw source excerpts only when required to verify a specific source-order or evidence finding
-
-Default forbidden reads:
-
-- direct Canva edits, template modifications, final file writes, image-generation tool calls, or any content-authoring output path
-- broad source or curriculum exploration unrelated to a concrete finding
-
-Outputs:
-
-- `scratch/supervisor-log.md`
-- `scratch/supervisor-findings.json`
-- `scratch/qa-findings.md`
-- `state_update` inside the current findings file for the director to merge into `scratch/agent-state/final-reviewer.state.json`
-
-Run checks at four gates:
-
-1. Before worker dispatch: authoritative source, mode, bounded worker briefs, stable `role_id`, prior state, allowed reads, forbidden reads, and scratch-only write paths.
-2. After every proposal: role boundaries, source order, complete enumerations, no repeated/early wording, no narration-only knowledge, valid `image_generation_tasks`, and no unauthorized file reads or writes.
-3. Before director merge: one-to-one coverage feasibility, monotonic order, distinct evidence, layout capacity, executable image-generation tasks, and unresolved conflicts.
-4. Before build/import: deterministic `audit_deck.py` result, rendered PPTX same-slide evidence, generated-image assets or documented fallbacks, Canva preflight, and zero unresolved findings.
-
-The 成片审片员 must not author slide text, slide plans, visual plans, image-generation tasks, or final files. It can require the director to rerun a worker, narrow a brief, provide missing excerpts, revise a prompt, execute or bypass an image-generation task, split a slide, or reconstruct missing role state before the next gate.

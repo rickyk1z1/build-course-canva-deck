@@ -1,13 +1,13 @@
 ---
 name: build-course-canva-deck
-description: Turn a course outline or knowledge tree into a detailed, learner-facing, editable Canva recording deck that belongs to one coherent self-media, editing-mindset, and video-editing curriculum. Use for PDF, XMind, DOCX, Markdown, TXT, OPML, or FreeMind inputs when Codex must preserve teaching order, distinguish detailed versus sparse outlines, align terminology and scope with neighboring courses, create self-contained screen copy, prepare visuals, build and QA a PPTX, import it into Canva, and request final approval before saving.
+description: Use when creating or substantially revising a Canva recording deck from a course outline, mind map, PDF, document, or knowledge tree for this course system.
 ---
 
 # Build Course Canva Deck
 
-Create a complete recording presentation from a course knowledge outline. Treat the accepted `影像基础参数` deck as the content-depth and visual-quality baseline, not as reusable subject matter. Treat the Canva template as configurable: use the bundled `DAHM5fsVEB0` profile only when the user has not supplied a different template.
+Create a complete recording presentation from a course knowledge outline. The target is a deck that reads like a careful human instructor built it: the source hierarchy is visible, page logic is coherent, each visual teaches the current point, and a zero-basis learner can understand the page without guessing. Treat the accepted `影像基础参数` deck as the content-depth and visual-quality baseline, not as reusable subject matter. Treat the Canva template as configurable: use the bundled `DAHM5fsVEB0` profile only when the user has not supplied a different template.
 
-## Non-negotiable checkpoint
+## Non-Negotiable Checkpoint
 
 1. Inspect every supplied source before authoring.
 2. If sources conflict or overlap, ask the user to choose one authoritative source. Do not merge them by assumption.
@@ -17,106 +17,105 @@ Create a complete recording presentation from a course knowledge outline. Treat 
 
 Before authoring, read [references/curriculum-system.md](references/curriculum-system.md). Discover the existing curriculum map, neighboring lessons, shared terminology, and this lesson's role. If the workspace does not reveal the lesson's position, ask the user for the missing curriculum context instead of inventing it.
 
-## Mode contract
+## Mode Contract
 
-- `细纲` / `detailed`: match the accepted `影像基础参数` deck's content depth. Preserve source order, examples, metaphors, claims, and scope. Improve teachability, wording, and visuals only. Do not add adjacent professional workflows.
-- `粗纲` / `sparse`: produce content more detailed than the accepted baseline by adding definitions, causes, relationships, examples, common misconceptions, and necessary boundaries. Expand vertically inside existing branches only. Never create a new branch or follow a low-relevance tangent. Every addition must map to one original node and authoritative evidence.
+- `细纲` / `detailed`: preserve the source path, level hierarchy, sibling order, examples, metaphors, claims, and scope. Improve teachability, wording, and visuals only. Do not treat the outline as a loose material pool.
+- `粗纲` / `sparse`: add definitions, causes, relationships, examples, misconceptions, and boundaries only inside existing branches. Every addition must map to one original node and authoritative evidence. Never create a new branch or low-relevance tangent.
 
 Read [references/content-policy.md](references/content-policy.md) before writing either mode.
 
-## Multi-agent orchestration
+## Four-Role Workflow
 
-Optimize for the best possible deck quality. When subagents are available and the user is asking to build or revise a course deck, use the five-agent proposal-only hierarchy after the source/mode checkpoint. Use a single orchestrator only when subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
+When subagents are available and the user is asking to build or substantially revise a course deck, use four proposal-only roles under one director. Use a single orchestrator only when subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
 
-Read [references/agent-hierarchy.md](references/agent-hierarchy.md) before dispatching workers. The hierarchy is:
+Read [references/agent-hierarchy.md](references/agent-hierarchy.md) and [references/role-standards.md](references/role-standards.md) before dispatching workers.
 
 ```text
 总导演 / build-course-canva-deck
 ├── 课程统筹师
 ├── 原稿场记
 ├── 课堂编剧
-├── 视觉分镜师
-└── 成片审片员
+└── 视觉分镜师
 ```
 
-- **总导演 / build-course-canva-deck** owns all durable writes and external actions: `source-map.json`, `curriculum-context.json`, `deck-spec.json`, PPTX generation, generated image asset writes, QA reports, Canva import, Canva edits, and final approval.
-- **课程统筹师** inspects only the controller-provided source identity, source summary, curriculum files, neighboring lessons, and scope boundaries, then writes only `scratch/source-context.proposal.json`.
-- **原稿场记** maps source nodes to slide groups, preserves sibling enumerations, accounts for source images, flags duplicate/early wording, and writes only `scratch/slide-plan.proposal.json`.
-- **课堂编剧** writes learner-facing screen copy and per-node evidence from approved source-node excerpts, then writes only `scratch/screen-copy.proposal.json`.
-- **视觉分镜师** plans visuals in staged passes: early visual triage from the approved slide plan, then final template/motif/layout/image-task planning after screen copy is stable. Long decks may be split into contiguous visual-plan parts under the same `role_id`; the worker writes only visual proposal files under `scratch/`.
-- **成片审片员** audits worker briefs, proposals, source-order fidelity, generated-image task quality, rendered-output risks, and merge readiness, then writes only `scratch/supervisor-log.md`, `scratch/supervisor-findings.json`, or `scratch/qa-findings.md`.
+- **总导演 / build-course-canva-deck** owns all durable writes and external actions: `source-map.json`, `curriculum-context.json`, `deck-spec.json`, generated image assets, PPTX generation, mechanical audit reports, Canva import, Canva edits, and final approval. It also owns process review after each proposal and final learner-facing review before delivery.
+- **课程统筹师** defines curriculum position, prerequisites, neighboring boundaries, shared terms, and handoff topics. Its self-check prevents adjacent-course drift.
+- **原稿场记** preserves the source hierarchy, source path, sibling order, examples, metaphors, source images, and slide grouping. Its self-check prevents the mind map from being flattened or rearranged.
+- **课堂编剧** writes learner-facing screen copy from approved source-node excerpts. Its self-check prevents invented labels, missing explanations, narration-only knowledge, and source-level mismatch.
+- **视觉分镜师** plans source images, generated-image candidates, editable diagrams, template references, layout variety, and fit. Its self-check prevents meaningless comparison/table blocks, repeated page structures, text-image collisions, and decorative visuals.
 
-Before dispatching any worker, the controller must create a scoped brief in `scratch/agent-briefs/<role>.brief.md` or `scratch/agent-briefs/<role>.brief.json`. Each brief must list the worker's `role_id`, `invocation_id`, exact task, allowed read paths or excerpts, forbidden reads, write path, acceptance checks, source-node range, prior role state, and unresolved questions. Workers must read only their brief plus the files explicitly listed in `allowed_read_paths`. If a worker needs more context, it records a request in its proposal instead of independently reading broad source, curriculum, template, or Canva files.
+Before dispatching any worker, the director creates a scoped brief in `scratch/agent-briefs/<role>.brief.md` or `scratch/agent-briefs/<role>.brief.json`. Keep the brief short and readable. It must tell the worker:
 
-Worker names are logical roles, not disposable identities. This applies to all five workers: `课程统筹师`, `原稿场记`, `课堂编剧`, `视觉分镜师`, and `成片审片员`. The controller must maintain `scratch/agent-state/role-registry.json` and one state file per role under `scratch/agent-state/`. A repeated call to any worker is a new invocation of the same `role_id`, not a second independent same-named worker; the brief must include prior state, prior outputs, unresolved issues, waivers, and the current invocation goal. If the runtime can only start a fresh subagent process, simulate continuity by passing the role state and previous outputs, then merge the worker's `state_update` back into the role state.
+- the exact proposal to produce and where to write it;
+- which source excerpts, context files, rendered pages, or template references it may read;
+- the current source path, node scope, mode, and curriculum boundary;
+- the role standards that matter for this pass;
+- what concrete evidence the worker must show before the director can trust the proposal;
+- what to report as an open question instead of guessing.
 
-Workers must never modify final course files, the original source, the selected Canva template, or any Canva design. The 成片审片员 also must not author screen copy, slide plans, visual plans, generated-image tasks, or final files; it checks compliance only. The 总导演 merges proposals, resolves conflicts, executes approved image-generation tasks, verifies source-node coverage, runs audit scripts, and fixes failures. Do not create a separate lecture-notes worker or a sixth QA worker. Do not reduce worker count for convenience or speed; reduce only for capability limits, explicit user direction, or non-deck read-only questions.
+Workers read only their brief plus files listed in `allowed_read_paths`. If a worker needs more context, it writes a `context_request` in its proposal instead of independently reading broad source, curriculum, template, or Canva files.
 
-成片审片 checks run at four gates:
+Worker proposals must include a `self_check` section, but it is not a checkbox ritual. Each answer must point to concrete source paths, slide groups, visible phrases, layout decisions, or unresolved risks. Generic answers such as "已检查" or "符合要求" are not mergeable. Do not create a separate final-review worker, lecture-notes worker, or fifth review role.
 
-1. **Before worker dispatch:** verify the authoritative source is selected, `细纲`/`粗纲` is recorded, every worker brief has a stable `role_id`, bounded task, allowed read list, forbidden read list, scope boundaries, prior role state when continuing, and a write path limited to `scratch/`.
-2. **After each proposal:** verify the worker stayed inside its role, did not write final files, did not skip source order, did not invent neighboring content, did not collapse sibling enumerations, did not introduce repeated/early wording, and did not rely on narration-only knowledge.
-3. **Before orchestrator merge:** verify slide-node coverage can remain one-to-one, source order is monotonic, visual obligations are represented, layout capacity can render every required item, and proposal conflicts are explicitly resolved by the orchestrator.
-4. **Before build/import:** verify `audit_deck.py` has passed or failures are being fixed, rendered PPTX text contains same-slide source evidence, generated-image tasks have been executed or explicitly bypassed, Canva template access rules are respected, no draft save/commit happens before user approval, and no 成片审片 findings remain unresolved. Waive a 成片审片 finding only for a documented tool/capability blocker or explicit user instruction; never waive for convenience or speed.
+The director's review is simple and human-facing:
 
-## Required workflow
+1. After each proposal, check the role's `self_check` before merging.
+2. When the director changes grouping, wording, fallback visuals, or layouts, re-check the affected role standard directly because no worker has reviewed that new change.
+3. Run scripts only as mechanical guards for extraction, coverage, density, forbidden terms, PPTX text, and obvious structural errors. A passing report is never approval by itself.
+4. After rendering, inspect the full deck as a learner: source hierarchy, page logic, readable layout, meaningful labels, no repeated layout run, no overlap, no clipped text, and no page whose structure only makes sense to the producer.
+
+## Required Workflow
 
 1. Read [references/workflow.md](references/workflow.md) and create an external scratch workspace.
 2. Run `scripts/extract_source.py` to create `source-map.json`. For PDFs, also render and visually inspect every relevant page; extracted text alone is not hierarchy evidence.
 3. Complete the mandatory source and mode checkpoint above.
-4. If using workers, create scoped worker briefs under `scratch/agent-briefs/`, run the pre-dispatch 成片审片员 check, then dispatch the five proposal-only workers in the staged order from `agent-hierarchy.md`; otherwise perform those phases sequentially in the orchestrator.
+4. If using workers, create four scoped worker briefs and dispatch in the staged order from `agent-hierarchy.md`; otherwise perform those phases sequentially in the orchestrator.
 5. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
-6. Build a source coverage matrix in source order. Include every valid node exactly once; if a tightly related group shares one slide, keep it within the QA density limit and record per-node learner-facing evidence in `source_node_treatments`.
+6. Build a source coverage matrix in source order. Include every valid node exactly once. Each slide group must preserve the XMind/source path and sibling order, not just monotonic node IDs.
 7. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
-8. Write one learner-facing screen-copy layer that can be understood without narration. Optional `speaker_notes` may exist only as short internal transition hints and must never contain knowledge required for comprehension.
-9. Read [references/visual-system.md](references/visual-system.md), then create the visual plan in staged passes. First do visual triage for source-image reuse, visual asset type, obvious capacity risk, and candidate generated-image pages; after screen copy is stable, finalize template references, native motifs, layout capacity, and only the approved `image_generation_tasks`. Every normal knowledge slide must either reuse a source case image, rebuild a source visual, or include a generated/editable explanatory diagram that is fused into the page. The 总导演 executes approved generation tasks and writes image assets; workers do not call image-generation tools or save final assets.
-10. Read [references/design-system.md](references/design-system.md) and [references/page-design-quality.md](references/page-design-quality.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
-11. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all errors before Canva import.
-12. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.
-13. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
-14. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
+8. Write one learner-facing screen-copy layer that can be understood without narration. Optional `speaker_notes` may exist only as short internal transition hints and must never contain knowledge required for comprehension or page logic.
+9. Read [references/visual-system.md](references/visual-system.md), then create the visual plan in staged passes. Every normal knowledge slide must reuse a source case image, rebuild a source visual, include a generated teaching image, or use an editable explanatory diagram/table that is fused into the page.
+10. Read [references/design-system.md](references/design-system.md), [references/page-design-quality.md](references/page-design-quality.md), and [references/role-standards.md](references/role-standards.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
+11. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all mechanical errors.
+12. Perform the director's final learner review: title-to-source-path fit, meaningful block labels, page-to-page hierarchy order, layout variety, no overlap, no duplicate text, no nonsense comparison/table framing, and no machine-like field compliance that a human learner cannot read.
+13. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.
+14. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
+15. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
 
-## Hard boundaries
+## Hard Boundaries
 
-- Keep the source's teaching order.
-- Preserve detailed-outline sibling lists as complete visible lists. Do not let layout point limits, generated images, or metadata coverage remove enumerated items from the rendered PPTX/Canva page.
-- Do not pull distinctive wording from later source nodes into earlier titles or labels unless the source already repeats it there; optimize transitions without blurring the original outline sequence.
-- Treat every deck as one component of the same self-media and editing curriculum. Preserve shared terminology, prerequisites, difficulty progression, and division of responsibility between lessons.
+- Keep the source's teaching order and hierarchy. In detailed mode, the mind-map path is the course structure; do not flatten first/second/third-level topics into a reorganized script.
+- Preserve detailed-outline sibling lists as complete visible lists. If they do not fit, split slides.
+- Do not invent a teaching label that is not anchored to the current source node, an ancestor source path, or a clearly stated relationship. Generic labels such as `对比 A`, `对比 B`, `结构顺序 A`, `结构顺序 B`, `左侧`, `右侧`, or `方案 A/B` are examples of failed screen copy, not the complete list.
+- Do not pull distinctive wording from later source nodes into earlier titles or labels unless the source already repeats it there.
+- Treat every deck as one component of the same self-media and editing curriculum. Preserve shared terminology, prerequisites, difficulty progression, and lesson boundaries.
 - Do not duplicate a neighboring lesson's main teaching task. Record the handoff to that lesson instead of expanding into it.
-- Use one teaching node per slide by default; add slides instead of shrinking body text below 16 pt. Do not treat `source_node_ids` as coverage by itself: every mapped source node must have `source_node_treatments` with visible screen evidence.
+- Use one teaching node or one tight source branch per slide by default. Do not treat `source_node_ids` as coverage by itself: every mapped source node must have visible `source_node_treatments.screen_evidence`.
 - Put definitions, explanations, examples, and visual interpretation on the slide. Do not create question-only or keyword-only pages.
 - Do not create a separate lecture-notes deliverable. Screen copy must carry the teaching; optional `speaker_notes` are internal transition hints only.
-- Keep source images inside knowledge pages. Never let a screenshot or example image replace the lesson text.
-- Treat source reference images and case images as teaching units, not decoration. Account for every non-thumbnail source image in `course.source_image_coverage`; use one teachable case image per slide by default.
-- A slide may use at most three independent source images, and only when all images remain readable and the visual plan records the image/text ratio and grouping reason. Four or more source images on one slide is a failed collage; split into more slides and explain cases in source order.
-- Deck length follows teaching units, source nodes, and source case images, not the number of pages in the selected template bank. Never compress a course to match a 21-page template; reuse template page families and motifs as needed. QA rejects over-compressed normal knowledge slides and deck-level source-node density.
-- Do not create a standalone "case images to make later" stage page in the learner deck. Case images and example diagrams must appear on the relevant knowledge pages with learner-facing interpretation.
+- If a layout cannot display every required sibling item, block, or evidence phrase, split the slide or choose a different layout before building. Never let a renderer silently drop, shrink, or hide content.
+- Keep source images inside knowledge pages. Treat source reference images and case images as teaching units, not decoration.
+- A slide may use at most three independent source images, and only when all images remain readable and the visual plan records the grouping reason.
+- Deck length follows teaching units, source nodes, source images, and learner readability, not the number of pages in the selected template bank.
 - Treat page design as a first-class requirement, not a skin. The template's typography scale, alignment axes, proximity, contrast hierarchy, image slots, and module spacing must be reflected in the local PPT/contact sheet before Canva import.
-- For abstract concepts, build the same kind of concrete visual bridge used in the accepted deck: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels. Do not leave an abstract slide as text only unless `visual_plan.exception_reason` explains why.
-- For decks longer than 12 pages, Canva-native template element use and per-page template-layout diversity are mandatory build inputs. Create `course.template_page_mapping`, `course.template_native_element_inventory`, and `visual_plan.template_motif` plans before local PPT generation; preview native motif proxies in the local PPT/contact sheet and replace them after Canva import instead of overlaying them.
-- Canva-native elements must be existing native vector/shape/group/frame elements from the selected Canva template or its accessible duplicate. Do not satisfy this gate with arbitrary Canva library search results, random media asset IDs, or one repeated element on every motif page.
-- Planned Canva-native elements must be real delivery requirements, not placeholders. `visual_plan.template_motif.native_element_ref` must name the chosen template design, source page, source element ID, element type, and confirm `copied_from_existing_template: true`; final delivery is blocked if proxy, pending, non-template, or repeated-motif IDs remain unverified.
-- Every `visual_plan.template_motif.local_ppt_layout` must include a machine-checkable `motif_box` and `protected_zones` for title, body, captions, footer, and page number. Motifs that overlap readable content, sit in arbitrary corners, or rely only on a written "collision clear" note fail QA.
-- Always run an image-generation review before local PPT generation. Source-rich decks must first preserve and account for source images; then, for text-heavy or abstract pages that have no source image but need a richer visual case, add text-free generated case illustrations. Do not generate images merely to satisfy a count. If source cases and editable diagrams already make every knowledge page visually teachable, record a concrete `generated_bypass_reason`. If the outline is image-poor, treat generated teaching images as a primary build input, not a supplement: this includes no-image outlines, sparse outlines with too few case images, and detailed outlines whose text density is high but usable case-image coverage is low. Generate concrete text-free teaching images for metaphor-heavy and abstract knowledge pages by default, and use editable diagrams only when the visual is mainly arrows, labels, comparisons, or tables.
-- Preserve intuitive metaphors even when approximate. Ask before changing one that appears directionally wrong.
-- Never display production language such as `PDF`, `原稿`, `来源文档`, `制作说明`, `图旁注明`, `详细讲稿`, or `预计讲解时间`.
-- Never display prompts, placeholders, source-tracking labels, or `Genji 是真想教会你`.
-- Keep research citations in the evidence ledger, not on slides unless the user requests citations.
-- Do not modify or overwrite the original Canva template. If the connector cannot access the chosen template on another device, ask for an accessible duplicate or explicit browser fallback instead of continuing with a broken Canva connection.
-
-Read [references/qa-gates.md](references/qa-gates.md) before declaring any stage complete.
+- For abstract concepts, build concrete visual bridges: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels.
+- Always run an image-generation review before local PPT generation. Source-rich decks preserve source images first; image-poor decks treat generated teaching images as a primary build input.
+- Generated images must not contain baked-in Chinese, UI labels, watermarks, or promotional text. Labels, arrows, and explanations must be editable slide text.
+- Never display production language such as `PDF`, `原稿`, `来源文档`, `制作说明`, `图旁注明`, `详细讲稿`, `预计讲解时间`, `视觉说明`, `对应节点`, prompts, placeholders, source-tracking labels, or `Genji 是真想教会你`.
+- Do not modify or overwrite the original Canva template.
 
 ## Resources
 
 - `scripts/extract_source.py`: extract a canonical source map from supported formats.
 - `scripts/validate_source_map.py`: validate hierarchy and record the user-declared mode.
-- `scripts/audit_deck.py`: enforce coverage, source-node density, per-node screen evidence, mode, scope, screen-copy, and PPTX text gates.
+- `scripts/audit_deck.py`: mechanical guard for coverage, hierarchy risk, source-node density, per-node screen evidence, mode, scope, screen-copy, layout repetition, and PPTX text checks.
 - `scripts/build_deck.mjs`: generate editable 16:9 slides using the selected template profile.
 - `scripts/make_contact_sheet.py`: create a labeled full-deck review sheet.
-- `references/agent-hierarchy.md`: five-agent proposal hierarchy and per-role boundaries.
-- `references/visual-system.md`: mandatory rules for source case images, generated diagrams, and slide-level visual plans.
-- `references/design-system.md`: mandatory rules for Canva template fidelity, fonts, colors, and layout rhythm.
-- `references/page-design-quality.md`: mandatory rules for title scale, alignment, proximity, contrast, image evidence blocks, and contact-sheet design review.
+- `references/agent-hierarchy.md`: four proposal roles, role boundaries, continuity, and self-check outputs.
+- `references/role-standards.md`: distributed role standards and the director's lightweight review checklist.
+- `references/visual-system.md`: rules for source case images, generated diagrams, and slide-level visual plans.
+- `references/design-system.md`: rules for Canva template fidelity, fonts, colors, and layout rhythm.
+- `references/page-design-quality.md`: rules for title scale, alignment, proximity, contrast, image evidence blocks, and contact-sheet review.
 - `references/canva-delivery.md`: Canva connector preflight, cross-device template access, and browser fallback rules.
 - `assets/template-reference/`: immutable fallback visual reference for Canva template `DAHM5fsVEB0` when no other template is selected.
 - `assets/golden-layouts/`: approved knowledge-page composition references.

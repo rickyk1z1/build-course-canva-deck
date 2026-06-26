@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for source-node density QA."""
+"""Regression tests for source-node density audit rules."""
 
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ class AuditDeckDensityTest(unittest.TestCase):
             temp = Path(temp_dir)
             deck_path = temp / "deck-spec.json"
             source_path = temp / "source-map.json"
-            report_path = temp / "qa-report.json"
+            report_path = temp / "mechanical-audit-report.json"
             write_json(deck_path, deck)
             write_json(source_path, source)
 
@@ -103,7 +103,7 @@ class AuditDeckDensityTest(unittest.TestCase):
             temp = Path(temp_dir)
             deck_path = temp / "deck-spec.json"
             source_path = temp / "source-map.json"
-            report_path = temp / "qa-report.json"
+            report_path = temp / "mechanical-audit-report.json"
             pptx_path = temp / "deck.pptx"
             write_json(deck_path, deck)
             write_json(source_path, source)
@@ -147,7 +147,7 @@ class AuditDeckDensityTest(unittest.TestCase):
                 "outline_mode": "detailed",
                 "curriculum_context": {
                     "system_name": "Course system",
-                    "module": "QA",
+                    "module": "Audit",
                     "course_role": "Verify source coverage density",
                     "excluded_neighbor_topics": [],
                 },
@@ -193,7 +193,13 @@ class AuditDeckDensityTest(unittest.TestCase):
 
     def test_mapped_source_nodes_require_visible_coverage_treatments(self) -> None:
         nodes = [
-            {"id": f"n{index:04d}", "title": f"Node {index}", "order": index, "include": True}
+            {
+                "id": f"n{index:04d}",
+                "title": f"Node {index}",
+                "order": index,
+                "parent_id": None if index == 1 else "n0001",
+                "include": True,
+            }
             for index in range(1, 6)
         ]
         source = {
@@ -209,7 +215,7 @@ class AuditDeckDensityTest(unittest.TestCase):
                 "outline_mode": "detailed",
                 "curriculum_context": {
                     "system_name": "Course system",
-                    "module": "QA",
+                    "module": "Audit",
                     "course_role": "Verify source node treatment evidence",
                     "excluded_neighbor_topics": [],
                 },
@@ -255,7 +261,13 @@ class AuditDeckDensityTest(unittest.TestCase):
 
     def test_reasonable_mapping_with_visible_treatments_passes(self) -> None:
         nodes = [
-            {"id": f"n{index:04d}", "title": f"Node {index}", "order": index, "include": True}
+            {
+                "id": f"n{index:04d}",
+                "title": f"Node {index}",
+                "order": index,
+                "parent_id": None if index == 1 else "n0001",
+                "include": True,
+            }
             for index in range(1, 6)
         ]
         source = {
@@ -271,7 +283,7 @@ class AuditDeckDensityTest(unittest.TestCase):
                 "outline_mode": "detailed",
                 "curriculum_context": {
                     "system_name": "Course system",
-                    "module": "QA",
+                    "module": "Audit",
                     "course_role": "Verify accepted treatment evidence",
                     "excluded_neighbor_topics": [],
                 },
@@ -287,6 +299,7 @@ class AuditDeckDensityTest(unittest.TestCase):
                     "source_node_ids": ["n0001"],
                     "source_node_treatments": coverage_treatments(["n0001"]),
                     "added_content": [],
+                    "scope_check": {"status": "within-branch", "branch_node_id": "n0001"},
                 },
                 {
                     "number": 2,
@@ -308,6 +321,7 @@ class AuditDeckDensityTest(unittest.TestCase):
                     "source_node_ids": ["n0002", "n0003", "n0004", "n0005"],
                     "source_node_treatments": coverage_treatments(["n0002", "n0003", "n0004", "n0005"]),
                     "added_content": [],
+                    "scope_check": {"status": "within-branch", "branch_node_id": "n0001"},
                 },
             ],
         }
@@ -335,7 +349,7 @@ class AuditDeckDensityTest(unittest.TestCase):
                 "outline_mode": "detailed",
                 "curriculum_context": {
                     "system_name": "Course system",
-                    "module": "QA",
+                    "module": "Audit",
                     "course_role": "Verify rendered source evidence",
                     "excluded_neighbor_topics": [],
                 },
@@ -405,7 +419,7 @@ class AuditDeckDensityTest(unittest.TestCase):
                 "outline_mode": "detailed",
                 "curriculum_context": {
                     "system_name": "Course system",
-                    "module": "QA",
+                    "module": "Audit",
                     "course_role": "Reject generic repeated evidence",
                     "excluded_neighbor_topics": [],
                 },
@@ -481,7 +495,7 @@ class AuditDeckDensityTest(unittest.TestCase):
                 "outline_mode": "detailed",
                 "curriculum_context": {
                     "system_name": "Course system",
-                    "module": "QA",
+                    "module": "Audit",
                     "course_role": "Reject visible evidence order drift",
                     "excluded_neighbor_topics": [],
                 },

@@ -84,6 +84,28 @@ SOURCE_COVERAGE_STATUSES = {
     "restructured",
     "section-heading",
 }
+GENERIC_BLOCK_LABELS = {
+    "a",
+    "b",
+    "对比a",
+    "对比b",
+    "结构顺序a",
+    "结构顺序b",
+    "方案a",
+    "方案b",
+    "要点a",
+    "要点b",
+    "重点a",
+    "重点b",
+    "模块a",
+    "模块b",
+    "路径a",
+    "路径b",
+    "顺序a",
+    "顺序b",
+    "左侧",
+    "右侧",
+}
 
 
 def flatten_text(value: Any) -> Iterable[str]:
@@ -149,6 +171,48 @@ def composition_variant_key(slide: dict[str, Any]) -> str:
         reference = visual_plan.get("template_reference") if isinstance(visual_plan.get("template_reference"), dict) else {}
         value = reference.get("composition_family") or reference.get("layout_variant")
     return str(value or "").strip()
+
+
+def structural_cluster(slide: dict[str, Any]) -> str:
+    layout = str(slide.get("layout", "light"))
+    variant = composition_variant_key(slide).lower()
+    if layout in {"comparison", "table"}:
+        return "two-block-structured"
+    if layout in {"light", "dark", "orange", "accent"}:
+        return "text-two-block"
+    if layout.startswith("image-left") or layout.startswith("image-right"):
+        return "image-split"
+    if "comparison" in variant or "two" in variant or "panel" in variant or "block" in variant:
+        return "two-block-structured"
+    if "image" in variant or "case" in variant or "reading" in variant:
+        return "image-evidence"
+    if "roadmap" in variant or "flow" in variant or "path" in variant:
+        return "flow"
+    return variant or layout
+
+
+def normalized_label(value: Any) -> str:
+    return re.sub(r"[\s_\-—:：|｜/]+", "", str(value or "")).lower()
+
+
+def is_generic_block_label(value: Any) -> bool:
+    label = normalized_label(value)
+    if not label:
+        return True
+    if label in GENERIC_BLOCK_LABELS:
+        return True
+    return bool(re.fullmatch(r"(对比|结构顺序|方案|要点|重点|模块|路径|顺序)[a-bａ-ｂ]?", label))
+
+
+def ancestors_for(node_id: str, parent_by_id: dict[str, str | None]) -> list[str]:
+    ancestors: list[str] = []
+    current = parent_by_id.get(node_id)
+    seen: set[str] = set()
+    while current and current not in seen:
+        ancestors.append(current)
+        seen.add(current)
+        current = parent_by_id.get(current)
+    return ancestors
 
 
 def structured_visual_content(screen: dict[str, Any], visual_plan: dict[str, Any], visuals: list[Any]) -> bool:
@@ -259,6 +323,14 @@ def main() -> int:
         str(node.get("id")): str(node.get("text") or node.get("title") or "")
         for node in source_nodes
     }
+    parent_by_id = {
+        str(node.get("id")): (str(node.get("parent_id")) if node.get("parent_id") else None)
+        for node in source_nodes
+    }
+    ancestor_ids_by_id = {
+        node_id: ancestors_for(node_id, parent_by_id)
+        for node_id in source_text_by_id
+    }
     slides = deck.get("slides")
     if not isinstance(slides, list) or not slides:
         errors.append("deck-spec slides must be non-empty")
@@ -278,7 +350,7 @@ def main() -> int:
             errors.append(
                 f"{mode} mode is over-compressed: {len(source_nodes)} included source nodes "
                 f"across {len(normal_knowledge)} normal knowledge slides; expected at least "
-                f"{minimum_normal_slides} normal knowledge slides at the QA density limit "
+                f"{minimum_normal_slides} normal knowledge slides at the mechanical density limit "
                 f"of {source_density_limit} source nodes per slide"
             )
     if len(normal_knowledge) > 12:
@@ -330,13 +402,20 @@ def main() -> int:
         family_counts = {family: families.count(family) for family in set(families)}
         dominant_family, dominant_count = max(family_counts.items(), key=lambda item: item[1])
         dominant_ratio = dominant_count / len(normal_knowledge)
-        if dominant_ratio > 0.60:
+        if dominant_ratio > 0.72:
             errors.append(
                 f"layout rhythm is too repetitive: {dominant_family} covers "
                 f"{dominant_count}/{len(normal_knowledge)} normal knowledge slides"
             )
-        if len(set(themes)) < 3:
-            errors.append("layout rhythm must use at least three background color modes across long decks")
+        elif dominant_ratio > 0.60:
+            warnings.append(
+                f"layout rhythm may feel repetitive: {dominant_family} covers "
+                f"{dominant_count}/{len(normal_knowledge)} normal knowledge slides"
+            )
+        if len(set(themes)) < 2:
+            errors.append("layout rhythm uses only one background color mode across a long deck")
+        elif len(set(themes)) < 3:
+            warnings.append("layout rhythm uses fewer than three background color modes; director should verify contact-sheet rhythm")
         run_family, run_family_count = max_run(families)
         if run_family_count > 4:
             errors.append(f"layout rhythm has {run_family_count} consecutive {run_family} pages")
@@ -344,32 +423,49 @@ def main() -> int:
         if run_theme_count > 4:
             errors.append(f"layout rhythm has {run_theme_count} consecutive {run_theme} background pages")
         plain_light_image_count = sum(1 for slide in normal_knowledge if slide.get("layout") in {"image-left", "image-right"})
-        if plain_light_image_count / len(normal_knowledge) > 0.50:
+        if plain_light_image_count / len(normal_knowledge) > 0.70:
             errors.append(
                 "layout rhythm is dominated by plain light image-left/image-right pages; "
                 "use dark and accent template-field image variants"
+            )
+        elif plain_light_image_count / len(normal_knowledge) > 0.50:
+            warnings.append(
+                "layout rhythm leans heavily on plain light image-left/image-right pages; "
+                "director should verify the middle section does not feel generated"
             )
         template_refs = [template_reference_key(slide) for slide in normal_knowledge]
         nonempty_refs = [ref for ref in template_refs if ref]
         distinct_refs = set(nonempty_refs)
         min_distinct_refs = min(6, max(3, len(normal_knowledge) // 4))
-        if len(distinct_refs) < min_distinct_refs:
+        if len(distinct_refs) < 2:
             errors.append(
                 f"template reference variety is too low: uses {len(distinct_refs)} "
+                f"reference pages/families across {len(normal_knowledge)} normal knowledge slides"
+            )
+        elif len(distinct_refs) < min_distinct_refs:
+            warnings.append(
+                f"template reference variety may be low: uses {len(distinct_refs)} "
                 f"reference pages/families across {len(normal_knowledge)} normal knowledge slides; "
-                f"expected at least {min_distinct_refs}"
+                f"recommended around {min_distinct_refs}"
             )
         if nonempty_refs:
             ref_counts = {ref: nonempty_refs.count(ref) for ref in distinct_refs}
             dominant_ref, dominant_ref_count = max(ref_counts.items(), key=lambda item: item[1])
-            if dominant_ref_count / len(normal_knowledge) > 0.40:
+            if dominant_ref_count / len(normal_knowledge) > 0.70:
                 errors.append(
                     f"template reference variety is too repetitive: {dominant_ref} covers "
                     f"{dominant_ref_count}/{len(normal_knowledge)} normal knowledge slides"
                 )
+            elif dominant_ref_count / len(normal_knowledge) > 0.40:
+                warnings.append(
+                    f"template reference variety may be repetitive: {dominant_ref} covers "
+                    f"{dominant_ref_count}/{len(normal_knowledge)} normal knowledge slides"
+                )
             run_ref, run_ref_count = max_run(nonempty_refs)
-            if run_ref_count > 3:
+            if run_ref_count > 5:
                 errors.append(f"template reference variety has {run_ref_count} consecutive pages based on {run_ref}")
+            elif run_ref_count > 3:
+                warnings.append(f"template reference variety has {run_ref_count} consecutive pages based on {run_ref}")
         variants = [composition_variant_key(slide) for slide in normal_knowledge]
         missing_variants = [
             str(slide.get("number"))
@@ -384,33 +480,60 @@ def main() -> int:
         else:
             distinct_variants = set(variants)
             min_distinct_variants = min(7, max(4, len(normal_knowledge) // 4))
-            if len(distinct_variants) < min_distinct_variants:
+            if len(distinct_variants) < 2:
                 errors.append(
                     f"composition variety is too low: uses {len(distinct_variants)} "
+                    f"layout variants across {len(normal_knowledge)} normal knowledge slides"
+                )
+            elif len(distinct_variants) < min_distinct_variants:
+                warnings.append(
+                    f"composition variety may be low: uses {len(distinct_variants)} "
                     f"layout variants across {len(normal_knowledge)} normal knowledge slides; "
-                    f"expected at least {min_distinct_variants}"
+                    f"recommended around {min_distinct_variants}"
                 )
             variant_counts = {variant: variants.count(variant) for variant in distinct_variants}
             dominant_variant, dominant_variant_count = max(variant_counts.items(), key=lambda item: item[1])
-            if dominant_variant_count / len(normal_knowledge) > 0.35:
+            if dominant_variant_count / len(normal_knowledge) > 0.65:
                 errors.append(
                     f"composition variety is too repetitive: {dominant_variant} covers "
                     f"{dominant_variant_count}/{len(normal_knowledge)} normal knowledge slides"
                 )
+            elif dominant_variant_count / len(normal_knowledge) > 0.35:
+                warnings.append(
+                    f"composition variety may be repetitive: {dominant_variant} covers "
+                    f"{dominant_variant_count}/{len(normal_knowledge)} normal knowledge slides"
+                )
             run_variant, run_variant_count = max_run(variants)
-            if run_variant_count > 2:
+            if run_variant_count > 5:
                 errors.append(f"composition variety has {run_variant_count} consecutive pages using {run_variant}")
+            elif run_variant_count > 2:
+                warnings.append(f"composition variety has {run_variant_count} consecutive pages using {run_variant}")
+            clusters = [structural_cluster(slide) for slide in normal_knowledge]
+            for start in range(0, max(0, len(clusters) - 10)):
+                window = clusters[start:start + 11]
+                counts = {cluster: window.count(cluster) for cluster in set(window)}
+                cluster, count = max(counts.items(), key=lambda item: item[1])
+                if count >= 8:
+                    start_slide = normal_knowledge[start].get("number")
+                    end_slide = normal_knowledge[start + 10].get("number")
+                    errors.append(
+                        f"composition variety has {count}/11 pages in the same structural cluster "
+                        f"({cluster}) from slide {start_slide} to slide {end_slide}; "
+                        "vary the teaching structure, not only the colors or labels"
+                    )
+                    break
         template_motif_count = sum(
             1 for slide in slides
             if isinstance((slide.get("visual_plan") or {}).get("template_motif"), dict)
         )
-        required_motifs = max(4, len(normal_knowledge) // 5)
-        if template_motif_count < required_motifs:
+        if "inventory_keys" in locals() and inventory_keys and template_motif_count == 0:
             errors.append(
-                f"long decks must plan Canva-native template motif use before local PPT generation; "
-                f"found {template_motif_count}, expected at least {required_motifs}"
+                "long decks with reusable template-native inventory must plan at least one real Canva-native motif "
+                "or record why native reuse is blocked before local PPT generation"
             )
-        if template_motif_count >= 4:
+        elif "inventory_keys" in locals() and inventory_keys and template_motif_count == 1:
+            warnings.append("only one Canva-native motif is planned; director should verify the deck still feels template-native")
+        if template_motif_count >= 2:
             motif_keys = [
                 template_motif_key((slide.get("visual_plan") or {}).get("template_motif") or {})
                 for slide in slides
@@ -422,7 +545,7 @@ def main() -> int:
                     if key not in inventory_keys:
                         errors.append(f"Canva-native template motif {key} is not listed in course.template_native_element_inventory")
             distinct_motif_keys = set(nonempty_motif_keys)
-            if len(distinct_motif_keys) < 2:
+            if template_motif_count >= 3 and len(distinct_motif_keys) < 2:
                 errors.append(
                     "Canva-native template motif use is too repetitive: long decks must reuse at least "
                     "two distinct existing template elements instead of placing the same element everywhere"
@@ -530,7 +653,6 @@ def main() -> int:
                 slide for slide in slides
                 if (slide.get("visual_plan") or {}).get("asset_type") == "generated-image"
             ]
-            required_generated = max(4, (len(normal_knowledge) * 2 + 4) // 5)
             generation_unavailable = (
                 isinstance(review, dict)
                 and str(review.get("generation_route_status", "")).strip() == "unavailable"
@@ -543,30 +665,32 @@ def main() -> int:
                         "image-poor decks must record source_case_image_count as the usable "
                         f"non-thumbnail source image count ({len(source_images)})"
                     )
-                if int(review.get("candidates_considered") or 0) < required_generated:
-                    errors.append(
-                        "image-poor decks must consider enough generated teaching-image candidates; "
-                        f"expected at least {required_generated}"
-                    )
-                if not isinstance(review.get("generated_slide_numbers"), list):
+                generated_slide_numbers = review.get("generated_slide_numbers")
+                generated_bypass_reason = str(review.get("generated_bypass_reason", "")).strip()
+                if not isinstance(generated_slide_numbers, list):
                     errors.append("image-poor decks must list generated_slide_numbers or an unavailable fallback")
-                elif not generation_unavailable and len(review.get("generated_slide_numbers")) < required_generated:
+                    generated_slide_numbers = []
+                elif generated_slide_numbers and int(review.get("candidates_considered") or 0) < len(generated_slide_numbers):
+                    errors.append("image-poor decks must consider every selected generated teaching case")
+                elif not generated_slide_numbers and not generation_unavailable and len(generated_bypass_reason) < 20:
                     errors.append(
-                        f"image-poor long decks should use generated teaching images substantially; "
-                        f"found {len(review.get('generated_slide_numbers'))}, expected at least {required_generated}"
+                        "image-poor long decks without generated images must record a concrete generated_bypass_reason "
+                        "explaining which editable diagrams, tables, source images, or text-only exceptions carry the visual bridge"
                     )
                 if generation_unavailable:
                     fallbacks = review.get("fallback_slide_numbers")
-                    if not isinstance(fallbacks, list) or len(fallbacks) < required_generated:
+                    if not isinstance(fallbacks, list) and len(generated_bypass_reason) < 20:
                         errors.append(
-                            "when generation is unavailable, image-poor decks must list enough "
-                            "fallback_slide_numbers using editable diagrams"
+                            "when generation is unavailable, image-poor decks must list fallback_slide_numbers "
+                            "or explain the deterministic visual fallback"
                         )
-            if not generation_unavailable and len(generated_slides) < required_generated:
-                errors.append(
-                    f"image-poor long decks should render generated teaching-image slides; "
-                    f"found {len(generated_slides)}, expected at least {required_generated}"
-                )
+                if generated_slide_numbers and len(generated_slides) < len(generated_slide_numbers):
+                    errors.append(
+                        f"image-poor deck planned {len(generated_slide_numbers)} generated teaching case images "
+                        f"but rendered only {len(generated_slides)}"
+                    )
+                elif not generated_slide_numbers and generated_slides:
+                    errors.append("course.image_generation_review generated_slide_numbers is empty but generated-image slides are present")
             if source_images:
                 if not isinstance(source_image_coverage, list):
                     errors.append("image-poor decks with source images must include course.source_image_coverage")
@@ -598,8 +722,13 @@ def main() -> int:
                 errors.append("course.page_design_review must confirm contact_sheet_reviewed")
             if len(str(design_review.get("reference_method", "")).strip()) < 20:
                 errors.append("course.page_design_review must record the reference design method")
-            if not isinstance(design_review.get("issues_fixed"), list) or not design_review.get("issues_fixed"):
-                errors.append("course.page_design_review must list design issues fixed before Canva import")
+            issues_fixed = design_review.get("issues_fixed")
+            if not isinstance(issues_fixed, list):
+                errors.append("course.page_design_review issues_fixed must be a list")
+            elif not issues_fixed and design_review.get("no_issues_found") is not True:
+                warnings.append(
+                    "course.page_design_review lists no fixed issues; director should confirm this was a real contact-sheet review, not a form fill"
+                )
 
     mapped: list[str] = []
     previous_min_order = 0
@@ -619,8 +748,10 @@ def main() -> int:
             if term and term.lower() in lower:
                 errors.append(f"{label} contains an explicit out-of-scope term: {term}")
         title = str(slide.get("title", "")).strip()
-        if layout != "cover" and (not title or title.endswith(("?", "？"))):
-            errors.append(f"{label} must use a conclusion-style title")
+        if layout != "cover" and not title:
+            errors.append(f"{label} must have a learner-facing title")
+        elif layout != "cover" and title.endswith(("?", "？")):
+            warnings.append(f"{label} uses a question-style title; director should verify the answer is visible on the same page")
         slide_visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
         template_reference = slide_visual_plan.get("template_reference") or {}
         if not isinstance(template_reference, dict):
@@ -745,11 +876,42 @@ def main() -> int:
             explanation = str(screen.get("explanation", "")).strip()
             bullets = screen.get("bullets") or []
             blocks = screen.get("blocks") or []
+            if not isinstance(blocks, list):
+                errors.append(f"{label} screen.blocks must be a list when provided")
+                blocks = []
+            block_headings: list[str] = []
+            for block_index, block in enumerate(blocks, start=1):
+                if not isinstance(block, dict):
+                    errors.append(f"{label} screen.blocks[{block_index}] must be an object")
+                    continue
+                heading = str(block.get("heading", "")).strip()
+                block_headings.append(heading)
+                if is_generic_block_label(heading):
+                    errors.append(
+                        f"{label} uses a generic or meaningless block label: {heading or '<empty>'}"
+                    )
+                items = block.get("items")
+                if not isinstance(items, list) or not any(str(item).strip() for item in items):
+                    errors.append(f"{label} block {heading or block_index} must contain visible learner-facing items")
+            if layout in {"comparison", "table"}:
+                meaningful_headings = [
+                    heading for heading in block_headings
+                    if heading and not is_generic_block_label(heading)
+                ]
+                if len(meaningful_headings) < 2:
+                    errors.append(
+                        f"{label} uses {layout} layout without at least two meaningful block headings; "
+                        "do not create arbitrary A/B comparison or table structures"
+                    )
+                if len(set(normalized_label(heading) for heading in meaningful_headings)) != len(meaningful_headings):
+                    errors.append(f"{label} repeats equivalent block headings in a structured layout")
             point_count = len(bullets) + sum(len(block.get("items", [])) for block in blocks if isinstance(block, dict))
             if len(explanation) < 20:
                 errors.append(f"{label} lacks a self-contained learner explanation")
-            if layout not in {"table", "summary"} and not 3 <= point_count <= 5:
-                errors.append(f"{label} should contain 3-5 structured learner-facing points")
+            if layout not in {"table", "summary"} and point_count < 2:
+                warnings.append(f"{label} has fewer than two structured learner-facing points; director should verify it is not a keyword-only page")
+            elif layout not in {"table", "summary"} and point_count > 6:
+                warnings.append(f"{label} has {point_count} learner-facing points; director should verify the layout can show all without truncation")
             if layout in IMAGE_LAYOUTS | {"comparison"} and not screen.get("caption"):
                 errors.append(f"{label} has a visual layout without learner-facing interpretation")
             if layout != "summary":
@@ -784,8 +946,8 @@ def main() -> int:
                 if asset_type != "text-only-exception":
                     if not isinstance(text_area_ratio, (int, float)):
                         errors.append(f"{label} visual_plan.text_area_ratio is required for illustrated slides")
-                    elif not 0.33 <= float(text_area_ratio) <= 0.48:
-                        errors.append(f"{label} text area should stay around 40% on illustrated slides")
+                    elif not 0.25 <= float(text_area_ratio) <= 0.62:
+                        warnings.append(f"{label} has unusual text/visual balance; director should verify readability and visual usefulness")
                 visuals = slide.get("visuals") or []
                 if (
                     asset_type in {"editable-diagram", "editable-table"}
@@ -868,6 +1030,36 @@ def main() -> int:
         node_ids = slide.get("source_node_ids") or []
         if not node_ids:
             errors.append(f"{label} has no source-node mapping")
+        scope = slide.get("scope_check") or {}
+        branch_node_id = str(scope.get("branch_node_id", "")).strip()
+        if layout in KNOWLEDGE_LAYOUTS and layout != "summary":
+            if not isinstance(scope, dict) or scope.get("status") != "within-branch" or not branch_node_id:
+                errors.append(f"{label} must record scope_check.status within-branch and a branch_node_id")
+            elif branch_node_id not in source_ids:
+                errors.append(f"{label} scope_check.branch_node_id is not an original source node")
+            else:
+                for node_id in [str(value) for value in node_ids if str(value) in source_ids]:
+                    if branch_node_id != node_id and branch_node_id not in ancestor_ids_by_id.get(node_id, []):
+                        errors.append(
+                            f"{label} flattens source hierarchy: branch {branch_node_id} is not an ancestor "
+                            f"of mapped node {node_id}"
+                        )
+                title_match_context = [branch_node_id, *ancestor_ids_by_id.get(branch_node_id, [])]
+                source_path_terms = [
+                    source_text_by_id.get(node_id, "")
+                    for node_id in title_match_context
+                    if source_text_by_id.get(node_id, "")
+                ]
+                if (
+                    mode == "detailed"
+                    and title
+                    and source_path_terms
+                    and not any(normalized_match_text(term) in normalized_match_text(text) for term in source_path_terms)
+                ):
+                    warnings.append(
+                        f"{label} title/content does not visibly reuse any source-path term; "
+                        "director should verify the page still belongs to the recorded source branch"
+                    )
         if (
             source_density_limit
             and layout in KNOWLEDGE_LAYOUTS
@@ -946,7 +1138,6 @@ def main() -> int:
         if mode == "detailed" and additions:
             errors.append(f"{label} adds content in detailed-outline mode")
         if mode == "sparse":
-            scope = slide.get("scope_check") or {}
             if scope.get("status") != "within-branch" or scope.get("branch_node_id") not in source_ids:
                 errors.append(f"{label} lacks a valid within-branch scope check")
             for addition_index, item in enumerate(additions, start=1):

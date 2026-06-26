@@ -51,6 +51,11 @@ class SourceMapBuilder:
         if not text:
             return None
         node_id = f"n{len(self.nodes) + 1:04d}"
+        parent_node = next((node for node in self.nodes if node.get("id") == parent_id), None)
+        parent_path_ids = list(parent_node.get("source_path_ids", [])) if parent_node else []
+        parent_path_text = list(parent_node.get("source_path_text", [])) if parent_node else []
+        source_path_ids = [*parent_path_ids, node_id]
+        source_path_text = [*parent_path_text, text]
         self.nodes.append(
             {
                 "id": node_id,
@@ -60,6 +65,9 @@ class SourceMapBuilder:
                 "kind": kind,
                 "text": text,
                 "source_locator": locator,
+                "source_path_ids": source_path_ids,
+                "source_path_text": source_path_text,
+                "source_path": " > ".join(source_path_text),
                 "include": True,
             }
         )

@@ -1,6 +1,6 @@
 # Page Design Quality
 
-This guide adapts professional slide-design lessons for editable Canva/PPTX course decks. It is informed by the public `op7418/guizang-ppt-skill` design discipline, but it does not copy that project's templates, code, or registered layouts. Use these rules as judgment and QA standards for `build-course-canva-deck`.
+This guide adapts professional slide-design lessons for editable Canva/PPTX course decks. It is informed by the public `op7418/guizang-ppt-skill` design discipline, but it does not copy that project's templates, code, or registered layouts. Use these rules as judgment and review standards for `build-course-canva-deck`.
 
 ## Design Baseline
 
@@ -26,7 +26,7 @@ Do not invent a freeform page because the content is hard to fit. First try:
 - split the content into another slide;
 - change image crop or slot;
 - pick a closer reference page family;
-- move secondary explanation into speaker notes.
+- move non-essential production reminders out of the learner page.
 
 `visual_plan.layout_variant` must be rendered into visible geometry. It is not a tag for reporting after the fact.
 
@@ -42,7 +42,7 @@ Use a clear size and weight ladder:
 - point bodies / tertiary explanations: usually 16-17 pt; do not use 12-13 pt to make dense content fit;
 - captions: short interpretation near the image, usually 15-16 pt, not a heavy full-width production bar.
 
-Recording decks are viewed during teaching, not only inspected as static design thumbnails. If a page starts to need 12-13 pt for learner-facing explanation, split the slide, reduce copy, or move detail to speaker notes.
+Recording decks are viewed during teaching, not only inspected as static design thumbnails. If a page starts to need 12-13 pt for learner-facing explanation, split the slide, reduce copy, or remove non-essential detail. Do not move knowledge required for comprehension into speaker notes.
 
 For Chinese titles:
 
@@ -78,7 +78,7 @@ Use contrast to create reading order:
 4. labeled points;
 5. caption or footnote.
 
-A page with many same-sized text blocks fails even if the alignment is neat. Convert bullets into labeled point groups, columns, cards, or numbered mini-modules. Keep each module internally close and leave more space between unrelated modules.
+A page with many same-sized text blocks fails even if the alignment is neat. Convert bullets into labeled point groups, columns, or structured modules. Use numbered modules only for real order, steps, ranking, or source enumeration. Keep each module internally close and leave more space between unrelated modules.
 
 ## Image Treatment
 
@@ -91,7 +91,7 @@ Images are evidence blocks:
 - avoid decorative frames, shadows, rounded corners, or arbitrary borders unless they exist in the template reference;
 - use a short editable caption near the image to state what the learner should observe.
 
-If source images are too small or visually noisy, make a collage or rebuild them as a cleaner teaching visual, but preserve the original teaching relationship.
+If source images are too small or visually noisy, split them across pages, crop to one teachable case, or rebuild them as a cleaner teaching visual. Do not make a new collage of independent images merely to fit more cases on one page.
 
 ## Pre-Build Design Table
 

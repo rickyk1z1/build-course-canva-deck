@@ -1,6 +1,6 @@
 # End-to-end workflow
 
-## Output workspace
+## Output Workspace
 
 Keep scratch files outside the user's project. Put durable deliverables in `<source-parent>/<course-stem>-课件产物/` unless the user chooses another location:
 
@@ -10,66 +10,46 @@ Keep scratch files outside the user's project. Put durable deliverables in `<sou
 - `课程体系关联说明.md`
 - `canva-access.json`
 - `assets/`
-- `qa-report.json`
+- `mechanical-audit-report.json`
+- `canva-native-motif-report.json` when template-native motifs are planned
 - `canva-design.txt`
 
 Never overwrite source files.
 
-## Proposal-only multi-agent workspace
+## Proposal-Only Multi-Agent Workspace
 
-When subagents are available for a course-deck build or revision, optimize for quality and keep worker outputs in the external scratch workspace. Workers are advisory only. Use the five-agent proposal worker set from `agent-hierarchy.md` unless subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
+Use the four-role proposal worker set from `agent-hierarchy.md` for course-deck builds and substantial revisions when subagents are available. Workers are advisory only; the director owns durable files, generated assets, PPTX build, Canva import/editing, and final approval.
 
-The orchestrator must route context instead of letting every worker read the same broad materials. Before dispatch, create bounded task briefs under `scratch/agent-briefs/` and a role registry under `scratch/agent-state/`. Each brief lists the worker's `role_id`, `invocation_id`, exact objective, allowed read paths, forbidden reads, write path, source-node scope, mode, boundary summary, prior role state, acceptance checks, and open questions. Workers read their brief first and then only the files or excerpts listed in `allowed_read_paths`; if they need more context, they write a `context_request` instead of opening broad source, curriculum, template, or Canva files on their own.
+Create short worker briefs under `scratch/agent-briefs/`. A brief should fit on one readable page when possible:
 
-Role continuity is mandatory for every worker. A worker may be invoked multiple times, but it remains the same logical role across the course run. Repeated calls to `课程统筹师`, `原稿场记`, `课堂编剧`, `视觉分镜师`, or `成片审片员` must use that role's stable `role_id` and cumulative state. If the execution environment starts a fresh subagent each time, the orchestrator must pass prior role state and previous outputs, then merge the worker's proposed `state_update` into `scratch/agent-state/<role_id>.state.json`.
+- exact proposal objective and write path;
+- allowed source excerpts, context files, rendered pages, or template references;
+- forbidden broad reads such as unrelated lessons, full template banks, or Canva designs unless explicitly needed;
+- source node scope, human-readable source path, mode, and curriculum boundary;
+- relevant role standards and concrete `self_check` evidence required;
+- open questions the worker should report instead of guessing;
+- prior approved state only when this is a revision or range continuation.
 
-The staged worker set is:
+Do not create a separate reviewer worker. Every worker owns its own standard, and the director reviews proposals during merge plus performs final learner-facing review.
 
-- `课程统筹师`
-- `原稿场记`
-- `课堂编剧`
-- `视觉分镜师`
-- `成片审片员`
+Visual planning is staged:
 
-The scratch workspace contains controller briefs and worker proposals such as:
+1. `visual-triage`: source image reuse, visual asset type, generated-image candidates, and obvious layout/split risks.
+2. `visual-finalize`: template references, native motif planning, layout capacity, rhythm, and approved `image_generation_tasks`.
 
-- `scratch/agent-state/role-registry.json`
-- `scratch/agent-state/course-producer.state.json`
-- `scratch/agent-state/script-supervisor.state.json`
-- `scratch/agent-state/teacher-writer.state.json`
-- `scratch/agent-state/storyboard-designer.state.json`
-- `scratch/agent-state/final-reviewer.state.json`
-- `scratch/agent-briefs/source-context.brief.md`
-- `scratch/agent-briefs/slide-plan.brief.md`
-- `scratch/agent-briefs/screen-copy.brief.md`
-- `scratch/agent-briefs/visual-triage.brief.md`
-- `scratch/agent-briefs/visual-plan.brief.md`
-- `scratch/agent-briefs/quality-gate.brief.md`
-- `scratch/source-context.proposal.json`
-- `scratch/slide-plan.proposal.json`
-- `scratch/visual-triage.proposal.json`
-- `scratch/visual-plan.part-NN.proposal.json`
-- `scratch/visual-plan.proposal.json`
-- `scratch/screen-copy.proposal.json`
-- `scratch/supervisor-log.md`
-- `scratch/supervisor-findings.json`
-- `scratch/qa-findings.md`
+For long decks, split visual work by contiguous slide ranges if that keeps proposals easier to reason about. Preserve the same logical `storyboard-designer` role state across ranges.
 
-The orchestrator is the only writer of durable course files and the only actor allowed to build PPTX files, import into Canva, edit Canva, or commit Canva changes. If subagents are unavailable or unsafe for the current run, the orchestrator performs the same phases sequentially and records the limitation.
+If subagents are unavailable or unsafe for the current run, the director performs the same phases sequentially and records the limitation.
 
-Visual planning is intentionally staged. After the slide plan is approved, the orchestrator may dispatch `visual-triage` under `role_id: storyboard-designer` in parallel with 课堂编剧. Triage only decides source-image reuse, visual asset type, generated-image candidates, and obvious layout/split risks. After screen copy is stable, use one or more `visual-finalize` briefs for template references, native motif placements, layout capacity, and approved `image_generation_tasks`. Long decks should use contiguous range briefs instead of one very large visual brief, while preserving the same `storyboard-designer` role state.
+## Source Intake
 
-Use the 成片审片员 whenever any worker is used. The 成片审片员 does not author content. It audits worker briefs, proposal files, role boundaries, allowed-read compliance, source-order fidelity, duplicate/early wording risks, generated-image task quality, rendered-output risks, unresolved conflicts, and readiness gates. Run 成片审片 checks before dispatch, after every proposal, before merging proposals into `deck-spec.json`, and before build/import. All gates continue the same `final-reviewer` role state; do not create several independent reviewers with the same display name. Apply the same continuity rule to revision passes for the other four workers. The orchestrator must resolve every 成片审片 finding before continuing; waivers are allowed only for documented tool/capability blockers or explicit user instructions, never for convenience or speed.
-
-## Source intake
-
-1. Enumerate all supplied files and compute hashes.
-2. Resolve the authoritative source with the user if more than one could control content.
-3. Extract text, hierarchy, order, and embedded images.
-4. Render PDFs and inspect their visual hierarchy. A long mind-map PDF often encodes hierarchy through position and connectors that text extraction loses.
-5. Ask the user to choose `细纲` or `粗纲`; never recommend or infer a mode.
-6. Search the workspace for the overall curriculum map and neighboring lessons. Create `curriculum-context.json`; ask only when the course position cannot be discovered.
-7. Record the explicit mode reply in the source map.
+1. Enumerate supplied files and compute hashes.
+2. Resolve the authoritative source with the user if more than one file could control content.
+3. Extract text, hierarchy, order, notes, and embedded images.
+4. For PDFs or exported mind maps, render and visually inspect hierarchy; text order alone is not hierarchy evidence.
+5. Ask the user to choose `细纲` or `粗纲`; never infer the mode.
+6. Search the workspace for the curriculum map and neighboring lessons. Create `curriculum-context.json`; ask only when the course position cannot be discovered.
+7. Record the explicit mode reply in `source-map.json`.
 
 Supported deterministic extraction routes:
 
@@ -81,336 +61,109 @@ Supported deterministic extraction routes:
 
 If scan quality or connectors are unreadable, stop and request a clearer export. Do not guess.
 
-## Content modeling
+## Content Modeling
 
 Create a coverage ledger with one row per included source node:
 
-`source node -> slide number -> treatment -> visual -> status`
+`source node -> source path -> slide number -> visible evidence -> visual treatment -> status`
 
-The ledger must prove content preservation before any optimization or topology supplement. For every slide, `source_node_treatments` must match `source_node_ids` exactly and in order. Each entry points to an exact visible `screen_evidence` phrase from the slide's title, explanation, bullets, caption, or blocks; metadata-only coverage is a QA failure.
+The ledger must prove content preservation before wording optimization, vertical expansion, or visuals:
 
-Use one distinct evidence phrase per distinct source node on the same slide. Do not reuse a slide title, branch label, or generic summary sentence to mark several different source nodes as covered. The first visible occurrence of those evidence phrases must follow source order on the page.
+- `source_node_ids` must match `source_node_treatments` exactly and in order.
+- `screen_evidence` must be an exact visible phrase from the slide title, explanation, bullets, caption, or blocks.
+- Metadata-only coverage is a failure.
+- Distinct source nodes on the same slide need distinct evidence phrases unless the source text itself is identical.
+- Evidence should appear on the page in source order.
 
-For detailed outlines, preserve every sibling enumeration as a visible enumeration. If a source node has four peer children, the learner-facing screen copy must show four peer items in source order, or split the group into consecutive slides with one coverage row per item. Do not combine the last items into a single bullet when that makes a layout renderer drop or visually subordinate them. Do not rely on generated images, speaker notes, or `source_node_treatments` metadata to carry missing enumerated items.
+For hierarchical outlines, record the current source path for every slide group before writing screen copy. In detailed mode, the path and sibling order are the teaching sequence. Do not regroup nodes into a new narrative just because it sounds smoother.
 
-Keep distinctive wording in its source position. If a later source node introduces a phrase, do not use that phrase as an earlier slide title or repeated teaching label unless the source already does so. Use a neutral bridge sentence instead, so optimized teaching flow does not blur the original outline sequence.
+For detailed outlines, preserve sibling enumerations as visible peer items. If a source node has four peer children, the slide must show four peer items in source order or split them into consecutive slides. Do not rely on speaker notes, generated images, or metadata to carry omitted siblings.
 
-Screen copy is the only required teaching layer. It must contain the definitions, explanations, examples, conclusions, and visual interpretation needed for a learner to understand the page without narration. Do not create a separate lecture-notes artifact. `speaker_notes` may be empty or contain only short internal transition reminders.
+Keep distinctive wording in its source position. If a later node introduces a phrase, do not use that phrase as an earlier slide title or label unless the source already repeats it there.
 
-Build `deck-spec.json` with this minimum shape:
+Screen copy is the teaching layer. It must contain the definitions, explanations, examples, conclusions, and visual interpretation needed for a learner to understand the page without narration. `speaker_notes` may be empty or contain only short transition reminders.
 
-```json
-{
-  "course": {
-    "title": "课程标题",
-    "audience": "零基础自媒体创作者",
-    "outline_mode": "detailed",
-    "authoritative_source": "/absolute/path",
-    "template_design_id": "DAHM5fsVEB0",
-    "design_profile": {
-      "profile_source": "default-bundled-template | chosen-canva-template",
-      "template_design_id": "DAHM5fsVEB0",
-      "reference_contact_sheet": "assets/template-reference/template-21-pages-contact-sheet.jpg",
-      "colors": {
-        "dark": "#1C1C1C",
-        "accent": "#FC6736",
-        "light": "#F2EBE3",
-        "neutral": "#FFFFFF",
-        "muted": "#6C6661"
-      },
-      "fonts": {
-        "title": "站酷高端黑",
-        "secondary": "思源黑体 CN Light",
-        "body": "字由点字烈黑",
-        "decorative": "思源黑体 CN Bold"
-      },
-      "layout_rhythm": {
-        "required_modes": ["light", "dark", "accent"],
-        "max_consecutive_same_mode": 4,
-        "max_dominant_family_ratio": 0.6
-      }
-    },
-    "explicit_exclusions": [],
-    "template_page_mapping": [
-      {
-        "slide_number": 1,
-        "template_reference": "page 1 / cover hero-right",
-        "layout_family": "cover",
-        "native_motif": "source page 1 vector star copied from the chosen template after import",
-        "local_ppt_decision": "narrow title column before PPT generation so the motif has a stable right-side anchor"
-      }
-    ],
-    "template_native_element_inventory": [
-      {
-        "source_design_id": "DAHM5fsVEB0",
-        "source_page": 1,
-        "source_element_id": "template-page-1-hero-star",
-        "source_element_type": "vector",
-        "visual_role": "large hero visual anchor",
-        "usable_layout_families": ["cover", "dark hero", "center-anchor"],
-        "reuse_limit": "hero or major transition only"
-      },
-      {
-        "source_design_id": "DAHM5fsVEB0",
-        "source_page": 7,
-        "source_element_id": "template-page-7-side-rail-shape",
-        "source_element_type": "shape",
-        "visual_role": "side rail / small accent",
-        "usable_layout_families": ["image-left-dark", "image-right-dark"],
-        "reuse_limit": "at most a few section pages; do not repeat on every slide"
-      }
-    ],
-    "image_generation_review": {
-      "status": "completed",
-      "source_case_priority": "source-first",
-      "source_case_image_count": 8,
-      "reused_source_slide_numbers": [2, 4, 5, 9],
-      "generated_after_source_review": true,
-      "generated_slide_numbers": [6, 14],
-      "candidates_considered": 4,
-      "generated_bypass_reason": "",
-      "rationale": "source case images are used first where they directly teach the node; generated cases only supplement text-heavy or abstract pages"
-    },
-    "image_generation_tasks": [
-      {
-        "task_id": "imggen-s006-main-case",
-        "slide_number": 6,
-        "source_node_ids": ["n0021"],
-        "teaching_goal": "用一个具体拍摄场景让学员看懂抽象概念",
-        "asset_role": "main-case-illustration",
-        "preferred_route": "gpt-image-2",
-        "prompt": "text-free teaching illustration prompt approved by the director",
-        "negative_prompt": "no Chinese text, no UI labels, no watermark, no decorative abstract symbols",
-        "text_policy": "no_baked_in_text",
-        "reference_inputs": [],
-        "composition_notes": "16:9, leave a clean right-side area for editable labels and captions",
-        "candidate_count": 2,
-        "selection_criteria": "the selected image must make the slide's source node easier to understand at slide size",
-        "fallback_plan": "use an editable before/after diagram if image generation is unavailable",
-        "execution_status": "completed",
-        "selected_asset_path": "assets/generated/imggen-s006-main-case.png"
-      }
-    ],
-    "source_image_coverage": [
-      {
-        "source_image_id": "img001",
-        "status": "used",
-        "slide_numbers": [2],
-        "treatment": "single-case",
-        "reason": "this source case directly demonstrates the slide's teaching point"
-      },
-      {
-        "source_image_id": "img002",
-        "status": "omitted",
-        "slide_numbers": [],
-        "treatment": "omitted-duplicate",
-        "reason": "duplicate of img001 after visual inspection"
-      }
-    ],
-    "page_design_review": {
-      "status": "completed",
-      "reference_method": "selected Canva template contact sheet plus page-design-quality.md",
-      "checked_dimensions": ["title-scale", "alignment", "proximity", "contrast", "image-caption", "contact-sheet"],
-      "contact_sheet_reviewed": true,
-      "issues_fixed": ["removed document-like full-width rules", "converted generic bullets into information groups"],
-      "residual_risk": "course teaching density is higher than the source branding template, so some pages remain more text-led"
-    },
-    "curriculum_context": {
-      "system_name": "自媒体与视频剪辑课程体系",
-      "module": "模块名称",
-      "course_role": "本课负责解决的问题",
-      "prerequisite_lessons": [],
-      "next_lessons": [],
-      "shared_terms": {},
-      "neighbor_topics": [],
-      "excluded_neighbor_topics": []
-    }
-  },
-  "slides": [
-    {
-      "number": 1,
-      "section": "章节",
-      "title": "直接陈述结论的标题",
-      "layout": "cover",
-      "screen": {
-        "explanation": "学员可独立读懂的解释",
-        "bullets": [],
-        "caption": "",
-        "blocks": []
-      },
-      "speaker_notes": "可选内部转场提示；不得承载屏显缺失的关键知识",
-      "visuals": [],
-      "visual_plan": {
-        "teaching_role": "what the visual helps the learner understand",
-        "source_node_id": "n0001",
-        "asset_type": "editable-diagram",
-        "source_image_ids": [],
-        "case_granularity": "not-source-image",
-        "case_grouping_reason": "",
-        "integration": "knowledge-page",
-        "description": "student-facing visual idea",
-        "visual_applicability": "required",
-        "imagegen_priority": "preferred",
-        "imagegen_bypass_reason": "",
-        "generation_route": "",
-        "prompt_brief": "",
-        "text_area_ratio": 0.4,
-        "image_area_ratio": 0.5,
-        "min_source_image_area_ratio": 0.18,
-        "labels_as_slide_text": true,
-        "exception_reason": "",
-        "template_reference": {
-          "page": 7,
-          "layout_features": ["right-side centered visual anchor", "narrow left text column", "high-contrast dark field"],
-          "adaptation": "narrow or wrap the learner-facing text first, then keep the template's visual anchor position and scale"
-        },
-        "layout_variant": "center-anchor",
-        "template_motif": {
-          "kind": "hero-right",
-          "native_element_ref": {
-            "source_design_id": "DAHM5fsVEB0",
-            "source_page": 1,
-            "source_element_id": "template-page-1-hero-star",
-            "source_element_type": "vector",
-            "source_element_role": "large hero visual anchor",
-            "copied_from_existing_template": true
-          },
-          "local_preview_path": "required local raster preview used in the PPTX before Canva import",
-          "reference_template_page": 1,
-          "placement_basis": "follow the template's large right-side centered motif; narrow the text column and wrap the title instead of pushing the motif into a corner",
-          "replaces_modules": ["cover-orange", "cover-focus"],
-          "local_ppt_layout": {
-            "coordinate_space": "1280x720",
-            "text_column_width": 560,
-            "title_break_strategy": "manual or deterministic wrap before PPT generation",
-            "motif_box": {"left": 680, "top": 60, "width": 600, "height": 600},
-            "native_canva_scale": 1.5,
-            "protected_zones": [
-              {"name": "title", "left": 72, "top": 140, "width": 560, "height": 190},
-              {"name": "explanation", "left": 72, "top": 360, "width": 560, "height": 170},
-              {"name": "footer", "left": 72, "top": 684, "width": 360, "height": 24},
-              {"name": "page-number", "left": 1160, "top": 676, "width": 60, "height": 30}
-            ]
-          },
-          "canva_replacement": {
-            "mode": "copy_template_element",
-            "match_strategy": "after Canva import, match the local preview proxy by page index and motif_box position, then remove or replace it",
-            "source_copy_strategy": "copy the recorded existing vector element from the chosen template page and paste it into the imported deck at the recorded scaled box",
-            "fallback": "stop for an accessible duplicate or browser fallback; never replace this with a searched library asset"
-          },
-          "collision_check": {
-            "status": "clear",
-            "notes": "local PPT preview shows the motif does not cover title, explanation, footer, or page number"
-          }
-        }
-      },
-      "source_node_ids": ["n0001"],
-      "source_node_treatments": [
-        {
-          "source_node_id": "n0001",
-          "coverage_status": "preserved",
-          "screen_evidence": "直接陈述结论的标题",
-          "coverage_note": "the original source point is carried into learner-facing copy before any wording optimization"
-        }
-      ],
-      "added_content": [],
-      "scope_check": {"status": "within-branch", "branch_node_id": "n0001"}
-    }
-  ]
-}
-```
+## Deck Spec
+
+`deck-spec.json` is an implementation bridge, not the course design itself. Keep it complete enough for scripts and Canva import, but do not let field completion replace human teaching judgment.
+
+Minimum course fields:
+
+- `course.title`
+- `course.audience`
+- `course.outline_mode`
+- `course.authoritative_source`
+- `course.template_design_id`
+- `course.curriculum_context`
+- `course.template_page_mapping` for long decks
+- `course.template_native_element_inventory` when reusable native template elements are planned or required
+- `course.image_generation_review`
+- `course.source_image_coverage` when source images exist
+- `course.page_design_review` for long decks
+
+Minimum slide fields:
+
+- `number`, `section`, `title`, `layout`
+- `screen.explanation`, `screen.bullets`, `screen.caption`, `screen.blocks`
+- `speaker_notes` only for transition hints
+- `visuals`
+- `visual_plan`
+- `source_node_ids`
+- `source_node_treatments`
+- `added_content`
+- `scope_check`
 
 Allowed layouts: `cover`, `roadmap`, `light`, `dark`, `orange`/`accent`, `image-left`, `image-right`, `image-left-dark`, `image-right-dark`, `image-left-orange`/`image-left-accent`, `image-right-orange`/`image-right-accent`, `comparison`, `table`, `summary`.
 
-`visual_plan.template_motif` is not cover-specific. Use it on any slide that reuses a template-native Canva element or a distinctive template motif. The motif must be planned before PPTX generation:
+## Visuals And Template Use
 
-- choose the motif from `course.template_native_element_inventory`, not from a Canva library search or unrelated design;
-- include `native_element_ref` with selected template design ID, source page, source element ID, element type, role, and `copied_from_existing_template: true`;
-- include a `local_preview_path` so the generated local PPTX/contact sheet previews the final intended position and scale;
-- include `local_ppt_layout` with text column width, title/wrapping decision, a 1280x720 `motif_box`, and `protected_zones` for title, body, captions/teaching blocks, footer, page number, and any main visual that must stay readable;
-- treat the native template element as something to copy/reuse after Canva import at the scaled coordinates, not as a reason to skip local PPT review;
-- set `canva_replacement.mode` to `copy_template_element` for vector/shape/group/native template elements: the local preview proxy must be removed or replaced by the copied template element at the same box. It must never remain underneath an overlaid native asset;
-- list the structural modules or regions the motif replaces. If the motif needs more space, narrow or move text modules in the PPT layout instead of drifting the motif into an arbitrary corner.
-- use multiple distinct template elements across long decks. If every planned motif references the same `source_element_id`, the plan fails even when counts pass.
+Every normal knowledge slide needs a teaching visual or a justified text-only exception. A teaching visual may be a source case image, redrawn source visual, generated text-free case image, editable diagram, or editable table. It must make the current source node easier to understand.
 
-Every slide must include `visual_plan.template_reference`, even when it does not use a native Canva motif:
+Source images are authoritative teaching units:
 
-- `page` or `pages`: the chosen template page, template page family, or bundled reference layout being adapted;
-- `layout_features`: at least two visible features inherited from that reference, such as title scale, image crop, color-field split, centered visual anchor, asymmetric grid, side rail, or caption position;
-- `adaptation`: how the course text and visual evidence were fitted into that composition. If the text is long, describe the text-area change, title wrapping, slide split, or alternate template family chosen before building the PPTX.
+- Account for every non-thumbnail source image as used, redrawn, or omitted with a concrete reason.
+- Use one teachable source case per slide by default.
+- Use two or three source images only for explicit comparisons or source-ordered sequences.
+- Four or more independent source images should be split across pages or rebuilt into a cleaner teaching visual.
 
-Every image-based slide must also declare its source-image granularity before PPT generation:
+Image generation is decided by teaching need, not by quota:
 
-- `visual_plan.source_image_ids`: source image IDs from `source-map.json` used on the slide. Use an empty list for generated images, editable diagrams, tables, cover, or summary slides.
-- `visual_plan.case_granularity`: `single-case`, `explicit-comparison`, `multi-case-sequence`, `source-authored-composite`, `redrawn-single`, or `not-source-image`.
-- `visual_plan.case_grouping_reason`: required when a slide uses two or three source image IDs.
-- `visual_plan.image_area_ratio`: required for source-image slides using two or three source image IDs; total image area should normally be `0.45` to `0.72`.
-- `visual_plan.min_source_image_area_ratio`: required for source-image slides using two or three source image IDs; the smallest source image should normally occupy at least `0.12` of the slide.
+- Reuse source cases first when they directly teach the node.
+- Generate text-free case images for abstract, metaphor-heavy, or image-poor branches that become clearer with a concrete scene.
+- Prefer editable diagrams/tables for arrows, process chains, labels, comparisons, and factual grids.
+- Record selected generated pages, bypass reasons, and fallbacks, but do not generate images only to satisfy a count.
+- Workers plan `image_generation_tasks`; the director executes approved tasks and records selected assets.
 
-Slides must not combine more than three independent source image files. Three is a hard maximum, not a target; one teachable source case per slide remains the default.
+Template fidelity is a design requirement, not decoration:
 
-For decks with source case images, create `course.source_image_coverage` before local PPT generation. Account for every non-thumbnail source image exactly once as `used` or `omitted`; do not omit a usable teaching case merely to shorten the deck. If multiple source images support one branch, add slides rather than shrinking them into a collage.
+- Choose a reference template page or page family before building each slide.
+- Use the template's typography scale, alignment axes, color fields, image treatment, and module spacing.
+- Long decks must show real composition variety, not only alternating colors or left/right image positions.
+- Canva-native motifs must come from the selected template or an accessible duplicate. Raster proxies, PPT shapes, random Canva library assets, and unrelated design elements do not count as native template elements.
+- If native motif copying is blocked, record the blocker and stop for an accessible duplicate or browser fallback instead of pretending the proxy is final.
 
-The deck page count is determined by source-node coverage, source-image coverage, learner readability, and the need to explain cases one by one. The selected template page bank is a layout library, not a page-count target. If a 21-page template is selected and the lesson needs 28, 35, or more pages, reuse and adapt the template page families rather than compressing the course back to 21 pages.
+## Authoring Standard
 
-Automated QA enforces source-node density. In detailed mode, a normal knowledge slide may map at most 8 source nodes; in sparse mode, at most 10. The whole deck must also meet the same density limit. If a branch exceeds the limit or lacks visible evidence for each mapped node, split it into more learner pages before improving wording, topology, or visuals.
+- Preserve source order before optimizing transitions.
+- Preserve every source node before adding vertical explanation or examples.
+- Give each knowledge page one clear teaching point. Use enough visible points to preserve the source branch; do not add filler to hit a count.
+- Use comparison/table/two-panel layouts only when the content relationship is real and named in learner-facing labels.
+- Keep pages readable without narration. Notes cannot compensate for missing definitions, examples, evidence, or visual interpretation.
+- Before choosing a layout, check whether the renderer can show every required bullet, block, and enumerated child. Layout caps are not permission to truncate.
+- Generated illustrations must be concrete teaching scenes or examples. Reject decorative abstract graphics, generic icons, or workflow-looking placeholders that do not clarify the node.
 
-For decks longer than 12 pages, every normal knowledge slide must also set `visual_plan.layout_variant` before local PPT generation. This is the actual composition family the builder must render, not a retrospective description. Use concrete values such as `split-image`, `poster-panel`, `wide-case-band`, `center-anchor`, `gallery-strip`, `close-reading`, `index-grid`, `two-panel`, or another short stable family name. The full deck must distribute these variants across the selected template pages so the contact sheet does not collapse into repeated two-column pages.
-
-For decks longer than 12 pages, build a template-page mapping table before PPT generation. The mapping must spread slides across multiple reference pages/page families from the selected template. Do not map most normal knowledge pages to one generic two-column reference. Automated QA rejects long decks with too few distinct template references, a dominant reference family, or long runs of the same reference.
-
-For decks longer than 12 pages, `course.template_page_mapping` and `course.template_native_element_inventory` are required before local PPT generation when the template has reusable native elements. `template_page_mapping` must list every slide, the chosen template reference page/page family, the layout family, any native motif planned for that slide, and the local PPT decision that makes the chosen template composition work. `template_native_element_inventory` must list the existing template elements available for reuse; never invent element IDs after the fact. Do not build the local PPT until these tables exist.
-
-For decks longer than 12 pages, Canva-native template element use is mandatory when the selected template contains reusable native motifs or structural assets. Plan these in `visual_plan.template_motif` before local PPT generation; use local raster preview proxies only to verify position, scale, collision, and contact-sheet rhythm. After Canva import, copy/reuse the recorded existing template elements using the recorded `copy_template_element` route. A long deck that uses only generic PPT shapes/images and no planned native template motif fails QA. Placeholder IDs, arbitrary Canva library asset IDs, non-template design IDs, and a single repeated motif source are not valid final motif plans.
-
-Always run an image-generation review before local PPT generation. Source images remain the first choice for nodes they directly teach, and this priority must be recorded in `course.image_generation_review.source_case_priority: "source-first"` with `reused_source_slide_numbers` when usable source cases exist. In source-rich decks, first preserve and account for the source images; then review the remaining text-heavy or abstract pages that have no source image. Add generated teaching cases only where those pages need a richer visual example. Do not generate images merely to satisfy a count. If source images and editable diagrams already cover the teaching need, `generated_slide_numbers` may be an empty list only when `generated_bypass_reason` explains the decision concretely. If the deck is image-poor, generated teaching images are a primary build input rather than a small supplement. Image-poor means no usable non-thumbnail case images, too few case images for the number of normal knowledge slides, or a detailed outline with high text density but low case-image coverage. In those cases, generate concrete text-free teaching images for metaphor-heavy and abstract pages unless image generation is unavailable; use editable diagrams only when the visual is mainly arrows, labels, comparisons, or tables. Record `generated_after_source_review: true`, generated candidate counts, selected slide numbers, bypass reason, or fallback slide numbers before building. When workers are used, the 视觉分镜师 proposes `course.image_generation_tasks` only for approved generated pages; the 总导演 executes the approved tasks, saves selected assets into the course asset folder, records `execution_status`, `selected_asset_path`, or fallback details, and only then builds the PPTX.
-
-For sparse mode, every `added_content` item must contain:
-
-```json
-{
-  "text": "新增教学细则",
-  "source_node_id": "n0012",
-  "kind": "definition",
-  "relevance": "direct",
-  "evidence_urls": ["https://official.example/source"]
-}
-```
-
-Allowed kinds: `definition`, `cause`, `relationship`, `example`, `misconception`, `boundary`. Any item marked `adjacent`, `low`, or `out-of-scope` must be removed.
-
-## Authoring and visuals
-
-- Preserve source order before optimizing narrative transitions.
-- Preserve every original source node before adding optimization, topology bridges, examples, or visuals. `source_node_treatments.screen_evidence` must be text the learner can actually see in both `deck-spec.json` and the built PPTX slide.
-- Before choosing a layout, check whether the layout renderer can show all required bullets, blocks, and enumerated child nodes. Layout-specific point caps are not a license to truncate; choose a different layout or split the slide.
-- Align the deck with the overall curriculum role, prerequisites, shared terminology, and downstream lessons.
-- Keep neighboring lessons' primary teaching tasks out of this deck; record a handoff instead of duplicating them.
-- Give each knowledge slide one explanation paragraph and usually 3-5 concrete points.
-- Keep every page readable without narration. Optional notes are internal delivery reminders only and cannot compensate for missing screen knowledge.
-- Read `visual-system.md` before visual work.
-- Build a visual plan per knowledge slide; do not create a separate learner-facing page that only lists future case images.
-- Use embedded source visuals before generating replacements.
-- Redraw source visuals only to improve readability; preserve their teaching logic.
-- Run the image-generation review even when the outline already includes many source case images. Use source images where they directly teach the node, but generate a few extra case illustrations for text-heavy or abstract pages that need a more direct visual bridge.
-- Generate illustrations without baked-in text. Add labels as editable slide text.
-- Every knowledge branch that can use a case image or demonstration image should have one. Prefer `gpt-image-2` for rich bitmap case illustrations; use built-in `imagegen` only when GPT Image 2 is unavailable or explicitly requested. If the visual is a simple relationship, process, table, or label-heavy diagram, use editable PPTX/Canva shapes and record why raster generation was bypassed.
-- On illustrated knowledge pages, keep text around 40% and visual content around 50%; split content into more slides when the text cannot fit cleanly.
-- Every source screenshot or generated diagram must have learner-facing interpretation in the same slide's caption or nearby body text.
-- Generated illustrations must be concrete teaching scenes or examples. Reject abstract geometric placeholders, generic icons, or decorative workflow-looking images that do not make the slide's knowledge point clearer.
-
-## Build and delivery
+## Build And Delivery
 
 1. Run the content audit before building.
-2. Build the PPTX and export per-slide PNG and layout JSON.
+2. Build the PPTX and export per-slide PNG plus layout JSON.
    - Pass the external scratch directory as `--workspace`.
-   - The workspace may provide its own `package.json` and `node_modules`; otherwise `build_deck.mjs` falls back to Codex's bundled primary runtime for `@oai/artifact-tool`.
-   - If neither route can resolve `@oai/artifact-tool`, stop and initialize an isolated scratch Node workspace instead of changing the user's project dependencies.
+   - If `@oai/artifact-tool` cannot resolve from scratch or bundled runtime, stop and initialize an isolated scratch Node workspace instead of changing the user's project dependencies.
 3. Inspect the montage and every flagged slide at full size.
-4. Run the final audit against both `deck-spec.json` and the PPTX XML. The PPTX audit must compare every mapped node's `screen_evidence` against the corresponding rendered slide XML, not just page count and forbidden words.
-5. Run the Canva access preflight described in `canva-delivery.md`; do not import if the active connector cannot access the chosen template/reference route.
-6. Import the PPTX into Canva as a new presentation.
-7. Verify page count, all rich text, font mapping, images, and page previews. When Canva rich text is available, spot-check required `screen_evidence` phrases on the corresponding pages, especially enumerations and source examples.
-8. Show one final complete review to the user.
-9. Commit Canva draft edits only after explicit approval.
-10. Re-read the saved design and return its edit link.
+4. Run the final audit against `deck-spec.json`, PPTX XML, and layout JSON.
+5. Fix mechanical errors, then perform the director's learner review.
+6. Run the Canva access preflight from `canva-delivery.md`.
+7. Import the verified PPTX into Canva as a new presentation.
+8. Verify page count, rich text, font mapping, images, page previews, and native motif replacement.
+9. Show one final complete review to the user.
+10. Commit Canva draft edits only after explicit approval.
+11. Re-read the saved design and return its edit link.
