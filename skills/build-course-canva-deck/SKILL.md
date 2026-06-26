@@ -53,7 +53,7 @@ Before dispatching any worker, the director creates a scoped brief in `scratch/a
 - which source excerpts, context files, rendered pages, or template references it may read;
 - the current source path, node scope, mode, and curriculum boundary;
 - the role standards that matter for this pass;
-- any supporting skill the worker may read, and which part of that skill is relevant;
+- any plug-in expert skill the worker may invoke, and which part of that skill is relevant;
 - what concrete evidence the worker must show before the director can trust the proposal;
 - what to report as an open question instead of guessing.
 
@@ -63,7 +63,7 @@ Worker proposals must include a `self_check` section, but it is not a checkbox r
 
 Use workers to reduce context piling, not to make the process more mechanical. Each worker returns a compact expert handoff that downstream roles can trust without rereading broad context: 课程统筹师 gives a boundary card, 原稿场记 gives the source-order spine, 课堂编剧 gives the zero-basis teaching script spine, and 视觉分镜师 gives the visual-understanding map. The director passes these handoffs, not every upstream file, unless a worker explicitly requests more context.
 
-Supporting presentation/design/Canva skills may be used only under the director's route. They are references for style, PPTX mechanics, Canva delivery, or design audit; they cannot replace this skill's source intake, four-role workflow, learner-facing courseware standard, or director acceptance lock.
+Supporting presentation/design/Canva skills are plug-in expert capabilities for the four roles. The director controls the macro route: goal recap, source/order boundary, role scope, allowed expert slots, conflict resolution, durable writes, and final acceptance. Within that boundary, a worker may invoke its authorized expert skill directly and return the expert guidance as part of its proposal. Plug-in experts cannot replace this skill's source intake, four-role workflow, learner-facing courseware standard, or director acceptance lock.
 
 The director's review is simple and human-facing:
 

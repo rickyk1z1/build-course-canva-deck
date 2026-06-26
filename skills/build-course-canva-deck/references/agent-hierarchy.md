@@ -112,7 +112,7 @@ When any one standard fails, the director reviews the whole chain that produced 
 
 The director must not create a standalone reviewer role. Mechanical scripts are guards, not approval.
 
-Supporting skill routing is also director-owned. The director may authorize a worker to read a specific supporting skill only when that skill directly improves the worker's current proposal. The authorization must name the skill, allowed files, and expected output. Workers must not independently browse or combine broad skill ecosystems.
+Plug-in expert routing is macro-controlled by the director and locally executed by the relevant role. The director may authorize a worker to invoke a specific expert skill only when that skill directly improves the worker's current proposal. The authorization must name the skill, allowed files or sections, task question, hard boundaries, and expected output. Workers may use authorized expert skills directly, but must not independently browse or combine broad skill ecosystems.
 
 ## 课程统筹师
 
@@ -129,7 +129,7 @@ Default forbidden reads:
 
 - full raw source file, unless the brief says the lesson identity cannot be determined from extracted summaries
 - template references, visual-system references, PPTX outputs, and Canva designs
-- external design, presentation, or Canva skills unless the director explicitly asks for a boundary-only check
+- plug-in expert skills unless the director explicitly opens a boundary-only expert slot
 - slide copy proposals or visual proposals
 
 Output:
@@ -170,7 +170,7 @@ Default forbidden reads:
 
 - neighboring course files beyond the approved boundary summary
 - design-system, page-design, template bank, Canva designs, and unrelated references
-- external design, presentation, or Canva skills
+- plug-in expert skills
 - screen copy or visual proposals that would bias source-order planning
 
 Output:
@@ -210,7 +210,7 @@ Default allowed reads:
 - `scratch/slide-plan.proposal.json` after director review
 - director-provided source-node excerpts and evidence ledger for the assigned node scope
 - `content-policy.md`
-- director-authorized excerpts from `presentations:Presentations` only for storytelling flow, density, font-size, and readable-slide standards when needed
+- director-authorized `presentations:Presentations` expert slot only for storytelling flow, density, font-size, and readable-slide standards when needed
 
 Default forbidden reads:
 
@@ -258,7 +258,7 @@ Default allowed reads:
 - director-approved slide plan and, for final visual passes, approved screen copy
 - source image inventory, selected rendered source images, and generated-image review notes listed in the brief
 - selected template profile, prebuilt template-native element inventory, selected template reference pages, and only the visual/design/page-quality references listed in the brief
-- director-authorized supporting skill references:
+- director-authorized plug-in expert slots:
   - `awesome-design-md` for visual tokens, spacing, composition, and style language when a matching design direction is selected;
   - `presentations:Presentations` for layout-library inspiration, overlap/font-size discipline, and rendered-slide QA rules;
   - `baoyu-slide-deck` for educational slide-image style vocabulary and prompt patterns only;
@@ -292,7 +292,7 @@ Must include:
 - layout capacity checks showing every required bullet, block, and enumeration can render
 - split recommendations when a layout cannot fit the source content
 - layout rhythm plan for long decks
-- any supporting-skill guidance used, with the kept design rule and rejected parts that would violate source order, template fit, editability, or learner clarity
+- any plug-in expert guidance used, with the kept design rule and rejected parts that would violate source order, template fit, editability, or learner clarity
 - `self_check`
 - any `context_request` for missing template inventory, image dimensions, or motif collision risks
 

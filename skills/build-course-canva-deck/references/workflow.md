@@ -50,25 +50,19 @@ Fix the earliest responsible stage, rebuild the affected deck, and re-run the fu
 
 ## Specialist Skill Routing
 
-This skill is the main route for course decks. Other design, presentation, and Canva skills may support it, but they must not replace the source-order contract, the four-role workflow, or the director acceptance lock. Use them as bounded references that produce design inputs for this workflow, not as alternate deck generators.
+This skill is the main route for course decks. Other design, presentation, and Canva skills are plug-in experts attached to roles, not alternate deck generators. The main route controls the macro layer: user requirement recap, source/order contract, curriculum boundary, role scope, allowed expert slots, durable writes, conflict resolution, and final acceptance.
 
-The director decides whether to use a supporting skill and passes only the relevant distilled result to workers:
+The director does not need to pre-digest every expert skill for workers. Instead, the director grants a role a narrow expert slot in its brief: skill name, allowed files or sections, task question, output shape, and hard boundaries. The role may then read/invoke that expert skill directly and must return what it kept or rejected in its proposal. No worker may expand beyond the authorized expert slot.
 
-- `presentations:Presentations`: director may use it for artifact-tool/PPTX implementation patterns, font-size/overlap discipline, rendered-slide QA, and layout-library inspiration when no stronger user/template reference exists. It must not override the selected Canva template or course source order.
-- `awesome-design-md`: director or 视觉分镜师 may use it only when the user asks for a specific visual direction or the selected template needs additional design-language interpretation. Read at most one or two relevant `DESIGN.md` files and translate them into `template_style_atlas`, spacing, typography, color, and thumbnail-pattern guidance.
-- `canva:canva-branded-presentation`: director may use it for Canva brand-kit discovery, Canva-specific presentation planning conventions, and final editable Canva delivery considerations. Do not use its candidate-generation flow to bypass this skill's source intake, worker proposals, local PPTX verification, or final approval.
-- `baoyu-slide-deck`: 视觉分镜师 may use it as a visual-style and slide-image prompt reference for raster-heavy inspirations, especially education/explainer style vocabulary. Do not use it to create the final deck because this course workflow requires editable PPTX/Canva pages and source-node coverage.
-- `product-design:audit`: director may use it after local render or Canva preview when the deck should be reviewed as a multi-step learner experience. Its findings are evidence for director review, not a separate approval role.
-- `find-skills`: director may use it only to discover a missing specialist skill when the current installed set cannot cover a specific design, presentation, or delivery need. Installing new skills still requires the normal user approval path.
+Role-level plug-in expert map:
 
-Role-level limits:
+- 课程统筹师: normally no design/PPT/Canva plug-ins. Its expertise is curriculum placement and neighboring-course boundary. If needed, `find-skills` may be director-only to locate a curriculum/domain skill, but installation or use requires explicit routing.
+- 原稿场记: normally no design/PPT/Canva plug-ins. Its expertise is source fidelity, hierarchy, sibling order, examples, and source images.
+- 课堂编剧: may plug in `presentations:Presentations` for storytelling flow, slide density, readable text, title/subtitle hierarchy, and avoiding narration-only pages. It must not use any presentation skill to invent content, skip source nodes, or reorder the source.
+- 视觉分镜师: may plug in `awesome-design-md` for visual tokens, spacing, composition, and design-language interpretation; `presentations:Presentations` for layout-library inspiration, font-size/overlap discipline, and rendered-slide QA; and `baoyu-slide-deck` for educational visual-style vocabulary and raster image prompt patterns. These plug-ins inform `template_style_atlas`, `template_page_mapping`, `rendered_pattern`, visual rhythm, and `image_generation_tasks`; they do not create the final deck.
+- 总导演: may plug in `canva:canva-branded-presentation` for Canva brand-kit/delivery conventions without using its candidate-generation flow; `product-design:audit` for post-render or Canva-preview learner-experience review; and `find-skills` when a missing specialist capability is genuinely needed.
 
-- 课程统筹师 and 原稿场记 normally do not use external design/PPT skills; their job is curriculum boundary and source fidelity.
-- 课堂编剧 may reference `presentations:Presentations` only for storytelling flow, slide density, and readable presentation standards; it must not use design skills to invent content or reorder the source.
-- 视觉分镜师 may reference `awesome-design-md`, `baoyu-slide-deck`, and selected `presentations:Presentations` layout guidance when planning template families, visual rhythm, `rendered_pattern`, and image prompts.
-- 总导演 is the only role that may decide cross-skill routing, merge external-skill outputs into durable files, or use Canva/product-audit skills for delivery/review.
-
-Every supporting-skill use must leave a short note in the relevant proposal or durable review field: skill name, why it was used, what concrete guidance was kept, and what was rejected because it would violate the course source, template, or learner-facing standard.
+Every plug-in expert use must leave a short note in the relevant proposal or durable review field: role, skill name, why it was used, what concrete guidance was kept, and what was rejected because it would violate source order, template fit, editability, or learner clarity.
 
 Visual planning is staged:
 
