@@ -190,6 +190,19 @@ def template_reference_key(slide: dict[str, Any]) -> str:
     return str(value or "").strip()
 
 
+def template_style_family_key(slide: dict[str, Any]) -> str:
+    visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+    reference = visual_plan.get("template_reference") if isinstance(visual_plan.get("template_reference"), dict) else {}
+    value = (
+        visual_plan.get("template_style_family")
+        or visual_plan.get("style_family")
+        or reference.get("style_family")
+        or reference.get("structure_family")
+        or reference.get("family")
+    )
+    return str(value or "").strip()
+
+
 def composition_variant_key(slide: dict[str, Any]) -> str:
     visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
     value = visual_plan.get("layout_variant") or visual_plan.get("composition_variant")
@@ -228,6 +241,40 @@ def is_generic_block_label(value: Any) -> bool:
     if label in GENERIC_BLOCK_LABELS:
         return True
     return bool(re.fullmatch(r"(对比|结构顺序|方案|要点|重点|模块|路径|顺序)[a-bａ-ｂ]?", label))
+
+
+def generation_attempt_has_evidence(review: Any, key: str) -> bool:
+    if not isinstance(review, dict):
+        return False
+    attempts = review.get(key)
+    if not isinstance(attempts, list) or not attempts:
+        return False
+    for attempt in attempts:
+        if not isinstance(attempt, dict):
+            continue
+        status = str(attempt.get("status", "")).strip()
+        slide_numbers = attempt.get("slide_numbers")
+        if status not in {"success", "failed", "partial"}:
+            continue
+        if not isinstance(slide_numbers, list) or not slide_numbers:
+            continue
+        if status == "success" and str(attempt.get("asset_dir", "")).strip():
+            return True
+        if status in {"failed", "partial"} and len(str(attempt.get("error_layer", "")).strip()) >= 3:
+            return True
+    return False
+
+
+def has_generation_route_chain_evidence(review: Any) -> bool:
+    if not isinstance(review, dict):
+        return False
+    if not generation_attempt_has_evidence(review, "gpt_image_2_attempts"):
+        return False
+    gpt_attempts = review.get("gpt_image_2_attempts") or []
+    gpt_success = any(isinstance(item, dict) and item.get("status") == "success" for item in gpt_attempts)
+    if gpt_success:
+        return True
+    return generation_attempt_has_evidence(review, "imagegen_attempts")
 
 
 def ancestors_for(node_id: str, parent_by_id: dict[str, str | None]) -> list[str]:
@@ -380,6 +427,37 @@ def main() -> int:
                 f"of {source_density_limit} source nodes per slide"
             )
     if len(normal_knowledge) > 12:
+        template_style_atlas = course.get("template_style_atlas")
+        atlas_ids: set[str] = set()
+        if not isinstance(template_style_atlas, list) or len(template_style_atlas) < 3:
+            errors.append(
+                "long decks must create course.template_style_atlas with multiple template "
+                "structure families before slide-level mapping"
+            )
+        else:
+            for item in template_style_atlas:
+                if not isinstance(item, dict):
+                    errors.append("course.template_style_atlas entries must be objects")
+                    continue
+                atlas_id = str(item.get("id") or item.get("style_family") or "").strip()
+                if not atlas_id:
+                    errors.append("course.template_style_atlas entries must include id or style_family")
+                    continue
+                if atlas_id in atlas_ids:
+                    errors.append(f"course.template_style_atlas repeats style family {atlas_id}")
+                atlas_ids.add(atlas_id)
+                source_pages = item.get("source_template_pages")
+                if not isinstance(source_pages, list) or not source_pages:
+                    errors.append(f"template style family {atlas_id} must list source_template_pages")
+                if len(str(item.get("geometry", "")).strip()) < 8:
+                    errors.append(f"template style family {atlas_id} must describe geometry")
+                if len(str(item.get("best_for", "")).strip()) < 8:
+                    errors.append(f"template style family {atlas_id} must describe best_for content")
+                if len(str(item.get("capacity_limits", "")).strip()) < 8:
+                    errors.append(f"template style family {atlas_id} must describe capacity_limits")
+                renderer_layouts = item.get("renderer_layouts")
+                if not isinstance(renderer_layouts, list) or not renderer_layouts:
+                    errors.append(f"template style family {atlas_id} must list renderer_layouts that can produce it")
         template_page_mapping = course.get("template_page_mapping")
         if not isinstance(template_page_mapping, list) or len(template_page_mapping) != len(slides):
             errors.append(
@@ -390,16 +468,44 @@ def main() -> int:
             mapped_slide_numbers = [item.get("slide_number") for item in template_page_mapping if isinstance(item, dict)]
             if mapped_slide_numbers != actual_numbers:
                 errors.append("course.template_page_mapping slide_number values must match deck slide order")
+            mapping_missing_template_reference = 0
+            mapping_missing_layout_family = 0
+            mapping_missing_style_family = 0
+            mapping_unknown_style_families: set[str] = set()
+            mapping_missing_content_fit = 0
+            mapping_missing_decision = 0
             for item in template_page_mapping:
                 if not isinstance(item, dict):
                     errors.append("course.template_page_mapping entries must be objects")
                     continue
                 if not str(item.get("template_reference", "")).strip():
-                    errors.append("course.template_page_mapping entries must include template_reference")
+                    mapping_missing_template_reference += 1
                 if not str(item.get("layout_family", "")).strip():
-                    errors.append("course.template_page_mapping entries must include layout_family")
+                    mapping_missing_layout_family += 1
+                style_family = str(item.get("template_style_family") or item.get("style_family") or "").strip()
+                if not style_family:
+                    mapping_missing_style_family += 1
+                elif atlas_ids and style_family not in atlas_ids:
+                    mapping_unknown_style_families.add(style_family)
+                if len(str(item.get("content_fit_reason", "")).strip()) < 20:
+                    mapping_missing_content_fit += 1
                 if len(str(item.get("local_ppt_decision", "")).strip()) < 20:
-                    errors.append("course.template_page_mapping entries must include a concrete local_ppt_decision")
+                    mapping_missing_decision += 1
+            if mapping_missing_template_reference:
+                errors.append(f"course.template_page_mapping has {mapping_missing_template_reference} entries without template_reference")
+            if mapping_missing_layout_family:
+                errors.append(f"course.template_page_mapping has {mapping_missing_layout_family} entries without layout_family")
+            if mapping_missing_style_family:
+                errors.append(f"course.template_page_mapping has {mapping_missing_style_family} entries without template_style_family")
+            if mapping_unknown_style_families:
+                errors.append(
+                    "course.template_page_mapping references style families not in course.template_style_atlas: "
+                    + ", ".join(sorted(mapping_unknown_style_families)[:12])
+                )
+            if mapping_missing_content_fit:
+                errors.append(f"course.template_page_mapping has {mapping_missing_content_fit} entries without a concrete content_fit_reason")
+            if mapping_missing_decision:
+                errors.append(f"course.template_page_mapping has {mapping_missing_decision} entries without a concrete local_ppt_decision")
         template_native_element_inventory = course.get("template_native_element_inventory")
         native_reuse_status = course.get("template_native_reuse_status")
         native_reuse_state = ""
@@ -415,6 +521,16 @@ def main() -> int:
             if native_reuse_state != "blocked-no-atomic-copy" and mentions_whole_template_page_copy(native_reuse_status):
                 errors.append(
                     "course.template_native_reuse_status must not plan or normalize whole-template-page copying"
+                )
+            if (
+                str(course.get("template_design_id", "")).strip() == "DAHM5fsVEB0"
+                and native_reuse_state == "blocked-no-atomic-copy"
+                and course.get("native_template_fallback_approved_by_user") is not True
+            ):
+                errors.append(
+                    "default template signature native motifs are blocked-no-atomic-copy; "
+                    "use an accessible duplicate/browser fallback or record explicit user approval "
+                    "before delivering a non-native template fallback"
                 )
         inventory_keys: set[str] = set()
         if not isinstance(template_native_element_inventory, list) or not template_native_element_inventory:
@@ -499,21 +615,56 @@ def main() -> int:
         if nonempty_refs:
             ref_counts = {ref: nonempty_refs.count(ref) for ref in distinct_refs}
             dominant_ref, dominant_ref_count = max(ref_counts.items(), key=lambda item: item[1])
-            if dominant_ref_count / len(normal_knowledge) > 0.70:
+            if dominant_ref_count / len(normal_knowledge) > 0.45:
                 errors.append(
                     f"template reference variety is too repetitive: {dominant_ref} covers "
                     f"{dominant_ref_count}/{len(normal_knowledge)} normal knowledge slides"
                 )
-            elif dominant_ref_count / len(normal_knowledge) > 0.40:
+            elif dominant_ref_count / len(normal_knowledge) > 0.35:
                 warnings.append(
                     f"template reference variety may be repetitive: {dominant_ref} covers "
                     f"{dominant_ref_count}/{len(normal_knowledge)} normal knowledge slides"
                 )
             run_ref, run_ref_count = max_run(nonempty_refs)
-            if run_ref_count > 5:
+            if run_ref_count > 2:
                 errors.append(f"template reference variety has {run_ref_count} consecutive pages based on {run_ref}")
-            elif run_ref_count > 3:
+            elif run_ref_count > 1:
                 warnings.append(f"template reference variety has {run_ref_count} consecutive pages based on {run_ref}")
+        style_families = [template_style_family_key(slide) for slide in normal_knowledge]
+        missing_style_families = [
+            str(slide.get("number"))
+            for slide, style_family in zip(normal_knowledge, style_families)
+            if not style_family
+        ]
+        if missing_style_families:
+            errors.append(
+                "long decks must record visual_plan.template_style_family or "
+                "visual_plan.template_reference.style_family for every normal knowledge slide; "
+                f"missing slides: {', '.join(missing_style_families[:12])}"
+            )
+        else:
+            distinct_style_families = set(style_families)
+            if len(distinct_style_families) < 3:
+                errors.append(
+                    f"template style variety is too low: uses {len(distinct_style_families)} "
+                    f"style families across {len(normal_knowledge)} normal knowledge slides"
+                )
+            if atlas_ids and not distinct_style_families.issubset(atlas_ids):
+                unknown = sorted(distinct_style_families - atlas_ids)
+                errors.append(
+                    "slides reference template style families not listed in course.template_style_atlas: "
+                    + ", ".join(unknown[:12])
+                )
+            style_counts = {style: style_families.count(style) for style in distinct_style_families}
+            dominant_style, dominant_style_count = max(style_counts.items(), key=lambda item: item[1])
+            if dominant_style_count / len(normal_knowledge) > 0.40:
+                errors.append(
+                    f"template style variety is too repetitive: {dominant_style} covers "
+                    f"{dominant_style_count}/{len(normal_knowledge)} normal knowledge slides"
+                )
+            run_style, run_style_count = max_run(style_families)
+            if run_style_count > 2:
+                errors.append(f"template style variety has {run_style_count} consecutive pages using {run_style}")
         variants = [composition_variant_key(slide) for slide in normal_knowledge]
         missing_variants = [
             str(slide.get("number"))
@@ -541,20 +692,20 @@ def main() -> int:
                 )
             variant_counts = {variant: variants.count(variant) for variant in distinct_variants}
             dominant_variant, dominant_variant_count = max(variant_counts.items(), key=lambda item: item[1])
-            if dominant_variant_count / len(normal_knowledge) > 0.65:
+            if dominant_variant_count / len(normal_knowledge) > 0.40:
                 errors.append(
                     f"composition variety is too repetitive: {dominant_variant} covers "
                     f"{dominant_variant_count}/{len(normal_knowledge)} normal knowledge slides"
                 )
-            elif dominant_variant_count / len(normal_knowledge) > 0.35:
+            elif dominant_variant_count / len(normal_knowledge) > 0.32:
                 warnings.append(
                     f"composition variety may be repetitive: {dominant_variant} covers "
                     f"{dominant_variant_count}/{len(normal_knowledge)} normal knowledge slides"
                 )
             run_variant, run_variant_count = max_run(variants)
-            if run_variant_count > 5:
+            if run_variant_count > 2:
                 errors.append(f"composition variety has {run_variant_count} consecutive pages using {run_variant}")
-            elif run_variant_count > 2:
+            elif run_variant_count > 1:
                 warnings.append(f"composition variety has {run_variant_count} consecutive pages using {run_variant}")
             clusters = [structural_cluster(slide) for slide in normal_knowledge]
             for start in range(0, max(0, len(clusters) - 8)):
@@ -626,6 +777,41 @@ def main() -> int:
                     errors.append(
                         f"Canva-native template motif use has {run_motif_count} consecutive motif placements "
                         f"from the same template element {run_motif_key}"
+                    )
+        image_generation_tasks = course.get("image_generation_tasks")
+        planned_generated_slides = [
+            slide for slide in slides
+            if (slide.get("visual_plan") or {}).get("asset_type") == "generated-image"
+        ]
+        if planned_generated_slides:
+            if not isinstance(image_generation_tasks, list) or not image_generation_tasks:
+                errors.append("generated-image slides require course.image_generation_tasks before local PPT generation")
+            else:
+                generated_numbers = {
+                    int(slide.get("number"))
+                    for slide in planned_generated_slides
+                    if isinstance(slide.get("number"), int)
+                }
+                task_numbers = {
+                    int(task.get("slide_number"))
+                    for task in image_generation_tasks
+                    if isinstance(task, dict) and isinstance(task.get("slide_number"), int)
+                }
+                missing_tasks = sorted(generated_numbers - task_numbers)
+                if missing_tasks:
+                    errors.append(
+                        "course.image_generation_tasks missing generated-image slides: "
+                        + ", ".join(str(number) for number in missing_tasks[:12])
+                    )
+                task_routes = {
+                    str(task.get("generation_route") or task.get("route") or "").strip()
+                    for task in image_generation_tasks
+                    if isinstance(task, dict)
+                }
+                if "gpt-image-2" not in task_routes and not has_generation_route_chain_evidence(course.get("image_generation_review")):
+                    errors.append(
+                        "generated teaching images must follow the gpt-image-2 -> imagegen -> fallback route "
+                        "or record concrete route-by-route failure evidence before using local fallbacks"
                     )
         source_image_rich_threshold = max(6, (len(normal_knowledge) + 2) // 3)
         if len(source_images) >= source_image_rich_threshold:

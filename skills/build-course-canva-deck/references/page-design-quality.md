@@ -16,9 +16,24 @@ For the default `DAHM5fsVEB0` template, the target feel is:
 - no generic horizontal rule across every page;
 - no long black caption bars unless the reference template page actually uses that module.
 
+## Template Style Atlas
+
+Before building each slide in a long deck, make a small atlas of the selected template's structure families. The atlas should capture the template's ideas, not just page numbers:
+
+- title axis and title scale;
+- major color-field structure;
+- image or evidence slot;
+- information-module shape;
+- content density;
+- best-fit content types;
+- capacity limits and split triggers;
+- local renderer layouts that can actually reproduce the geometry.
+
+Then choose a style family for each slide. A page may adapt ideas from several template pages, but it must still look like it belongs to the same template language.
+
 ## Locked Reference Layout
 
-Before building each slide, choose a reference template page or page family and a real `visual_plan.layout_variant`.
+Before building each slide, choose a template style family plus a reference template page or page family and a real `visual_plan.layout_variant`.
 
 Do not invent a freeform page because the content is hard to fit. First try:
 
@@ -28,7 +43,7 @@ Do not invent a freeform page because the content is hard to fit. First try:
 - pick a closer reference page family;
 - move non-essential production reminders out of the learner page.
 
-`visual_plan.layout_variant` must be rendered into visible geometry. It is not a tag for reporting after the fact.
+`visual_plan.layout_variant` must be rendered into visible geometry. It is not a tag for reporting after the fact. If the current `layout` renderer cannot produce the planned geometry, choose another `layout` or change the visual plan before build.
 
 ## Typography Discipline
 
@@ -107,7 +122,9 @@ A passing contact sheet must show:
 
 - title scale and placement close to the reference template language;
 - real layout variety without collapsing into repeated two-column pages;
-- no long run that keeps the same thumbnail geometry while only changing color, left/right position, or layout names;
+- no run of three or more knowledge pages that keeps the same thumbnail geometry while only changing color, left/right position, or layout names;
+- no repeated fallback to one dense index/table page family for unrelated teaching nodes;
+- visible use of several template structure families, not only one "safe" information-block structure;
 - body copy visibly secondary to title and image evidence;
 - aligned modules and stable margins;
 - captions close to images;

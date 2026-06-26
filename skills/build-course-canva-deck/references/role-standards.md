@@ -98,14 +98,16 @@ Self-check evidence:
 - `visual_teaches_node`: state what each visual makes easier to understand, not only its asset type.
 - `layout_capacity`: name slides that need splitting, alternate layout, or text reduction before build; never assume the renderer will handle overflow.
 - `meaningful_structure`: quote structured-layout labels and the relationship they express.
-- `rhythm_variety`: identify any long run of similar composition and the intended break in rhythm.
+- `template_style_atlas`: for long decks, list the template structure families being used, their source template pages, best-fit content types, capacity limits, and renderer layouts.
+- `rhythm_variety`: identify any repeated template style family, reference page/family, `layout_variant`, or thumbnail geometry; three adjacent pages or a dominant catch-all family must be redesigned before build, not explained away.
 - `source_image_priority`: list source case images reused before generated substitutes.
 - `native_template_source`: every planned native motif references an item from `course.template_native_element_inventory`; if atomic copying is unavailable, record the blocker instead of inventing inventory.
-- `native_not_proxy`: PPT shapes, raster proxies, random Canva assets, unrelated design elements, and duplicated template pages are not counted as template-native elements.
+- `native_not_proxy`: PPT shapes, SVG lookalikes, raster proxies, random Canva assets, generated textures, unrelated design elements, and duplicated template pages are not counted as template-native elements.
 - `no_whole_page_paste`: state that no final course page is created by pasting a full template page; if the tool only offers whole-page duplication, native motif reuse is blocked for that run.
+- `signature_motif_transfer`: for templates with signature native motifs, name which motifs are planned as structural modules and how they will be transferred after import; blocked transfer must stop final delivery unless the user explicitly accepts a non-native fallback.
 - `labels_editable`: generated images have no baked-in Chinese/UI labels.
 
-Common failure to prevent: a long middle section that only changes colors while keeping the same composition, abstract comparison boxes that do not compare anything, template-looking elements that are not actually copied from the selected Canva template, and final pages that still contain pasted template-page content.
+Common failure to prevent: a long middle section that only changes colors while keeping the same composition, repeated dense index/table pages used as the default way to fit multiple points, abstract comparison boxes that do not compare anything, template-looking elements that are not actually copied from the selected Canva template, and final pages that still contain pasted template-page content.
 
 ## 总导演 Standards
 
@@ -129,14 +131,15 @@ Before local PPTX build:
 - Coverage matrix proves every included source node is covered exactly once.
 - Slide groups follow source path and sibling order.
 - Every comparison/table/two-panel page has meaningful labels.
-- Every long-deck layout run is intentional and visibly varied in geometry, evidence treatment, and teaching structure, not only color.
-- Every planned native motif references a verified template element inventory item, and no planned operation depends on pasting a whole template page into the final deck.
+- Every long-deck layout run is intentional and visibly varied in geometry, evidence treatment, template reference page/family, and teaching structure, not only color.
+- Every planned native motif references a verified template element inventory item, signature motif transfer is planned when the template depends on it, and no planned operation depends on pasting a whole template page into the final deck.
 
 After local rendering:
 
 - Inspect contact sheet and full-size flagged pages.
 - Fix overlap, clipping, duplicate text, wrong numbering, broken title wrapping, missing images, and repeated layout runs.
 - Read pages as a zero-basis learner: title, explanation, blocks, caption, and visual must form one coherent teaching unit. Remove any `本页顺序`-style source evidence, page construction notes, or other backstage copy from the visible slide.
+- Read the deck as an instructor preparing to record: the lesson should follow the source hierarchy, build momentum, use examples at the moment they help, and feel authored rather than assembled from repeated components.
 
 After Canva import:
 

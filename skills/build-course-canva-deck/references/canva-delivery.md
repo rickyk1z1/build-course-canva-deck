@@ -11,16 +11,22 @@
 
 Run this before importing or creating any Canva design:
 
-1. Search/read the chosen template ID from `course.template_design_id` or the user's explicit template link. Use `DAHM5fsVEB0` only when no other template is selected.
-2. Search/read the accepted reference design `DAHNU2_rPtU` when available.
-3. Record the result in `canva-access.json`:
+1. Run Canva connector tool discovery before judging capability:
+   - Search for the exact import/read operations, not only generic Canva words. Include `import_design_from_url`, `design_file`, `PPTX`, `presentation`, `get_design`, `get_design_pages`, and `get_design_content` in the discovery query.
+   - If the first search does not expose an import tool, run one targeted second search for `Canva import_design_from_url design_file PPTX presentation`. Do not declare Canva import unavailable after a single generic or vague search.
+   - When `_import_design_from_url` is available, use it with `design_file` for the verified local PPTX. Do not stop for browser fallback just because template-native element copy is unavailable.
+   - Record the exact discovery queries and whether `_import_design_from_url`, `_get_design`, `_get_design_pages`, and `_get_design_content` were exposed.
+2. Search/read the chosen template ID from `course.template_design_id` or the user's explicit template link. Use `DAHM5fsVEB0` only when no other template is selected.
+3. Search/read the accepted reference design `DAHNU2_rPtU` when available.
+4. Record the result in `canva-access.json`:
    - active Canva account or workspace if the tool exposes it;
    - accessible template/reference IDs;
+   - import/read tool availability from step 1;
    - chosen template route;
    - connector errors and timestamps.
-4. If the chosen template returns `design not found` but other designs are readable, treat it as a template permission/workspace problem, not as proof the design does not exist.
-5. If the connector returns internal errors such as MCP `-32603`, treat it as a connector/service failure. Retry once after reconnecting; do not repeatedly call the same failing operation.
-6. Do not import or create the final Canva design until one route below is available.
+5. If the chosen template returns `design not found` but other designs are readable, treat it as a template permission/workspace problem, not as proof the design does not exist.
+6. If the connector returns internal errors such as MCP `-32603`, treat it as a connector/service failure. Retry once after reconnecting; do not repeatedly call the same failing operation.
+7. Do not import or create the final Canva design until one route below is available.
 
 Allowed template routes:
 
@@ -39,7 +45,7 @@ After import:
 
 1. Read the new design metadata and confirm page count.
 2. Read all rich text and scan forbidden language.
-3. If any slide uses `visual_plan.template_motif`, execute the native motif replacement plan before visual approval:
+3. If the selected template has signature native motifs or any slide uses `visual_plan.template_motif`, execute the native motif replacement plan before visual approval:
    - use the local PPT `local_preview_path` image only as a local preview proxy;
    - verify each motif's `native_element_ref` points to an existing native vector/shape/group/frame element in the chosen template or accessible duplicate; do not replace this with a Canva library search result or unrelated asset ID;
    - match the imported proxy by page index and `local_ppt_layout.motif_box` position/size;
@@ -48,7 +54,7 @@ After import:
    - use media `update_fill` only for motifs whose recorded template source is actually an image/frame fill; it does not satisfy vector motif reuse;
    - if the connector cannot copy/reuse the native template element, stop for an accessible duplicate or explicit browser fallback rather than substituting a random Canva asset;
    - never leave the proxy image underneath an overlaid native Canva element, and never leave template-placeholder text, logo marks, or unrelated source-page objects in the final course page.
-4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, source template design/page/element ID, element type, local proxy match result, final Canva element result, collision status, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, `non_template_asset`, `overlaps_text`, `repeated_single_element`, `whole_page_paste`, or `blocked` without explicit user approval.
+4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, source template design/page/element ID, element type, local proxy match result, final Canva element result, collision status, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, `non_template_asset`, `overlaps_text`, `repeated_single_element`, `whole_page_paste`, or `blocked` without explicit user approval. A report that only says `blocked-no-atomic-copy` is not a completed template-faithful delivery for templates whose style depends on signature motifs.
 5. Retrieve page previews and inspect the complete deck.
 6. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, motif diversity, no motif/text overlap, no source-tracking/meta copy, no pasted template page residue, and layout consistency.
 7. Apply corrections in one editing transaction when possible.

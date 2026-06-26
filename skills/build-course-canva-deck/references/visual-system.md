@@ -88,11 +88,17 @@ Each image-based slide must record:
 
 ## Image generation capability
 
-Use `gpt-image-2` as the preferred route when a node needs a richer raster case image, such as a realistic object analogy, a textured scene, a before/after visual, or a non-text illustration that would be weak as simple shapes. Use the built-in `imagegen` route only when GPT Image 2 is unavailable, fails, or the user explicitly asks for it.
+Use this route order when a node needs a richer raster case image, such as a realistic object analogy, a textured scene, a before/after visual, or a non-text illustration that would be weak as simple shapes:
+
+1. `gpt-image-2` first.
+2. Built-in `imagegen` only if GPT Image 2 is unavailable, fails, or the user explicitly asks for it.
+3. Local SVG/PPT diagram, redrawn source visual, or other deterministic fallback only if both GPT Image 2 and built-in imagegen are unavailable/failed, or if the director changes the visual decision because an editable diagram teaches better.
 
 An image-generation review is mandatory for every deck, but it is a teaching decision, not a quota.
 
 When workers are used, the 视觉分镜师 owns the planning layer and the 总导演 owns the execution layer. The planning layer is staged: `visual-triage` identifies source-image reuse, visual asset types, generated-image candidates, and capacity risks; `visual-finalize` completes template references, native motifs, layout checks, and only the approved `image_generation_tasks`. Native motif planning may only reference template elements/groups/frames that can be copied atomically; if the current Canva route only supports whole-page duplication, record native reuse as blocked instead of planning a motif. Long decks may be split into contiguous visual-plan parts under the same `storyboard-designer` role state. The 总导演 executes approved tasks, saves selected assets into the course asset folder, records asset paths or fallbacks, and connects the assets to `deck-spec.json`. Workers must not call image-generation tools or save final image assets.
+
+Execution rule: if `course.image_generation_tasks` contains planned generated cases or a slide has `visual_plan.imagegen_priority: "preferred"`, the director must read the `gpt-image-2` skill and attempt GPT Image 2 before local PPTX build. If GPT Image 2 fails, attempt built-in `imagegen` unless it is unavailable in the current environment. Do not replace planned rich case images with local SVG/PPT diagrams merely because deterministic fallback is faster. If both generation routes fail or are unavailable, record route-by-route attempts, command/tool layer, affected slide numbers, and the chosen fallback in `course.image_generation_review`; then use the fallback only where it still teaches the node.
 
 If the outline already contains many case images, inspect and reuse those source cases first wherever they directly teach the current node. Record `source_case_priority: "source-first"` and `reused_source_slide_numbers` in `course.image_generation_review`. After that source-case pass, identify text-heavy or abstract pages that have no source image and would become clearer with a generated teaching case. For source-rich decks, generated pages are required by teaching need, not by a quota: add them when the remaining non-source-image pages need richer visual cases, and skip them when source cases plus editable diagrams already make the deck visually teachable. A deck with no source reuse record or no completed review fails director review; a deck with no generated pages can pass only when `generated_slide_numbers` is an empty list and `generated_bypass_reason` explains why no remaining text-heavy or abstract page needs a generated case.
 
@@ -110,8 +116,9 @@ For image-poor decks:
 - Generate images for source metaphors, physical analogies, before/after misconceptions, and abstract mindset pages where a learner benefits from seeing a concrete scene.
 - Use editable diagrams instead of generated images only for relationship maps, process chains, comparison structures, tables, and label-heavy visuals that must stay fully editable.
 - Do not describe the image-poor plan as "a small number of generated images" unless the deck itself is short and mostly table/process content.
-- Record selected generated slide numbers, concrete bypass reasons, and deterministic fallbacks in `course.image_generation_review` so the decision is understandable before PPT generation.
+- Record selected generated slide numbers, route-by-route attempts, concrete bypass reasons, and deterministic fallbacks in `course.image_generation_review` so the decision is understandable before PPT generation.
 - Record the executable task list in `course.image_generation_tasks` when generated illustrations are planned.
+- SVG/PPT fallback diagrams are acceptable for relationship maps and label-heavy visuals, but they do not replace a planned rich bitmap teaching case unless GPT Image 2 was attempted and failed or the director changes the visual decision with a concrete teaching reason.
 
 Do not force raster generation for visuals that are better as editable instructional graphics:
 

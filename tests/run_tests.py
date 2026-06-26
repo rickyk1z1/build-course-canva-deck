@@ -114,12 +114,71 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     base = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
     course = base["course"]
     course["outline_mode"] = "detailed"
+    course["template_style_atlas"] = [
+        {
+            "id": "hero-cover",
+            "source_template_pages": [1],
+            "geometry": "large dark field with signature hero motif",
+            "best_for": "course opening and section statements",
+            "capacity_limits": "short title and one supporting phrase",
+            "renderer_layouts": ["cover"],
+        },
+        {
+            "id": "image-evidence",
+            "source_template_pages": [6, 9],
+            "geometry": "image slot paired with concise interpretation",
+            "best_for": "source case image or generated teaching case",
+            "capacity_limits": "one image plus three to four points",
+            "renderer_layouts": ["image-right", "image-left-dark", "image-right-dark"],
+        },
+        {
+            "id": "flow-roadmap",
+            "source_template_pages": [2, 5],
+            "geometry": "large color field with grouped route modules",
+            "best_for": "process, sequence, or branch orientation",
+            "capacity_limits": "three to four groups before splitting",
+            "renderer_layouts": ["roadmap"],
+        },
+        {
+            "id": "dense-index",
+            "source_template_pages": [3, 18],
+            "geometry": "compact module grid for occasional enumerations",
+            "best_for": "short sibling list with peer items",
+            "capacity_limits": "two to three columns with short labels",
+            "renderer_layouts": ["table"],
+        },
+        {
+            "id": "comparison-strip",
+            "source_template_pages": [12],
+            "geometry": "two strong fields with meaningful labels",
+            "best_for": "real comparison or before-after contrast",
+            "capacity_limits": "two sides and up to three points per side",
+            "renderer_layouts": ["comparison"],
+        },
+        {
+            "id": "accent-case",
+            "source_template_pages": [8, 10, 14],
+            "geometry": "accent field with structural visual anchor",
+            "best_for": "memorable case, analogy, or transition",
+            "capacity_limits": "one anchor image and short explanation",
+            "renderer_layouts": ["image-left-accent", "image-right-accent"],
+        },
+    ]
+    style_families = [
+        "hero-cover",
+        "image-evidence", "image-evidence", "flow-roadmap", "flow-roadmap",
+        "dense-index", "flow-roadmap", "dense-index", "accent-case",
+        "flow-roadmap", "image-evidence", "flow-roadmap", "dense-index",
+        "comparison-strip", "accent-case", "hero-cover",
+    ]
     course["template_page_mapping"] = [
         {
             "slide_number": number,
             "template_reference": f"page {((number - 1) % 8) + 1}",
+            "template_style_family": style_families[number - 1],
             "layout_family": "cover" if number == 1 else "knowledge",
             "native_motif": "planned" if number in {1, 8, 10, 12} else "none",
+            "content_fit_reason": "当前节点内容关系适合该模板结构家族，能保留讲解重点和视觉节奏。",
             "local_ppt_decision": "按参考模板页先确定文字列宽、视觉区和 motif 位置，再生成本地 PPT。",
         }
         for number in range(1, 17)
@@ -167,8 +226,24 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         "generated_slide_numbers": [6],
         "candidates_considered": 3,
         "generated_bypass_reason": "",
+        "gpt_image_2_attempts": [
+            {
+                "status": "success",
+                "slide_numbers": [6],
+                "asset_dir": "assets/generated",
+                "notes": "fixture records successful GPT Image 2 generation before PPT build",
+            }
+        ],
         "rationale": "源图充足但仍补一张文字较多页面的教学案例图。",
     }
+    course["image_generation_tasks"] = [
+        {
+            "slide_number": 6,
+            "generation_route": "gpt-image-2",
+            "status": "success",
+            "final_asset_path": "assets/generated/case.png",
+        }
+    ]
     course["source_image_coverage"] = [
         {
             "source_image_id": f"img{number:03d}",
@@ -225,9 +300,11 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         slide["visual_plan"]["source_node_id"] = node_id
         slide["visual_plan"]["template_reference"] = {
             "page": ((index - 1) % 8) + 1,
+            "style_family": style_families[index - 1],
             "layout_features": ["varied template page family", "stable visual/text relationship"],
             "adaptation": "根据参考模板页调整图文区域、标题宽度和信息块位置后再生成本地 PPT。",
         }
+        slide["visual_plan"]["template_style_family"] = style_families[index - 1]
         slide["visual_plan"]["layout_variant"] = variants[index - 2]
         if index in {2, 3, 4}:
             slide["layout"] = "image-right" if index % 2 == 0 else "image-left-dark"
@@ -257,6 +334,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     summary = json.loads(json.dumps(base["slides"][-1], ensure_ascii=False))
     summary["number"] = 16
     summary["title"] = "节点 16 的总结式标题"
+    summary["layout"] = "summary"
     summary["source_node_ids"] = ["n0016"]
     summary["source_node_treatments"] = [source_treatment("n0016", summary["title"], status="clarified")]
     summary["scope_check"] = {"status": "within-branch", "branch_node_id": "n0016"}
@@ -488,8 +566,15 @@ def main() -> int:
         for slide in blocked_native_reuse["slides"]:
             slide.get("visual_plan", {}).pop("template_motif", None)
         blocked_native_reuse_path.write_text(json.dumps(blocked_native_reuse, ensure_ascii=False), encoding="utf-8")
-        blocked_native_reuse_report = audit(temp, blocked_native_reuse_path, source_rich_long_source_path)
-        assert blocked_native_reuse_report["ok"], blocked_native_reuse_report["errors"]
+        blocked_native_reuse_report = audit(temp, blocked_native_reuse_path, source_rich_long_source_path, expect=1)
+        assert any("blocked-no-atomic-copy" in error for error in blocked_native_reuse_report["errors"])
+
+        approved_blocked_native_reuse_path = temp / "source-rich-approved-blocked-native-reuse.json"
+        approved_blocked_native_reuse = json.loads(json.dumps(blocked_native_reuse, ensure_ascii=False))
+        approved_blocked_native_reuse["course"]["native_template_fallback_approved_by_user"] = True
+        approved_blocked_native_reuse_path.write_text(json.dumps(approved_blocked_native_reuse, ensure_ascii=False), encoding="utf-8")
+        approved_blocked_native_reuse_report = audit(temp, approved_blocked_native_reuse_path, source_rich_long_source_path)
+        assert approved_blocked_native_reuse_report["ok"], approved_blocked_native_reuse_report["errors"]
 
         repeated_native_motif_path = temp / "source-rich-repeated-native-motif.json"
         repeated_native_motif = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))

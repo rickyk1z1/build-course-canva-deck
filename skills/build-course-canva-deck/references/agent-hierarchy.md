@@ -256,7 +256,8 @@ Must include:
 - source image usage or omission reasons
 - generated-image candidates and concrete bypass reasons
 - approved `image_generation_tasks` only for pages that need generated teaching images
-- template page mapping and native motif plan from the director-provided template inventory, or a blocker when atomic native-element copy is unavailable
+- for long decks, a `template_style_atlas` distilled from the whole selected template's layout language before slide-level mapping
+- template page/style mapping and native motif plan from the director-provided template inventory, or a blocker when atomic native-element copy is unavailable
 - layout capacity checks showing every required bullet, block, and enumeration can render
 - split recommendations when a layout cannot fit the source content
 - layout rhythm plan for long decks
@@ -268,11 +269,12 @@ Required `self_check` evidence:
 - `visual_teaches_node`: state what each planned visual helps the learner understand.
 - `layout_capacity`: name any slide that needs splitting, alternate layout, or wording reduction before build.
 - `meaningful_structure`: comparison/table/two-panel pages have named relationships that match the copy; no filler labels or arbitrary A/B framing.
-- `rhythm_variety`: long decks avoid repeated layout runs and vary background modes, template references, and composition families for a teaching reason.
+- `rhythm_variety`: long decks use several atlas style families and avoid repeated layout runs; background modes, template references, rendered layouts, and composition families vary for a teaching reason.
 - `source_image_priority`: source case images are reused before generated substitutes when they directly teach the node.
 - `native_template_source`: planned native motifs reference the director-provided template inventory; if the tool cannot copy elements atomically, record the blocker instead of inventing inventory.
-- `native_not_proxy`: local raster previews, PPT shapes, Canva search assets, and pasted full template pages are not counted as template-native elements.
+- `native_not_proxy`: local raster previews, PPT shapes, SVG lookalikes, Canva search assets, generated textures, and pasted full template pages are not counted as template-native elements.
 - `no_whole_page_paste`: no final course page is made by pasting a full template page.
+- `signature_motif_transfer`: for templates with signature native motifs, planned pages use those motifs as structural modules and define the post-import transfer route.
 - `labels_editable`: generated images contain no baked-in Chinese/UI labels; labels remain editable slide text.
 
 Must not call image-generation tools, save final assets, build the PPTX, import into Canva, or replace source content with decorative visuals.

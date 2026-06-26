@@ -138,9 +138,11 @@ Image generation is decided by teaching need, not by quota:
 
 Template fidelity is a design requirement, not decoration:
 
+- For long decks, first create `course.template_style_atlas` from the selected template's overall layout language. The atlas should list structure families, source template pages, geometry, best-fit content, capacity limits, visual slots, and renderer layouts. This is how agents know what to build before any audit runs.
 - Choose a reference template page or page family before building each slide.
 - Use the template's typography scale, alignment axes, color fields, image treatment, and module spacing.
 - Long decks must show real composition variety, not only alternating colors or left/right image positions.
+- Long decks must route through the template's structure families dynamically. Do not let one reference page/family, style family, or rendered `layout_variant` dominate because it is convenient for dense text; dense index/table structures should be occasional, source-justified pages.
 - Canva-native motifs must come from the selected template or an accessible duplicate and must be copied at the element/group/frame level. Raster proxies, PPT shapes, random Canva library assets, unrelated design elements, and duplicated template pages do not count as native template elements.
 - If native motif copying is blocked, record `course.template_native_reuse_status` with the blocker. Do not force fake inventory or paste a whole template page to satisfy the field. Continue with a template-inspired editable composition only when the deck still reads correctly without claiming native motif reuse; otherwise stop for an accessible duplicate or browser fallback.
 
@@ -154,6 +156,18 @@ Template fidelity is a design requirement, not decoration:
 - Keep production evidence off the screen. Source paths, hierarchy proof, coverage notes, and visual-planning labels belong in spec fields or review files, not in the learner-facing title, explanation, bullets, captions, or blocks.
 - Before choosing a layout, check whether the renderer can show every required bullet, block, and enumerated child. Layout caps are not permission to truncate.
 - Generated illustrations must be concrete teaching scenes or examples. Reject decorative abstract graphics, generic icons, or workflow-looking placeholders that do not clarify the node.
+
+## Human Instructor Finish
+
+The final deck should feel like a careful instructor prepared it for recording, not like a schema was filled. Before delivery, read the whole deck in order and ask:
+
+- Does the learner feel the mind-map path unfolding, rather than a rearranged material pool?
+- Does each page have one teacher-like conclusion, a plain explanation, and visible examples or evidence?
+- Do template structure, native motifs, and images make the current idea easier to understand, rather than decorating a generic page?
+- Does the rhythm change because the teaching relationship changes, not because a color or layout name rotated?
+- Would a zero-basis learner understand the page if the instructor paused speaking for a few seconds?
+
+If the answer is no, revise the content or design. Do not deliver a deck merely because audit fields are present.
 
 ## Build And Delivery
 
