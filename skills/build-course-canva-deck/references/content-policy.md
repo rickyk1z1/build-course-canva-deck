@@ -52,7 +52,7 @@ Screen copy carries the knowledge. Each normal knowledge slide must be understan
 - enough structured points, comparisons, or steps to preserve the current source branch without filler;
 - a visual interpretation when an image is present.
 
-Do not create a separate lecture-notes deliverable. Optional `speaker_notes` may exist only as short internal transition reminders, delivery rhythm hints, or emphasis cues. They may be empty. Never use notes to compensate for missing screen knowledge, and never render notes or production metadata on a slide.
+Do not create a separate lecture-notes deliverable. Optional `speaker_notes` may exist only as short internal transition reminders, delivery rhythm hints, or emphasis cues. They may be empty. Never use notes to compensate for missing screen knowledge, and never render notes, source-order proof, coverage metadata, or production metadata on a slide.
 
 ## Metaphors and examples
 

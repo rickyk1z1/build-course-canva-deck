@@ -208,6 +208,7 @@ Must include:
 - self-contained explanations
 - complete sibling lists and examples
 - distinct `screen_evidence` phrases for each distinct source node
+- no learner-facing source-path/order/coverage prose such as `本页顺序`
 - sparse-mode additions only when directly mapped and evidenced
 - `self_check`
 - any `context_request` for missing evidence, unclear wording, or suspected out-of-scope expansion
@@ -219,6 +220,7 @@ Required `self_check` evidence:
 - `page_logic`: identify risk pages and how explanation, blocks, and caption support the title.
 - `self_contained`: state where definitions, examples, and visual interpretation are visible on the page.
 - `evidence_distinct`: each mapped source node has distinct visible evidence on the same slide.
+- `no_backstage_copy`: source path/order/coverage evidence stays in metadata, not rendered screen text.
 - `no_level_shuffle`: name any later-branch wording that was kept out of earlier pages.
 
 Must not put required knowledge only in speaker notes.
@@ -254,7 +256,7 @@ Must include:
 - source image usage or omission reasons
 - generated-image candidates and concrete bypass reasons
 - approved `image_generation_tasks` only for pages that need generated teaching images
-- template page mapping and native motif plan from the director-provided template inventory
+- template page mapping and native motif plan from the director-provided template inventory, or a blocker when atomic native-element copy is unavailable
 - layout capacity checks showing every required bullet, block, and enumeration can render
 - split recommendations when a layout cannot fit the source content
 - layout rhythm plan for long decks
@@ -268,8 +270,9 @@ Required `self_check` evidence:
 - `meaningful_structure`: comparison/table/two-panel pages have named relationships that match the copy; no filler labels or arbitrary A/B framing.
 - `rhythm_variety`: long decks avoid repeated layout runs and vary background modes, template references, and composition families for a teaching reason.
 - `source_image_priority`: source case images are reused before generated substitutes when they directly teach the node.
-- `native_template_source`: planned native motifs reference the director-provided template inventory.
-- `native_not_proxy`: local raster previews, PPT shapes, and Canva search assets are not counted as template-native elements.
+- `native_template_source`: planned native motifs reference the director-provided template inventory; if the tool cannot copy elements atomically, record the blocker instead of inventing inventory.
+- `native_not_proxy`: local raster previews, PPT shapes, Canva search assets, and pasted full template pages are not counted as template-native elements.
+- `no_whole_page_paste`: no final course page is made by pasting a full template page.
 - `labels_editable`: generated images contain no baked-in Chinese/UI labels; labels remain editable slide text.
 
 Must not call image-generation tools, save final assets, build the PPTX, import into Canva, or replace source content with decorative visuals.

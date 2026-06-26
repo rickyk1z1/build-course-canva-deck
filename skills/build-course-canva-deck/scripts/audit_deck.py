@@ -17,6 +17,26 @@ FORBIDDEN = [
     "PDF", "原稿", "来源文档", "制作说明", "图旁注明", "详细讲稿",
     "预计讲解时间", "视觉说明", "对应节点", "Genji 是真想教会你",
     "lorem ipsum", "TODO", "[TODO", "{{", "}}", "turn0", "ref_id",
+    "本页顺序", "本页内容", "本页对应", "本页覆盖", "来源路径", "源路径",
+    "source path", "source_node", "screen_evidence", "coverage_note",
+]
+WHOLE_TEMPLATE_PAGE_COPY_PATTERNS = [
+    "复制整页",
+    "整页复制",
+    "粘贴整页",
+    "整页粘贴",
+    "复制模板页",
+    "粘贴模板页",
+    "完整模板页",
+    "整张模板",
+    "duplicate page",
+    "copy page",
+    "paste page",
+    "copy_template_page",
+    "duplicate_template_page",
+    "whole page",
+    "entire page",
+    "full template page",
 ]
 IMAGE_LAYOUTS = {
     "image-left", "image-right",
@@ -55,6 +75,7 @@ TEMPLATE_NATIVE_ELEMENT_TYPES = {
     "image-frame",
 }
 TEMPLATE_MOTIF_REPLACEMENT_MODES = {"copy_template_element", "replace_placeholder"}
+TEMPLATE_NATIVE_REUSE_STATUSES = {"planned", "blocked-no-atomic-copy", "not-needed"}
 VECTOR_COPY_ELEMENT_TYPES = {
     "vector",
     "shape",
@@ -127,6 +148,11 @@ def visible_text(slide: dict[str, Any]) -> str:
 
 def normalized_match_text(value: Any) -> str:
     return re.sub(r"\s+", "", str(value or "")).lower()
+
+
+def mentions_whole_template_page_copy(value: Any) -> bool:
+    text = "\n".join(flatten_text(value)).lower()
+    return any(pattern in text for pattern in WHOLE_TEMPLATE_PAGE_COPY_PATTERNS)
 
 
 def pptx_text(path: Path) -> tuple[int, list[str], str]:
@@ -375,12 +401,29 @@ def main() -> int:
                 if len(str(item.get("local_ppt_decision", "")).strip()) < 20:
                     errors.append("course.template_page_mapping entries must include a concrete local_ppt_decision")
         template_native_element_inventory = course.get("template_native_element_inventory")
+        native_reuse_status = course.get("template_native_reuse_status")
+        native_reuse_state = ""
+        if isinstance(native_reuse_status, dict):
+            native_reuse_state = str(native_reuse_status.get("status", "")).strip()
+            if native_reuse_state not in TEMPLATE_NATIVE_REUSE_STATUSES:
+                errors.append(
+                    "course.template_native_reuse_status.status must be planned, "
+                    "blocked-no-atomic-copy, or not-needed"
+                )
+            if len(str(native_reuse_status.get("reason", "")).strip()) < 20:
+                errors.append("course.template_native_reuse_status must include a concrete reason")
+            if native_reuse_state != "blocked-no-atomic-copy" and mentions_whole_template_page_copy(native_reuse_status):
+                errors.append(
+                    "course.template_native_reuse_status must not plan or normalize whole-template-page copying"
+                )
         inventory_keys: set[str] = set()
         if not isinstance(template_native_element_inventory, list) or not template_native_element_inventory:
-            errors.append(
-                "course.template_native_element_inventory must list reusable existing native elements "
-                "from the selected Canva template before local PPT generation"
-            )
+            if native_reuse_state not in {"blocked-no-atomic-copy", "not-needed"}:
+                errors.append(
+                    "long decks must either list atomically reusable existing native elements in "
+                    "course.template_native_element_inventory or record course.template_native_reuse_status "
+                    "as blocked-no-atomic-copy/not-needed with a concrete reason"
+                )
         else:
             for item in template_native_element_inventory:
                 if not isinstance(item, dict):
@@ -396,6 +439,11 @@ def main() -> int:
                     errors.append("course.template_native_element_inventory source_element_type must describe a native vector/shape/group/frame element")
                 if len(str(item.get("visual_role", "")).strip()) < 8:
                     errors.append("course.template_native_element_inventory entries must describe visual_role")
+                if mentions_whole_template_page_copy(item):
+                    errors.append(
+                        "course.template_native_element_inventory must describe atomic elements/groups, "
+                        "not whole template pages"
+                    )
                 inventory_keys.add(":".join([source_design_id, source_page, source_element_id]))
         families = [layout_family(str(slide.get("layout", "light"))) for slide in normal_knowledge]
         themes = [layout_theme(str(slide.get("layout", "light"))) for slide in normal_knowledge]
@@ -509,15 +557,15 @@ def main() -> int:
             elif run_variant_count > 2:
                 warnings.append(f"composition variety has {run_variant_count} consecutive pages using {run_variant}")
             clusters = [structural_cluster(slide) for slide in normal_knowledge]
-            for start in range(0, max(0, len(clusters) - 10)):
-                window = clusters[start:start + 11]
+            for start in range(0, max(0, len(clusters) - 8)):
+                window = clusters[start:start + 9]
                 counts = {cluster: window.count(cluster) for cluster in set(window)}
                 cluster, count = max(counts.items(), key=lambda item: item[1])
-                if count >= 8:
+                if count >= 6:
                     start_slide = normal_knowledge[start].get("number")
-                    end_slide = normal_knowledge[start + 10].get("number")
+                    end_slide = normal_knowledge[start + 8].get("number")
                     errors.append(
-                        f"composition variety has {count}/11 pages in the same structural cluster "
+                        f"composition variety has {count}/9 pages in the same structural cluster "
                         f"({cluster}) from slide {start_slide} to slide {end_slide}; "
                         "vary the teaching structure, not only the colors or labels"
                     )
@@ -526,11 +574,26 @@ def main() -> int:
             1 for slide in slides
             if isinstance((slide.get("visual_plan") or {}).get("template_motif"), dict)
         )
-        if "inventory_keys" in locals() and inventory_keys and template_motif_count == 0:
+        if native_reuse_state == "blocked-no-atomic-copy" and template_motif_count:
             errors.append(
-                "long decks with reusable template-native inventory must plan at least one real Canva-native motif "
-                "or record why native reuse is blocked before local PPT generation"
+                "course.template_native_reuse_status is blocked-no-atomic-copy, but slides still plan "
+                "template_motif reuse"
             )
+        if template_motif_count and not inventory_keys:
+            errors.append(
+                "slides plan Canva-native template motifs but course.template_native_element_inventory "
+                "does not list atomically reusable source elements"
+            )
+        if "inventory_keys" in locals() and inventory_keys and template_motif_count == 0:
+            if native_reuse_state == "planned":
+                errors.append(
+                    "course.template_native_reuse_status says planned, but no slides use template_motif"
+                )
+            else:
+                warnings.append(
+                    "template-native inventory exists but no Canva-native motif is planned; "
+                    "director should verify template fidelity is carried by editable composition instead"
+                )
         elif "inventory_keys" in locals() and inventory_keys and template_motif_count == 1:
             warnings.append("only one Canva-native motif is planned; director should verify the deck still feels template-native")
         if template_motif_count >= 2:
@@ -769,6 +832,11 @@ def main() -> int:
             errors.append(f"{label} visual_plan.layout_variant must name the actual rendered composition family")
         template_motif = slide_visual_plan.get("template_motif")
         if isinstance(template_motif, dict):
+            if mentions_whole_template_page_copy(template_motif):
+                errors.append(
+                    f"{label} template_motif must copy an atomic template element/group/frame, "
+                    "not a whole template page"
+                )
             if template_motif.get("kind") not in TEMPLATE_MOTIF_KINDS:
                 errors.append(f"{label} template_motif.kind is unsupported")
             if not template_motif.get("local_preview_path"):

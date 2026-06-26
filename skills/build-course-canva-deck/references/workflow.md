@@ -70,8 +70,9 @@ Create a coverage ledger with one row per included source node:
 The ledger must prove content preservation before wording optimization, vertical expansion, or visuals:
 
 - `source_node_ids` must match `source_node_treatments` exactly and in order.
-- `screen_evidence` must be an exact visible phrase from the slide title, explanation, bullets, caption, or blocks.
+- `screen_evidence` must be an exact visible learner-facing phrase from the slide title, explanation, bullets, caption, or blocks.
 - Metadata-only coverage is a failure.
+- Producer-facing evidence is also a failure when it appears on the slide. Do not write `本页顺序`, `本页内容`, source paths, node IDs, coverage notes, or "this page covers..." prose just to satisfy the ledger.
 - Distinct source nodes on the same slide need distinct evidence phrases unless the source text itself is identical.
 - Evidence should appear on the page in source order.
 
@@ -81,7 +82,7 @@ For detailed outlines, preserve sibling enumerations as visible peer items. If a
 
 Keep distinctive wording in its source position. If a later node introduces a phrase, do not use that phrase as an earlier slide title or label unless the source already repeats it there.
 
-Screen copy is the teaching layer. It must contain the definitions, explanations, examples, conclusions, and visual interpretation needed for a learner to understand the page without narration. `speaker_notes` may be empty or contain only short transition reminders.
+Screen copy is the teaching layer. It must contain the definitions, explanations, examples, conclusions, and visual interpretation needed for a learner to understand the page without narration. It should read like courseware, not like a production report. `speaker_notes` may be empty or contain only short transition reminders.
 
 ## Deck Spec
 
@@ -96,7 +97,8 @@ Minimum course fields:
 - `course.template_design_id`
 - `course.curriculum_context`
 - `course.template_page_mapping` for long decks
-- `course.template_native_element_inventory` when reusable native template elements are planned or required
+- `course.template_native_element_inventory` when atomically reusable native template elements are planned
+- `course.template_native_reuse_status` when native reuse is blocked or intentionally not needed
 - `course.image_generation_review`
 - `course.source_image_coverage` when source images exist
 - `course.page_design_review` for long decks
@@ -139,8 +141,8 @@ Template fidelity is a design requirement, not decoration:
 - Choose a reference template page or page family before building each slide.
 - Use the template's typography scale, alignment axes, color fields, image treatment, and module spacing.
 - Long decks must show real composition variety, not only alternating colors or left/right image positions.
-- Canva-native motifs must come from the selected template or an accessible duplicate. Raster proxies, PPT shapes, random Canva library assets, and unrelated design elements do not count as native template elements.
-- If native motif copying is blocked, record the blocker and stop for an accessible duplicate or browser fallback instead of pretending the proxy is final.
+- Canva-native motifs must come from the selected template or an accessible duplicate and must be copied at the element/group/frame level. Raster proxies, PPT shapes, random Canva library assets, unrelated design elements, and duplicated template pages do not count as native template elements.
+- If native motif copying is blocked, record `course.template_native_reuse_status` with the blocker. Do not force fake inventory or paste a whole template page to satisfy the field. Continue with a template-inspired editable composition only when the deck still reads correctly without claiming native motif reuse; otherwise stop for an accessible duplicate or browser fallback.
 
 ## Authoring Standard
 
@@ -149,6 +151,7 @@ Template fidelity is a design requirement, not decoration:
 - Give each knowledge page one clear teaching point. Use enough visible points to preserve the source branch; do not add filler to hit a count.
 - Use comparison/table/two-panel layouts only when the content relationship is real and named in learner-facing labels.
 - Keep pages readable without narration. Notes cannot compensate for missing definitions, examples, evidence, or visual interpretation.
+- Keep production evidence off the screen. Source paths, hierarchy proof, coverage notes, and visual-planning labels belong in spec fields or review files, not in the learner-facing title, explanation, bullets, captions, or blocks.
 - Before choosing a layout, check whether the renderer can show every required bullet, block, and enumerated child. Layout caps are not permission to truncate.
 - Generated illustrations must be concrete teaching scenes or examples. Reject decorative abstract graphics, generic icons, or workflow-looking placeholders that do not clarify the node.
 
@@ -161,6 +164,9 @@ Template fidelity is a design requirement, not decoration:
 3. Inspect the montage and every flagged slide at full size.
 4. Run the final audit against `deck-spec.json`, PPTX XML, and layout JSON.
 5. Fix mechanical errors, then perform the director's learner review.
+   - Reject any page that reads like a source coverage report, production note, or template-construction note.
+   - Reject any long run where the contact sheet shows the same geometry with only color or left/right changes.
+   - Reject any final Canva page that contains unedited template copy, logos, placeholder text, or a pasted full template page.
 6. Run the Canva access preflight from `canva-delivery.md`.
 7. Import the verified PPTX into Canva as a new presentation.
 8. Verify page count, rich text, font mapping, images, page previews, and native motif replacement.

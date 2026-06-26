@@ -41,8 +41,8 @@ Read [references/agent-hierarchy.md](references/agent-hierarchy.md) and [referen
 - **总导演 / build-course-canva-deck** owns all durable writes and external actions: `source-map.json`, `curriculum-context.json`, `deck-spec.json`, generated image assets, PPTX generation, mechanical audit reports, Canva import, Canva edits, and final approval. It also owns process review after each proposal and final learner-facing review before delivery.
 - **课程统筹师** defines curriculum position, prerequisites, neighboring boundaries, shared terms, and handoff topics. Its self-check prevents adjacent-course drift.
 - **原稿场记** preserves the source hierarchy, source path, sibling order, examples, metaphors, source images, and slide grouping. Its self-check prevents the mind map from being flattened or rearranged.
-- **课堂编剧** writes learner-facing screen copy from approved source-node excerpts. Its self-check prevents invented labels, missing explanations, narration-only knowledge, and source-level mismatch.
-- **视觉分镜师** plans source images, generated-image candidates, editable diagrams, template references, layout variety, and fit. Its self-check prevents meaningless comparison/table blocks, repeated page structures, text-image collisions, and decorative visuals.
+- **课堂编剧** writes learner-facing screen copy from approved source-node excerpts. Its self-check prevents invented labels, missing explanations, narration-only knowledge, source-level mismatch, and visible production/meta copy.
+- **视觉分镜师** plans source images, generated-image candidates, editable diagrams, template references, layout variety, and fit. Its self-check prevents meaningless comparison/table blocks, repeated page structures, text-image collisions, decorative visuals, and whole-template-page pasting.
 
 Before dispatching any worker, the director creates a scoped brief in `scratch/agent-briefs/<role>.brief.md` or `scratch/agent-briefs/<role>.brief.json`. Keep the brief short and readable. It must tell the worker:
 
@@ -62,7 +62,7 @@ The director's review is simple and human-facing:
 1. After each proposal, check the role's `self_check` before merging.
 2. When the director changes grouping, wording, fallback visuals, or layouts, re-check the affected role standard directly because no worker has reviewed that new change.
 3. Run scripts only as mechanical guards for extraction, coverage, density, forbidden terms, PPTX text, and obvious structural errors. A passing report is never approval by itself.
-4. After rendering, inspect the full deck as a learner: source hierarchy, page logic, readable layout, meaningful labels, no repeated layout run, no overlap, no clipped text, and no page whose structure only makes sense to the producer.
+4. After rendering, inspect the full deck as a learner: source hierarchy, page logic, readable layout, meaningful labels, no repeated layout run, no overlap, no clipped text, no backstage/source-tracking text, and no page whose structure only makes sense to the producer.
 
 ## Required Workflow
 
@@ -73,11 +73,11 @@ The director's review is simple and human-facing:
 5. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
 6. Build a source coverage matrix in source order. Include every valid node exactly once. Each slide group must preserve the XMind/source path and sibling order, not just monotonic node IDs.
 7. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).
-8. Write one learner-facing screen-copy layer that can be understood without narration. Optional `speaker_notes` may exist only as short internal transition hints and must never contain knowledge required for comprehension or page logic.
+8. Write one learner-facing screen-copy layer that can be understood without narration. Source order, source path, coverage, and review evidence belong in `source_node_treatments`, the coverage ledger, or notes for the producer, never in rendered slide text. Optional `speaker_notes` may exist only as short internal transition hints and must never contain knowledge required for comprehension or page logic.
 9. Read [references/visual-system.md](references/visual-system.md), then create the visual plan in staged passes. Every normal knowledge slide must reuse a source case image, rebuild a source visual, include a generated teaching image, or use an editable explanatory diagram/table that is fused into the page.
 10. Read [references/design-system.md](references/design-system.md), [references/page-design-quality.md](references/page-design-quality.md), and [references/role-standards.md](references/role-standards.md), then build the editable PPTX with `scripts/build_deck.mjs` and `@oai/artifact-tool`.
 11. Run `scripts/audit_deck.py`, render every slide, create a contact sheet, and fix all mechanical errors.
-12. Perform the director's final learner review: title-to-source-path fit, meaningful block labels, page-to-page hierarchy order, layout variety, no overlap, no duplicate text, no nonsense comparison/table framing, and no machine-like field compliance that a human learner cannot read.
+12. Perform the director's final learner review: title-to-source-path fit, meaningful block labels, page-to-page hierarchy order, layout variety, no overlap, no duplicate text, no pasted template pages, no nonsense comparison/table framing, no production/source-tracking text, and no machine-like field compliance that a human learner cannot read.
 13. Read [references/canva-delivery.md](references/canva-delivery.md), run the Canva template access preflight for the chosen template route, import the verified PPTX as a new Canva design, and leave the source template unchanged.
 14. Verify every Canva page, show the complete preview, and ask for one final approval. Save draft edits only after explicit approval.
 15. Re-read the saved Canva design and confirm the forbidden-language count is zero before returning the final link.
@@ -88,6 +88,7 @@ The director's review is simple and human-facing:
 - Preserve detailed-outline sibling lists as complete visible lists. If they do not fit, split slides.
 - Do not invent a teaching label that is not anchored to the current source node, an ancestor source path, or a clearly stated relationship. Generic labels such as `对比 A`, `对比 B`, `结构顺序 A`, `结构顺序 B`, `左侧`, `右侧`, or `方案 A/B` are examples of failed screen copy, not the complete list.
 - Do not pull distinctive wording from later source nodes into earlier titles or labels unless the source already repeats it there.
+- Do not render producer-facing source evidence as courseware. Phrases such as `本页顺序`, `本页内容`, `对应节点`, `来源路径`, `source path`, `screen_evidence`, or coverage notes are metadata, not learner copy. If the only way to prove hierarchy is to describe the page construction, the screen copy is not finished.
 - Treat every deck as one component of the same self-media and editing curriculum. Preserve shared terminology, prerequisites, difficulty progression, and lesson boundaries.
 - Do not duplicate a neighboring lesson's main teaching task. Record the handoff to that lesson instead of expanding into it.
 - Use one teaching node or one tight source branch per slide by default. Do not treat `source_node_ids` as coverage by itself: every mapped source node must have visible `source_node_treatments.screen_evidence`.
@@ -98,6 +99,7 @@ The director's review is simple and human-facing:
 - A slide may use at most three independent source images, and only when all images remain readable and the visual plan records the grouping reason.
 - Deck length follows teaching units, source nodes, source images, and learner readability, not the number of pages in the selected template bank.
 - Treat page design as a first-class requirement, not a skin. The template's typography scale, alignment axes, proximity, contrast hierarchy, image slots, and module spacing must be reflected in the local PPT/contact sheet before Canva import.
+- Template reuse is atomic. Copy or reuse only the specific verified native element/group/frame needed for the course page. Never paste an entire template page into the final deck as a shortcut for "using template elements"; if the available tool only supports whole-page duplication, record the blocker and use a template-inspired editable composition or ask for an approved fallback.
 - For abstract concepts, build concrete visual bridges: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels.
 - Always run an image-generation review before local PPT generation. Source-rich decks preserve source images first; image-poor decks treat generated teaching images as a primary build input.
 - Generated images must not contain baked-in Chinese, UI labels, watermarks, or promotional text. Labels, arrows, and explanations must be editable slide text.

@@ -13,7 +13,11 @@ import zipfile
 from pathlib import Path
 
 
-FORBIDDEN = ["PDF", "原稿", "来源文档", "制作说明", "图旁注明", "详细讲稿", "预计讲解时间", "Genji 是真想教会你"]
+FORBIDDEN = [
+    "PDF", "原稿", "来源文档", "制作说明", "图旁注明", "详细讲稿", "预计讲解时间",
+    "对应节点", "本页顺序", "本页内容", "来源路径", "screen_evidence", "coverage_note",
+    "Genji 是真想教会你",
+]
 
 
 def pptx_visible_text(path: Path) -> tuple[int, str]:

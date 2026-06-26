@@ -11,6 +11,7 @@ These are work standards, not a separate review phase. Each worker applies the s
 - Every slide title and block label must be anchored to the current source node, an ancestor path, or an explicit teaching relationship.
 - Do not use filler labels. Examples include `对比 A`, `对比 B`, `结构顺序 A`, `结构顺序 B`, `左侧`, `右侧`, `方案 A`, `方案 B`, `要点 A`, and `要点 B`; the real rule is that a label must tell the learner what relationship they are seeing.
 - The learner-facing page must be understandable without speaker notes.
+- Do not place source tracking, hierarchy proof, coverage notes, production labels, or template-construction notes on learner-facing slides.
 - A script or audit pass is not approval. It only catches mechanical failures.
 
 ## 课程统筹师 Standards
@@ -74,9 +75,10 @@ Self-check evidence:
 - `page_logic`: for risk pages, state how title, explanation, points, caption, and visual serve one teaching point.
 - `self_contained`: identify any page that would need narration; if none, say how definitions/examples are visible on the page.
 - `evidence_distinct`: show how each mapped source node gets a distinct visible phrase.
+- `no_backstage_copy`: confirm that source order/path evidence stays in metadata and quote any risky page rewritten to remove `本页顺序`-style copy.
 - `no_level_shuffle`: name any later-branch term that was not pulled forward, or explain why a reused term is source-approved.
 
-Common failure to prevent: labels that look organized but name no real relationship, duplicate or reset numbering, vague titles unrelated to the blocks, and screen copy that only satisfies metadata while failing to teach the source node.
+Common failure to prevent: labels that look organized but name no real relationship, duplicate or reset numbering, vague titles unrelated to the blocks, and screen copy that exposes the production process while failing to teach the source node.
 
 ## 视觉分镜师 Standards
 
@@ -89,7 +91,7 @@ The proposal must answer:
 - Are comparison/table/two-panel structures meaningful?
 - Are long-deck layouts varied in structure, not only color?
 - Are source images reused before substitutes?
-- Are Canva-native motifs selected from a real template inventory?
+- Are Canva-native motifs selected from a real template inventory and copied as specific elements rather than whole pages?
 
 Self-check evidence:
 
@@ -98,11 +100,12 @@ Self-check evidence:
 - `meaningful_structure`: quote structured-layout labels and the relationship they express.
 - `rhythm_variety`: identify any long run of similar composition and the intended break in rhythm.
 - `source_image_priority`: list source case images reused before generated substitutes.
-- `native_template_source`: every planned native motif references an item from `course.template_native_element_inventory`.
-- `native_not_proxy`: PPT shapes, raster proxies, random Canva assets, and unrelated design elements are not counted as template-native elements.
+- `native_template_source`: every planned native motif references an item from `course.template_native_element_inventory`; if atomic copying is unavailable, record the blocker instead of inventing inventory.
+- `native_not_proxy`: PPT shapes, raster proxies, random Canva assets, unrelated design elements, and duplicated template pages are not counted as template-native elements.
+- `no_whole_page_paste`: state that no final course page is created by pasting a full template page; if the tool only offers whole-page duplication, native motif reuse is blocked for that run.
 - `labels_editable`: generated images have no baked-in Chinese/UI labels.
 
-Common failure to prevent: a long middle section that only changes colors while keeping the same composition, abstract comparison boxes that do not compare anything, and template-looking elements that are not actually copied from the selected Canva template.
+Common failure to prevent: a long middle section that only changes colors while keeping the same composition, abstract comparison boxes that do not compare anything, template-looking elements that are not actually copied from the selected Canva template, and final pages that still contain pasted template-page content.
 
 ## 总导演 Standards
 
@@ -126,20 +129,20 @@ Before local PPTX build:
 - Coverage matrix proves every included source node is covered exactly once.
 - Slide groups follow source path and sibling order.
 - Every comparison/table/two-panel page has meaningful labels.
-- Every long-deck layout run is intentional and varied.
-- Every planned native motif references a verified template element inventory item.
+- Every long-deck layout run is intentional and visibly varied in geometry, evidence treatment, and teaching structure, not only color.
+- Every planned native motif references a verified template element inventory item, and no planned operation depends on pasting a whole template page into the final deck.
 
 After local rendering:
 
 - Inspect contact sheet and full-size flagged pages.
 - Fix overlap, clipping, duplicate text, wrong numbering, broken title wrapping, missing images, and repeated layout runs.
-- Read pages as a zero-basis learner: title, explanation, blocks, caption, and visual must form one coherent teaching unit.
+- Read pages as a zero-basis learner: title, explanation, blocks, caption, and visual must form one coherent teaching unit. Remove any `本页顺序`-style source evidence, page construction notes, or other backstage copy from the visible slide.
 
 After Canva import:
 
 - Verify page count and rich text.
 - Execute native motif replacement from the selected template or accessible duplicate.
 - Write `canva-native-motif-report.json` or an equivalent record.
-- Do not deliver if any planned native motif is `proxy_only`, `non_template_asset`, `unmatched`, `pending`, or `blocked` without explicit user approval.
+- Do not deliver if any planned native motif is `proxy_only`, `non_template_asset`, `unmatched`, `pending`, `whole_page_paste`, or `blocked` without explicit user approval.
 
 Mechanical scripts support this review, but do not replace it.

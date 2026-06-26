@@ -201,7 +201,7 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
 
     layouts = [
         "comparison", "image-left-dark", "roadmap", "roadmap",
-        "table", "image-right", "table", "image-left-accent",
+        "table", "roadmap", "table", "image-left-accent",
         "roadmap", "image-right-dark", "roadmap", "table",
         "comparison", "image-right-accent",
     ]
@@ -305,6 +305,16 @@ def main() -> int:
         # Detailed baseline passes; added content does not.
         detailed = audit(temp, FIXTURES / "deck-spec-detailed.json", FIXTURES / "source-map-detailed.json")
         assert detailed["ok"]
+
+        backstage_copy_path = temp / "backstage-copy.json"
+        backstage_copy = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        backstage_copy["slides"][1]["screen"]["explanation"] = (
+            "本页顺序：1 父节点 / 2 子节点。这里故意把制作证据写进画面，用于验证审计拦截。"
+        )
+        backstage_copy_path.write_text(json.dumps(backstage_copy, ensure_ascii=False), encoding="utf-8")
+        backstage_copy_report = audit(temp, backstage_copy_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("forbidden learner-facing text" in error for error in backstage_copy_report["errors"])
+
         missing_curriculum_path = temp / "missing-curriculum.json"
         missing_curriculum = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
         del missing_curriculum["course"]["curriculum_context"]
@@ -347,6 +357,21 @@ def main() -> int:
         missing_motif_replacement_path.write_text(json.dumps(missing_motif_replacement, ensure_ascii=False), encoding="utf-8")
         motif_replacement_report = audit(temp, missing_motif_replacement_path, FIXTURES / "source-map-detailed.json", expect=1)
         assert any("copy_template_element" in error for error in motif_replacement_report["errors"])
+
+        whole_page_motif_path = temp / "whole-page-motif.json"
+        whole_page_motif = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
+        whole_page_motif["slides"][0]["visual_plan"]["template_motif"] = valid_template_motif(
+            "hero-right",
+            source_page=1,
+            source_element_id="template-star-hero",
+        )
+        whole_page_motif["slides"][0]["visual_plan"]["template_motif"]["local_ppt_layout"]["motif_box"] = {"left": 680, "top": 60, "width": 600, "height": 600}
+        whole_page_motif["slides"][0]["visual_plan"]["template_motif"]["canva_replacement"]["source_copy_strategy"] = (
+            "duplicate page from the template and paste page into the final course deck"
+        )
+        whole_page_motif_path.write_text(json.dumps(whole_page_motif, ensure_ascii=False), encoding="utf-8")
+        whole_page_motif_report = audit(temp, whole_page_motif_path, FIXTURES / "source-map-detailed.json", expect=1)
+        assert any("whole template page" in error or "whole-template-page" in error for error in whole_page_motif_report["errors"])
 
         non_template_motif_path = temp / "non-template-motif.json"
         non_template_motif = json.loads((FIXTURES / "deck-spec-detailed.json").read_text(encoding="utf-8"))
@@ -450,6 +475,21 @@ def main() -> int:
         source_rich_long_deck_path, source_rich_long_source_path = write_source_rich_long_fixture(temp)
         source_rich_long_report = audit(temp, source_rich_long_deck_path, source_rich_long_source_path)
         assert source_rich_long_report["ok"]
+
+        blocked_native_reuse_path = temp / "source-rich-blocked-native-reuse.json"
+        blocked_native_reuse = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        blocked_native_reuse["course"]["template_native_element_inventory"] = []
+        blocked_native_reuse["course"]["template_native_reuse_status"] = {
+            "status": "blocked-no-atomic-copy",
+            "reason": "当前 Canva 路由只能导入 PPTX，不能原子级复制模板里的矢量、形状或组合元素，所以本轮不声明原生 motif 复用。",
+        }
+        for item in blocked_native_reuse["course"]["template_page_mapping"]:
+            item["native_motif"] = "blocked-no-atomic-copy"
+        for slide in blocked_native_reuse["slides"]:
+            slide.get("visual_plan", {}).pop("template_motif", None)
+        blocked_native_reuse_path.write_text(json.dumps(blocked_native_reuse, ensure_ascii=False), encoding="utf-8")
+        blocked_native_reuse_report = audit(temp, blocked_native_reuse_path, source_rich_long_source_path)
+        assert blocked_native_reuse_report["ok"], blocked_native_reuse_report["errors"]
 
         repeated_native_motif_path = temp / "source-rich-repeated-native-motif.json"
         repeated_native_motif = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))

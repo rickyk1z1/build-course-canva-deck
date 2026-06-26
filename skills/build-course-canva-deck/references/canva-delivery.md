@@ -43,13 +43,14 @@ After import:
    - use the local PPT `local_preview_path` image only as a local preview proxy;
    - verify each motif's `native_element_ref` points to an existing native vector/shape/group/frame element in the chosen template or accessible duplicate; do not replace this with a Canva library search result or unrelated asset ID;
    - match the imported proxy by page index and `local_ppt_layout.motif_box` position/size;
-   - for vector/shape/group/frame motifs, copy or reuse the recorded existing template element and paste/place it at the already-approved scaled box, then delete or replace the local proxy;
+   - for vector/shape/group/frame motifs, copy or reuse the recorded existing template element itself and paste/place it at the already-approved scaled box, then delete or replace the local proxy;
+   - never paste an entire template page into the final course deck as a shortcut for retrieving a motif; if the only available operation is whole-page duplication, mark native reuse blocked for this run;
    - use media `update_fill` only for motifs whose recorded template source is actually an image/frame fill; it does not satisfy vector motif reuse;
    - if the connector cannot copy/reuse the native template element, stop for an accessible duplicate or explicit browser fallback rather than substituting a random Canva asset;
-   - never leave the proxy image underneath an overlaid native Canva element.
-4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, source template design/page/element ID, element type, local proxy match result, final Canva element result, collision status, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, `non_template_asset`, `overlaps_text`, `repeated_single_element`, or `blocked` without explicit user approval.
+   - never leave the proxy image underneath an overlaid native Canva element, and never leave template-placeholder text, logo marks, or unrelated source-page objects in the final course page.
+4. Write `canva-native-motif-report.json` with one row per planned motif: slide number, motif kind, source template design/page/element ID, element type, local proxy match result, final Canva element result, collision status, final status, and blocker if any. Final delivery is blocked when any motif remains `pending`, `proxy_only`, `unmatched`, `non_template_asset`, `overlaps_text`, `repeated_single_element`, `whole_page_paste`, or `blocked` without explicit user approval.
 5. Retrieve page previews and inspect the complete deck.
-6. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, motif diversity, no motif/text overlap, and layout consistency.
+6. Confirm font appearance, missing glyphs, image crops, page numbering, native motif replacement, motif diversity, no motif/text overlap, no source-tracking/meta copy, no pasted template page residue, and layout consistency.
 7. Apply corrections in one editing transaction when possible.
 8. Show every returned thumbnail and a complete contact sheet to the user.
 
