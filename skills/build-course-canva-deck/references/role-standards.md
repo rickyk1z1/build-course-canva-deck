@@ -87,6 +87,7 @@ Owns teachable visuals, template fit, native motif planning, and layout rhythm.
 The proposal must answer:
 
 - What does the visual help the learner understand?
+- For a generated image, what concrete visible detail makes the current knowledge point easier to understand?
 - Does the chosen layout fit the actual amount of text and evidence?
 - Are comparison/table/two-panel structures meaningful?
 - Are long-deck layouts varied in structure, not only color?
@@ -96,6 +97,7 @@ The proposal must answer:
 Self-check evidence:
 
 - `visual_teaches_node`: state what each visual makes easier to understand, not only its asset type.
+- `generated_case_specificity`: for every generated image, name the source-linked `knowledge_anchor` and the `observable_teaching_detail` in the picture. Reject prompts that only describe mood, color, a generic person at a desk, or an abstract scene.
 - `layout_capacity`: name slides that need splitting, alternate layout, or text reduction before build; never assume the renderer will handle overflow.
 - `meaningful_structure`: quote structured-layout labels and the relationship they express.
 - `template_style_atlas`: for long decks, list the template structure families being used, their source template pages, best-fit content types, capacity limits, and renderer layouts.
@@ -107,7 +109,7 @@ Self-check evidence:
 - `signature_motif_transfer`: for templates with signature native motifs, name which motifs are planned as structural modules and how they will be transferred after import; blocked transfer must stop final delivery unless the user explicitly accepts a non-native fallback.
 - `labels_editable`: generated images have no baked-in Chinese/UI labels.
 
-Common failure to prevent: a long middle section that only changes colors while keeping the same composition, repeated dense index/table pages used as the default way to fit multiple points, abstract comparison boxes that do not compare anything, template-looking elements that are not actually copied from the selected Canva template, and final pages that still contain pasted template-page content.
+Common failure to prevent: a long middle section that only changes colors while keeping the same composition, repeated dense index/table pages used as the default way to fit multiple points, abstract comparison boxes that do not compare anything, generated case images that look polished but do not show the current knowledge point, template-looking elements that are not actually copied from the selected Canva template, and final pages that still contain pasted template-page content.
 
 ## 总导演 Standards
 

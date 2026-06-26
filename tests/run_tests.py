@@ -240,6 +240,9 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
         {
             "slide_number": 6,
             "generation_route": "gpt-image-2",
+            "knowledge_anchor": "节点 6 的文字较多，需要用一个具体场景呈现核心判断。",
+            "observable_teaching_detail": "画面中学员能看到一个明确的操作前后状态差异，从而理解该节点的判断。",
+            "template_style_bridge": "延续所选模板的高对比色块、清晰主体和留白标签区，让图片嵌入页面而不突兀。",
             "status": "success",
             "final_asset_path": "assets/generated/case.png",
         }
@@ -323,6 +326,9 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
             slide["visual_plan"]["generation_route"] = "gpt-image-2"
             slide["visual_plan"]["imagegen_priority"] = "preferred"
             slide["visual_plan"]["prompt_brief"] = "具体课程场景的无文字教学案例图"
+            slide["visual_plan"]["knowledge_anchor"] = "节点 6 的文字较多，需要用一个具体场景呈现核心判断。"
+            slide["visual_plan"]["observable_teaching_detail"] = "画面中学员能看到一个明确的操作前后状态差异，从而理解该节点的判断。"
+            slide["visual_plan"]["template_style_bridge"] = "延续所选模板的高对比色块、清晰主体和留白标签区，让图片嵌入页面而不突兀。"
         if index in {8, 10, 12}:
             slide["visual_plan"]["template_motif"] = valid_template_motif(
                 "visual-anchor",
@@ -553,6 +559,27 @@ def main() -> int:
         source_rich_long_deck_path, source_rich_long_source_path = write_source_rich_long_fixture(temp)
         source_rich_long_report = audit(temp, source_rich_long_deck_path, source_rich_long_source_path)
         assert source_rich_long_report["ok"]
+
+        generated_missing_teaching_detail_path = temp / "source-rich-generated-missing-teaching-detail.json"
+        generated_missing_teaching_detail = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))
+        for slide in generated_missing_teaching_detail["slides"]:
+            if slide.get("visual_plan", {}).get("asset_type") == "generated-image":
+                slide["visual_plan"].pop("knowledge_anchor", None)
+                slide["visual_plan"].pop("observable_teaching_detail", None)
+        for task in generated_missing_teaching_detail["course"]["image_generation_tasks"]:
+            task.pop("knowledge_anchor", None)
+            task.pop("observable_teaching_detail", None)
+        generated_missing_teaching_detail_path.write_text(json.dumps(generated_missing_teaching_detail, ensure_ascii=False), encoding="utf-8")
+        generated_missing_teaching_detail_report = audit(
+            temp,
+            generated_missing_teaching_detail_path,
+            source_rich_long_source_path,
+            expect=1,
+        )
+        assert any(
+            "knowledge_anchor" in error or "observable_teaching_detail" in error
+            for error in generated_missing_teaching_detail_report["errors"]
+        )
 
         blocked_native_reuse_path = temp / "source-rich-blocked-native-reuse.json"
         blocked_native_reuse = json.loads(source_rich_long_deck_path.read_text(encoding="utf-8"))

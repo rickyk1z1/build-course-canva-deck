@@ -258,6 +258,7 @@ Must include:
 - source image usage or omission reasons
 - generated-image candidates and concrete bypass reasons
 - approved `image_generation_tasks` only for pages that need generated teaching images
+- for every generated-image candidate, `knowledge_anchor`, `observable_teaching_detail`, and a secondary `template_style_bridge`
 - for long decks, a `template_style_atlas` distilled from the whole selected template's layout language before slide-level mapping
 - template page/style mapping and native motif plan from the director-provided template inventory, or a blocker when atomic native-element copy is unavailable
 - layout capacity checks showing every required bullet, block, and enumeration can render
@@ -268,11 +269,12 @@ Must include:
 
 Required `self_check` evidence:
 
-- `visual_teaches_node`: state what each planned visual helps the learner understand.
+- `visual_teaches_node`: state what each planned visual helps the learner understand, and for generated images name the visible object/action/state that carries the knowledge point.
 - `layout_capacity`: name any slide that needs splitting, alternate layout, or wording reduction before build.
 - `meaningful_structure`: comparison/table/two-panel pages have named relationships that match the copy; no filler labels or arbitrary A/B framing.
 - `rhythm_variety`: long decks use several atlas style families and avoid repeated layout runs; background modes, template references, rendered layouts, and composition families vary for a teaching reason.
 - `source_image_priority`: source case images are reused before generated substitutes when they directly teach the node.
+- `generated_case_specificity`: every generated image has a source-linked knowledge anchor and concrete observable teaching detail; no generated image is justified only by atmosphere, palette, or a generic "case scene".
 - `native_template_source`: planned native motifs reference the director-provided template inventory; if the tool cannot copy elements atomically, record the blocker instead of inventing inventory.
 - `native_not_proxy`: local raster previews, PPT shapes, SVG lookalikes, Canva search assets, generated textures, and pasted full template pages are not counted as template-native elements.
 - `no_whole_page_paste`: no final course page is made by pasting a full template page.

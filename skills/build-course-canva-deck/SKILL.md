@@ -44,7 +44,7 @@ Read [references/agent-hierarchy.md](references/agent-hierarchy.md) and [referen
 - **课程统筹师** defines curriculum position, prerequisites, neighboring boundaries, shared terms, and handoff topics. Its self-check prevents adjacent-course drift.
 - **原稿场记** preserves the source hierarchy, source path, sibling order, examples, metaphors, source images, and slide grouping. Its self-check prevents the mind map from being flattened or rearranged.
 - **课堂编剧** writes learner-facing screen copy from approved source-node excerpts. Its self-check prevents invented labels, missing explanations, narration-only knowledge, source-level mismatch, and visible production/meta copy.
-- **视觉分镜师** plans source images, generated-image candidates, editable diagrams, template references, layout variety, and fit. Its self-check prevents meaningless comparison/table blocks, repeated page structures, text-image collisions, decorative visuals, and whole-template-page pasting.
+- **视觉分镜师** plans source images, generated-image candidates, editable diagrams, template references, layout variety, and fit. Its self-check prevents meaningless comparison/table blocks, generated cases that do not visibly teach the current knowledge point, repeated page structures, text-image collisions, decorative visuals, and whole-template-page pasting.
 
 Before dispatching any worker, the director creates a scoped brief in `scratch/agent-briefs/<role>.brief.md` or `scratch/agent-briefs/<role>.brief.json`. Keep the brief short and readable. It must tell the worker:
 
@@ -104,6 +104,7 @@ The director's review is simple and human-facing:
 - Template reuse is atomic. Copy or reuse only the specific verified native element/group/frame needed for the course page. Never paste an entire template page into the final deck as a shortcut for "using template elements"; if the available tool only supports whole-page duplication, record the blocker and use a template-inspired editable composition or ask for an approved fallback.
 - For abstract concepts, build concrete visual bridges: familiar-object metaphors, before/after comparisons, process chains, simplified diagrams, or source screenshots with labels.
 - Always run an image-generation review before local PPT generation. Source-rich decks preserve source images first; image-poor decks treat generated teaching images as a primary build input.
+- A generated case image must visibly teach the current source point. Record the knowledge anchor and concrete visible detail before generation, then reject images that only match the mood or palette.
 - Generated images must not contain baked-in Chinese, UI labels, watermarks, or promotional text. Labels, arrows, and explanations must be editable slide text.
 - Never display production language such as `PDF`, `原稿`, `来源文档`, `制作说明`, `图旁注明`, `详细讲稿`, `预计讲解时间`, `视觉说明`, `对应节点`, prompts, placeholders, source-tracking labels, or `Genji 是真想教会你`.
 - Do not modify or overwrite the original Canva template.

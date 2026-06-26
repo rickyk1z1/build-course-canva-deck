@@ -126,6 +126,7 @@ A passing contact sheet must show:
 - no repeated fallback to one dense index/table page family for unrelated teaching nodes;
 - visible use of several template structure families, not only one "safe" information-block structure;
 - body copy visibly secondary to title and image evidence;
+- generated case images show a concrete detail that teaches the current slide's knowledge point, not just an attractive scene in the right color range;
 - aligned modules and stable margins;
 - captions close to images;
 - Canva-native motif proxies act as structural template pieces rather than small stickers in arbitrary corners;

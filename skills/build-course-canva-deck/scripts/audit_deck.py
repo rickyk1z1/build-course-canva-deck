@@ -803,6 +803,17 @@ def main() -> int:
                         "course.image_generation_tasks missing generated-image slides: "
                         + ", ".join(str(number) for number in missing_tasks[:12])
                     )
+                for task in image_generation_tasks:
+                    if not isinstance(task, dict):
+                        continue
+                    task_slide_number = task.get("slide_number")
+                    if not isinstance(task_slide_number, int) or task_slide_number not in generated_numbers:
+                        continue
+                    task_label = f"course.image_generation_tasks slide {task_slide_number}"
+                    if len(str(task.get("knowledge_anchor", "")).strip()) < 12:
+                        errors.append(f"{task_label} must include knowledge_anchor tied to the source point")
+                    if len(str(task.get("observable_teaching_detail", "")).strip()) < 12:
+                        errors.append(f"{task_label} must include observable_teaching_detail")
                 task_routes = {
                     str(task.get("generation_route") or task.get("route") or "").strip()
                     for task in image_generation_tasks
@@ -1263,12 +1274,21 @@ def main() -> int:
                 if asset_type == "generated-image":
                     route = str(visual_plan.get("generation_route", "")).strip()
                     prompt_brief = str(visual_plan.get("prompt_brief", "")).strip()
+                    knowledge_anchor = str(visual_plan.get("knowledge_anchor", "")).strip()
+                    observable_detail = str(visual_plan.get("observable_teaching_detail", "")).strip()
+                    template_style_bridge = str(visual_plan.get("template_style_bridge", "")).strip()
                     if route not in GENERATED_IMAGE_ROUTES:
                         errors.append(f"{label} generated image must record a supported generation route")
                     if route != "gpt-image-2" and imagegen_priority != "unavailable":
                         errors.append(f"{label} generated image should use gpt-image-2 unless it is unavailable")
                     if len(prompt_brief) < 12:
                         errors.append(f"{label} generated image must record a concrete prompt brief")
+                    if len(knowledge_anchor) < 12:
+                        errors.append(f"{label} generated image must record visual_plan.knowledge_anchor tied to the source point")
+                    if len(observable_detail) < 12:
+                        errors.append(f"{label} generated image must record visual_plan.observable_teaching_detail")
+                    if len(template_style_bridge) < 12:
+                        warnings.append(f"{label} generated image should record visual_plan.template_style_bridge so the case image fits the selected template")
                 if asset_type in {"editable-diagram", "editable-table"} and imagegen_priority == "preferred":
                     errors.append(f"{label} editable visual must explain why imagegen was not used")
                 if imagegen_priority == "not-needed":

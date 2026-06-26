@@ -294,10 +294,16 @@ def long_deck_with_generated_fallback(include_route_evidence: bool) -> tuple[dic
     slide["visual_plan"]["generation_route"] = "user-provided"
     slide["visual_plan"]["imagegen_priority"] = "unavailable"
     slide["visual_plan"]["prompt_brief"] = "text-free concrete teaching case"
+    slide["visual_plan"]["knowledge_anchor"] = "The fallback image still shows the current source point as a concrete teaching case."
+    slide["visual_plan"]["observable_teaching_detail"] = "The image shows the learner-visible before and after state that explains the source point."
+    slide["visual_plan"]["template_style_bridge"] = "The fallback uses the selected template's contrast level and clean image slot."
     deck["course"]["image_generation_tasks"] = [
         {
             "slide_number": 2,
             "route": "user-provided",
+            "knowledge_anchor": "The fallback image still shows the current source point as a concrete teaching case.",
+            "observable_teaching_detail": "The image shows the learner-visible before and after state that explains the source point.",
+            "template_style_bridge": "The fallback uses the selected template's contrast level and clean image slot.",
             "status": "local_deterministic_fallback",
             "final_asset_path": "/tmp/fallback.png",
         }

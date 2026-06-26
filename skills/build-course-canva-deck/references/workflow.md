@@ -157,7 +157,7 @@ Template fidelity is a design requirement, not decoration:
 - Keep pages readable without narration. Notes cannot compensate for missing definitions, examples, evidence, or visual interpretation.
 - Keep production evidence off the screen. Source paths, hierarchy proof, coverage notes, and visual-planning labels belong in spec fields or review files, not in the learner-facing title, explanation, bullets, captions, or blocks.
 - Before choosing a layout, check whether the renderer can show every required bullet, block, and enumerated child. Layout caps are not permission to truncate.
-- Generated illustrations must be concrete teaching scenes or examples. Reject decorative abstract graphics, generic icons, or workflow-looking placeholders that do not clarify the node.
+- Generated illustrations must be concrete teaching scenes or examples. Each generated image must carry a source-linked `knowledge_anchor` and an `observable_teaching_detail` that names what in the picture teaches the point. Reject decorative abstract graphics, generic icons, atmosphere-only scenes, or workflow-looking placeholders that do not clarify the node.
 
 ## Human Instructor Finish
 
@@ -166,6 +166,7 @@ The final deck should feel like a careful instructor prepared it for recording, 
 - Does the learner feel the mind-map path unfolding, rather than a rearranged material pool?
 - Does each page have one teacher-like conclusion, a plain explanation, and visible examples or evidence?
 - Do template structure, native motifs, and images make the current idea easier to understand, rather than decorating a generic page?
+- For generated images, can the learner see the knowledge point in a concrete object, action, state, or before/after contrast?
 - Does the rhythm change because the teaching relationship changes, not because a color or layout name rotated?
 - Would a zero-basis learner understand the page if the instructor paused speaking for a few seconds?
 

@@ -100,6 +100,14 @@ The 视觉分镜师 owns the planning layer and the 总导演 owns the execution
 
 Execution rule: if `course.image_generation_tasks` contains planned generated cases or a slide has `visual_plan.imagegen_priority: "preferred"`, the director must read the `gpt-image-2` skill and attempt GPT Image 2 before local PPTX build. If GPT Image 2 fails, attempt built-in `imagegen` unless it is unavailable in the current environment. Do not replace planned rich case images with local SVG/PPT diagrams merely because deterministic fallback is faster. If both generation routes fail or are unavailable, record route-by-route attempts, command/tool layer, affected slide numbers, and the chosen fallback in `course.image_generation_review`; then use the fallback only where it still teaches the node.
 
+Every generated case image must start from the knowledge point, not from a decorative scene. In both `visual_plan` and the matching `course.image_generation_tasks` item, record:
+
+- `knowledge_anchor`: the source concept, claim, contrast, misconception, or metaphor the image must make visible;
+- `observable_teaching_detail`: the concrete object, action, state, before/after change, or decision point in the picture that lets a zero-basis learner recognize that knowledge point;
+- `template_style_bridge`: a short secondary note on how the image should sit with the selected template's palette, contrast, crop, texture, or lighting. This is a fit constraint, not the main reason to generate the picture.
+
+If the visual planner cannot name a concrete `observable_teaching_detail`, do not generate an image yet. Choose an editable diagram, split/rewrite the page, or ask for a clearer teaching example. After generation, inspect the image at slide size before PPTX build. Regenerate or replace it when the picture looks stylish but the learner cannot tell which exact knowledge point it teaches.
+
 If the outline already contains many case images, inspect and reuse those source cases first wherever they directly teach the current node. Record `source_case_priority: "source-first"` and `reused_source_slide_numbers` in `course.image_generation_review`. After that source-case pass, identify text-heavy or abstract pages that have no source image and would become clearer with a generated teaching case. For source-rich decks, generated pages are required by teaching need, not by a quota: add them when the remaining non-source-image pages need richer visual cases, and skip them when source cases plus editable diagrams already make the deck visually teachable. A deck with no source reuse record or no completed review fails director review; a deck with no generated pages can pass only when `generated_slide_numbers` is an empty list and `generated_bypass_reason` explains why no remaining text-heavy or abstract page needs a generated case.
 
 If the outline is image-poor, treat concrete teaching visuals as a primary build input rather than a late decoration. These may be generated images or editable diagrams/tables, depending on what teaches the node best. This applies in both `细纲` and `粗纲`. Image-poor means any of the following:
@@ -117,7 +125,7 @@ For image-poor decks:
 - Use editable diagrams instead of generated images only for relationship maps, process chains, comparison structures, tables, and label-heavy visuals that must stay fully editable.
 - Do not describe the image-poor plan as "a small number of generated images" unless the deck itself is short and mostly table/process content.
 - Record selected generated slide numbers, route-by-route attempts, concrete bypass reasons, and deterministic fallbacks in `course.image_generation_review` so the decision is understandable before PPT generation.
-- Record the executable task list in `course.image_generation_tasks` when generated illustrations are planned.
+- Record the executable task list in `course.image_generation_tasks` when generated illustrations are planned. Each task must preserve the `knowledge_anchor` and `observable_teaching_detail`; prompt wording can vary, but those teaching constraints cannot disappear.
 - SVG/PPT fallback diagrams are acceptable for relationship maps and label-heavy visuals, but they do not replace a planned rich bitmap teaching case unless GPT Image 2 was attempted and failed or the director changes the visual decision with a concrete teaching reason.
 
 Do not force raster generation for visuals that are better as editable instructional graphics:
@@ -139,7 +147,7 @@ Generated images must make the learner understand the knowledge point faster. A 
 
 For process lessons, the knowledge point may be a workflow, but the image must show concrete artifacts from that workflow: a script page, shooting setup, media bins, editing timeline, subtitle/audio controls, platform version variants, title/cover board, publish checklist, analytics dashboard, or next-video planning loop. Do not use disconnected arrows, boxes, circles, or decorative abstract shapes as the main image.
 
-Before building the PPTX, inspect generated images at slide size and ask: "Could a zero-basis learner explain why this exact image belongs on this exact slide?" If not, regenerate or replace it before Canva import.
+Before building the PPTX, inspect generated images at slide size and ask: "What visible detail in this exact image teaches this slide's knowledge point?" If the answer is only mood, style, color, or a generic scene, regenerate or replace it before Canva import.
 
 ## Required composition
 
