@@ -24,9 +24,11 @@ Before authoring, read [references/curriculum-system.md](references/curriculum-s
 
 Read [references/content-policy.md](references/content-policy.md) before writing either mode.
 
-## Four-Role Workflow
+## Mandatory Four-Role Workflow
 
-When subagents are available and the user is asking to build or substantially revise a course deck, use four proposal-only roles under one director. Use a single orchestrator only when subagents are unavailable, the user explicitly disables workers, or the request is only a simple read-only question.
+For any request to build or substantially revise a course deck, use the four proposal-only roles under one director. This skill has no single-orchestrator authoring fallback for deck builds.
+
+If subagent tooling is unavailable, runtime policy requires explicit user authorization that has not been given, or the user disables workers, stop after any safe source/mode intake and report the blocker. Do not continue into slide planning, screen copy, visual planning, PPTX generation, or Canva delivery as a single orchestrator. Simple read-only questions may still be answered directly without entering the deck-build workflow.
 
 Read [references/agent-hierarchy.md](references/agent-hierarchy.md) and [references/role-standards.md](references/role-standards.md) before dispatching workers.
 
@@ -69,7 +71,7 @@ The director's review is simple and human-facing:
 1. Read [references/workflow.md](references/workflow.md) and create an external scratch workspace.
 2. Run `scripts/extract_source.py` to create `source-map.json`. For PDFs, also render and visually inspect every relevant page; extracted text alone is not hierarchy evidence.
 3. Complete the mandatory source and mode checkpoint above.
-4. If using workers, create four scoped worker briefs and dispatch in the staged order from `agent-hierarchy.md`; otherwise perform those phases sequentially in the orchestrator.
+4. Create four scoped worker briefs and dispatch in the staged order from `agent-hierarchy.md`. If workers cannot be dispatched, stop and report the blocker instead of performing those phases sequentially in the orchestrator.
 5. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must remain out of scope.
 6. Build a source coverage matrix in source order. Include every valid node exactly once. Each slide group must preserve the XMind/source path and sibling order, not just monotonic node IDs.
 7. Create `deck-spec.json` using the schema in [references/workflow.md](references/workflow.md).

@@ -16,9 +16,11 @@ Keep scratch files outside the user's project. Put durable deliverables in `<sou
 
 Never overwrite source files.
 
-## Proposal-Only Multi-Agent Workspace
+## Mandatory Proposal-Only Multi-Agent Workspace
 
-Use the four-role proposal worker set from `agent-hierarchy.md` for course-deck builds and substantial revisions when subagents are available. Workers are advisory only; the director owns durable files, generated assets, PPTX build, Canva import/editing, and final approval.
+Use the four-role proposal worker set from `agent-hierarchy.md` for every course-deck build and substantial revision. Workers are advisory only; the director owns durable files, generated assets, PPTX build, Canva import/editing, and final approval.
+
+There is no single-orchestrator authoring fallback. If subagents cannot be dispatched because the runtime lacks the tool, current tool policy requires explicit user authorization, the user disables workers, or the worker environment is otherwise unsafe, stop and report the blocker. The director may complete safe source/mode intake, but must not proceed to slide planning, screen copy, visual planning, PPTX generation, or Canva delivery by simulating the worker roles alone.
 
 Create short worker briefs under `scratch/agent-briefs/`. A brief should fit on one readable page when possible:
 
@@ -39,7 +41,7 @@ Visual planning is staged:
 
 For long decks, split visual work by contiguous slide ranges if that keeps proposals easier to reason about. Preserve the same logical `storyboard-designer` role state across ranges.
 
-If subagents are unavailable or unsafe for the current run, the director performs the same phases sequentially and records the limitation.
+If subagents are unavailable or unsafe for the current run, the director records the limitation and stops instead of performing the same phases sequentially.
 
 ## Source Intake
 

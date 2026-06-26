@@ -1,6 +1,8 @@
 # Agent Hierarchy
 
-Use this hierarchy for course-deck builds and substantial revisions when subagents are available. Workers are proposal-only role specialists under one director. There is no standalone final reviewer role.
+Use this hierarchy for every course-deck build and substantial revision. Workers are proposal-only role specialists under one director. There is no standalone final reviewer role and no single-orchestrator authoring fallback.
+
+If the current runtime cannot dispatch subagents, or requires explicit user authorization that has not been given, the director must stop after safe source/mode intake and report the blocker. Do not simulate these roles sequentially in the director for deck builds.
 
 ```
 总导演 / build-course-canva-deck
