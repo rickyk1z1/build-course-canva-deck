@@ -48,10 +48,12 @@ Read [references/agent-hierarchy.md](references/agent-hierarchy.md) and [referen
 
 Before dispatching any worker, the director creates a scoped brief in `scratch/agent-briefs/<role>.brief.md` or `scratch/agent-briefs/<role>.brief.json`. Keep the brief short and readable. It must tell the worker:
 
+- the director's concise recap of the user's current non-negotiable requirement for this run;
 - the exact proposal to produce and where to write it;
 - which source excerpts, context files, rendered pages, or template references it may read;
 - the current source path, node scope, mode, and curriculum boundary;
 - the role standards that matter for this pass;
+- any supporting skill the worker may read, and which part of that skill is relevant;
 - what concrete evidence the worker must show before the director can trust the proposal;
 - what to report as an open question instead of guessing.
 
@@ -60,6 +62,8 @@ Workers read only their brief plus files listed in `allowed_read_paths`. If a wo
 Worker proposals must include a `self_check` section, but it is not a checkbox ritual. Each answer must point to concrete source paths, slide groups, visible phrases, layout decisions, or unresolved risks. Generic answers such as "已检查" or "符合要求" are not mergeable. Do not create a separate final-review worker, lecture-notes worker, or fifth review role.
 
 Use workers to reduce context piling, not to make the process more mechanical. Each worker returns a compact expert handoff that downstream roles can trust without rereading broad context: 课程统筹师 gives a boundary card, 原稿场记 gives the source-order spine, 课堂编剧 gives the zero-basis teaching script spine, and 视觉分镜师 gives the visual-understanding map. The director passes these handoffs, not every upstream file, unless a worker explicitly requests more context.
+
+Supporting presentation/design/Canva skills may be used only under the director's route. They are references for style, PPTX mechanics, Canva delivery, or design audit; they cannot replace this skill's source intake, four-role workflow, learner-facing courseware standard, or director acceptance lock.
 
 The director's review is simple and human-facing:
 

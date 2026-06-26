@@ -112,6 +112,8 @@ When any one standard fails, the director reviews the whole chain that produced 
 
 The director must not create a standalone reviewer role. Mechanical scripts are guards, not approval.
 
+Supporting skill routing is also director-owned. The director may authorize a worker to read a specific supporting skill only when that skill directly improves the worker's current proposal. The authorization must name the skill, allowed files, and expected output. Workers must not independently browse or combine broad skill ecosystems.
+
 ## 课程统筹师
 
 Purpose: identify where the lesson belongs in the curriculum and define scope boundaries.
@@ -127,6 +129,7 @@ Default forbidden reads:
 
 - full raw source file, unless the brief says the lesson identity cannot be determined from extracted summaries
 - template references, visual-system references, PPTX outputs, and Canva designs
+- external design, presentation, or Canva skills unless the director explicitly asks for a boundary-only check
 - slide copy proposals or visual proposals
 
 Output:
@@ -167,6 +170,7 @@ Default forbidden reads:
 
 - neighboring course files beyond the approved boundary summary
 - design-system, page-design, template bank, Canva designs, and unrelated references
+- external design, presentation, or Canva skills
 - screen copy or visual proposals that would bias source-order planning
 
 Output:
@@ -206,12 +210,14 @@ Default allowed reads:
 - `scratch/slide-plan.proposal.json` after director review
 - director-provided source-node excerpts and evidence ledger for the assigned node scope
 - `content-policy.md`
+- director-authorized excerpts from `presentations:Presentations` only for storytelling flow, density, font-size, and readable-slide standards when needed
 
 Default forbidden reads:
 
 - full raw source file unless a specific excerpt is listed in `allowed_read_paths`
 - neighboring course files beyond the approved boundary summary
 - visual-system, design-system, page-design, template bank, PPTX outputs, and Canva designs
+- `awesome-design-md`, `baoyu-slide-deck`, Canva generation skills, or product-audit skills; they do not decide learner-facing content
 
 Output:
 
@@ -252,6 +258,10 @@ Default allowed reads:
 - director-approved slide plan and, for final visual passes, approved screen copy
 - source image inventory, selected rendered source images, and generated-image review notes listed in the brief
 - selected template profile, prebuilt template-native element inventory, selected template reference pages, and only the visual/design/page-quality references listed in the brief
+- director-authorized supporting skill references:
+  - `awesome-design-md` for visual tokens, spacing, composition, and style language when a matching design direction is selected;
+  - `presentations:Presentations` for layout-library inspiration, overlap/font-size discipline, and rendered-slide QA rules;
+  - `baoyu-slide-deck` for educational slide-image style vocabulary and prompt patterns only;
 
 Default forbidden reads:
 
@@ -260,6 +270,7 @@ Default forbidden reads:
 - curriculum map files beyond the approved boundary summary
 - Canva designs or templates directly, unless the director brief authorizes a read-only template inventory check
 - image-generation tools, final image asset directories, PPTX build outputs, and Canva import/edit actions
+- `canva:canva-branded-presentation` and `product-design:audit`; those are director-only delivery/review supports
 
 Outputs:
 
@@ -281,6 +292,7 @@ Must include:
 - layout capacity checks showing every required bullet, block, and enumeration can render
 - split recommendations when a layout cannot fit the source content
 - layout rhythm plan for long decks
+- any supporting-skill guidance used, with the kept design rule and rejected parts that would violate source order, template fit, editability, or learner clarity
 - `self_check`
 - any `context_request` for missing template inventory, image dimensions, or motif collision risks
 

@@ -81,6 +81,104 @@ def valid_template_motif(
     }
 
 
+def write_fake_artifact_tool(workspace: Path) -> None:
+    package_dir = workspace / "node_modules" / "@oai" / "artifact-tool"
+    package_dir.mkdir(parents=True)
+    (workspace / "package.json").write_text('{"private":true}\n', encoding="utf-8")
+    (package_dir / "package.json").write_text(
+        '{"name":"@oai/artifact-tool","type":"module","main":"index.mjs"}\n',
+        encoding="utf-8",
+    )
+    (package_dir / "index.mjs").write_text(
+        r'''
+import fs from "node:fs/promises";
+
+class Slide {
+  constructor() {
+    this.background = {};
+    this._shapes = [];
+    this._images = [];
+    this.shapes = {
+      items: this._shapes,
+      add: (shape) => {
+        const record = { ...shape, textValue: "", textStyle: {} };
+        Object.defineProperty(record, "text", {
+          get() {
+            return { value: this.textValue, style: this.textStyle };
+          },
+          set(value) {
+            this.textValue = String(value || "");
+          },
+        });
+        this._shapes.push(record);
+        return record;
+      },
+    };
+    this.images = {
+      items: this._images,
+      add: (image) => {
+        this._images.push(image);
+        return image;
+      },
+    };
+  }
+
+  async export({ format }) {
+    if (format !== "layout") return { text: async () => "" };
+    return {
+      text: async () => JSON.stringify({
+        shapes: this._shapes.map((shape) => ({
+          name: shape.name || "",
+          position: shape.position || {},
+          text: shape.textValue || "",
+        })),
+        images: this._images.map((image) => ({ alt: image.alt || "", position: image.position || {} })),
+      }),
+    };
+  }
+}
+
+class PresentationImpl {
+  constructor() {
+    this.slides = {
+      items: [],
+      add: () => {
+        const slide = new Slide();
+        this.slides.items.push(slide);
+        return slide;
+      },
+    };
+  }
+
+  async export() {
+    return { arrayBuffer: async () => new ArrayBuffer(0) };
+  }
+
+  async inspect() {
+    return { ndjson: "" };
+  }
+}
+
+export const Presentation = {
+  create() {
+    return new PresentationImpl();
+  },
+};
+
+export const PresentationFile = {
+  async exportPptx() {
+    return {
+      async save(outputPath) {
+        await fs.writeFile(outputPath, "fake pptx");
+      },
+    };
+  },
+};
+'''.lstrip(),
+        encoding="utf-8",
+    )
+
+
 def source_treatment(node_id: str, evidence: str, *, status: str = "preserved") -> dict:
     return {
         "source_node_id": node_id,
@@ -372,6 +470,67 @@ def write_source_rich_long_fixture(temp: Path) -> tuple[Path, Path]:
     return deck_path, source_path
 
 
+def write_layout_rich_builder_spec(temp: Path) -> Path:
+    slides = []
+    patterns = [
+        ("roadmap", "full-field-branch-map", "流程页解释", "流程阶段"),
+        ("orange", "accent-statement-visual-band", "结论页解释", "结论动作"),
+        ("light", "side-rail-modules", "侧栏页解释", "检查动作"),
+    ]
+    for number, (layout, pattern, explanation, heading) in enumerate(patterns, start=1):
+        slides.append({
+            "number": number,
+            "section": "TEST",
+            "title": f"模板多版式参考 {number}",
+            "layout": layout,
+            "screen": {
+                "explanation": f"{explanation}，用于验证构建器能按模板参考页形成不同几何结构。",
+                "bullets": [f"{heading}一", f"{heading}二", f"{heading}三"],
+                "caption": "",
+                "blocks": [],
+            },
+            "visuals": [],
+            "visual_plan": {
+                "source_node_id": f"n{number:04d}",
+                "asset_type": "editable-diagram",
+                "integration": "knowledge-page",
+                "description": "template reference geometry",
+                "teaching_role": "shows template-driven layout variety",
+                "visual_applicability": "required",
+                "imagegen_priority": "not-needed",
+                "imagegen_bypass_reason": "editable template structure is clearer here",
+                "text_area_ratio": 0.42,
+                "labels_as_slide_text": True,
+                "layout_variant": pattern,
+                "rendered_pattern": pattern,
+                "template_style_family": pattern,
+                "template_reference": {
+                    "page": number + 2,
+                    "style_family": pattern,
+                    "layout_features": ["template geometry family", "distinct thumbnail pattern"],
+                    "adaptation": "Use the selected template page family to produce a visibly different local PPT geometry.",
+                },
+                "diagram_elements": [{"kind": "module", "label": pattern}],
+            },
+            "source_node_ids": [f"n{number:04d}"],
+            "source_node_treatments": [source_treatment(f"n{number:04d}", f"模板多版式参考 {number}")],
+            "added_content": [],
+            "scope_check": {"status": "within-branch", "branch_node_id": f"n{number:04d}"},
+        })
+    spec = {
+        "course": {
+            "title": "Builder layout variety regression",
+            "audience": "course creators",
+            "outline_mode": "detailed",
+            "curriculum_context": {"system_name": "Course", "module": "Builder", "course_role": "Verify builder layout variety"},
+        },
+        "slides": slides,
+    }
+    spec_path = temp / "layout-rich-builder-spec.json"
+    spec_path.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    return spec_path
+
+
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="course-canva-skill-") as raw:
         temp = Path(raw)
@@ -634,6 +793,29 @@ def main() -> int:
         repeated_native_motif_path.write_text(json.dumps(repeated_native_motif, ensure_ascii=False), encoding="utf-8")
         repeated_native_motif_report = audit(temp, repeated_native_motif_path, source_rich_long_source_path, expect=1)
         assert any("too repetitive" in error for error in repeated_native_motif_report["errors"])
+
+        fake_workspace = temp / "fake-artifact-workspace"
+        fake_workspace.mkdir()
+        write_fake_artifact_tool(fake_workspace)
+        layout_builder_spec = write_layout_rich_builder_spec(temp)
+        layout_builder_output = temp / "layout-rich-builder.pptx"
+        run([
+            "node",
+            str(SCRIPTS / "build_deck.mjs"),
+            "--spec",
+            str(layout_builder_spec),
+            "--output",
+            str(layout_builder_output),
+            "--workspace",
+            str(fake_workspace),
+        ])
+        layout_shape_names = "\n".join(
+            "\n".join(shape.get("name", "") for shape in json.loads(path.read_text(encoding="utf-8")).get("shapes", []))
+            for path in sorted((fake_workspace / "layout").glob("slide-*.json"))
+        )
+        assert "flow-node-" in layout_shape_names
+        assert "statement-field-" in layout_shape_names
+        assert "side-rail-" in layout_shape_names
 
         builder_source = (SCRIPTS / "build_deck.mjs").read_text(encoding="utf-8")
         assert "titleLength > 30 ? 36 : titleLength > 24 ? 40 : titleLength > 18 ? 46 : 58" in builder_source

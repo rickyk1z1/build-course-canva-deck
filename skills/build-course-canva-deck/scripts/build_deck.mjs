@@ -259,6 +259,16 @@ function layoutVariantFor(item) {
   return "split-image";
 }
 
+function renderedPatternFor(item) {
+  return String(
+    item.visual_plan?.rendered_pattern
+    || item.visual_plan?.thumbnail_pattern
+    || templateReferenceFor(item).rendered_pattern
+    || templateReferenceFor(item).thumbnail_pattern
+    || layoutVariantFor(item),
+  );
+}
+
 function addHeader(slide, item, theme) {
   const dark = theme === "dark";
   const fg = dark ? C.white : C.black;
@@ -630,10 +640,122 @@ async function buildTextSlide(presentation, item) {
   const theme = themeFor(item.layout);
   const dark = theme === "dark";
   const orange = theme === "orange";
+  const pattern = renderedPatternFor(item);
   const slide = presentation.slides.add();
   slide.background.fill = dark ? C.black : orange ? C.orange : C.cream;
   await addTemplateMotifPreview(slide, item);
   addHeader(slide, item, theme);
+  if (
+    pattern.includes("branch-map")
+    || pattern.includes("flow")
+    || pattern.includes("roadmap")
+    || pattern.includes("route")
+  ) {
+    addExplanation(slide, item, theme, { left: 72, top: 205, width: 640, height: 82 });
+    const points = bulletsFor(item);
+    if (points.length > 4) {
+      throw new Error(`slide ${item.number} flow pattern has ${points.length} visible points; split into a shorter route page`);
+    }
+    const railTop = 360;
+    const railWidth = 1000;
+    addBox(slide, { left: 100, top: railTop + 86, width: railWidth, height: 8, fill: dark ? C.orange : C.black, name: `flow-rail-${item.number}` });
+    points.forEach((point, index) => {
+      const nodeWidth = 210;
+      const gap = (railWidth - nodeWidth * points.length) / Math.max(1, points.length - 1);
+      const left = 72 + index * (nodeWidth + Math.max(24, gap));
+      const fill = index % 2 === 0 ? (dark ? C.cream : C.black) : C.orange;
+      const nodeTheme = index % 2 === 0 && !dark ? "dark" : "light";
+      addBox(slide, { left, top: railTop, width: nodeWidth, height: 172, fill, name: `flow-node-${item.number}-${index}` });
+      addText(slide, String(index + 1).padStart(2, "0"), {
+        left: left + 18,
+        top: railTop + 18,
+        width: 56,
+        height: 32,
+        size: 26,
+        color: fill === C.black ? C.orange : C.black,
+        typeface: F.deco,
+        bold: true,
+      });
+      addText(slide, typeof point === "string" ? point : point?.text || "", {
+        left: left + 18,
+        top: railTop + 64,
+        width: nodeWidth - 36,
+        height: 78,
+        size: 16,
+        color: nodeTheme === "dark" ? C.white : C.black,
+        typeface: F.body,
+        lineSpacing: 1.15,
+        name: `flow-node-text-${item.number}-${index}`,
+      });
+    });
+    addFooter(slide, item, theme);
+    return slide;
+  }
+  if (
+    pattern.includes("statement")
+    || pattern.includes("principle")
+    || pattern.includes("visual-band")
+  ) {
+    const fieldFill = orange ? C.black : C.orange;
+    addBox(slide, { left: 72, top: 215, width: 650, height: 250, fill: fieldFill, name: `statement-field-${item.number}` });
+    addText(slide, screenFor(item).explanation || "", {
+      left: 108,
+      top: 255,
+      width: 578,
+      height: 150,
+      size: 25,
+      color: fieldFill === C.black ? C.white : C.black,
+      typeface: F.title,
+      bold: true,
+      lineSpacing: 1.18,
+      name: `statement-copy-${item.number}`,
+    });
+    const points = bulletsFor(item);
+    addBox(slide, { left: 780, top: 225, width: 360, height: 96, fill: orange ? C.cream : C.black, name: `statement-support-a-${item.number}` });
+    addBox(slide, { left: 780, top: 355, width: 360, height: 96, fill: orange ? C.cream : C.black, name: `statement-support-b-${item.number}` });
+    addPointList(slide, points.slice(0, 2), orange ? "light" : "dark", { left: 812, top: 246, width: 300, height: 72 }, {
+      max: 2,
+      compact: true,
+      context: `slide ${item.number} statement support A`,
+    });
+    addPointList(slide, points.slice(2, 4), orange ? "light" : "dark", { left: 812, top: 376, width: 300, height: 72 }, {
+      max: 2,
+      compact: true,
+      context: `slide ${item.number} statement support B`,
+    });
+    addFooter(slide, item, theme);
+    return slide;
+  }
+  if (
+    pattern.includes("side-rail")
+    || pattern.includes("side-panel")
+    || pattern.includes("modules")
+  ) {
+    const sideFill = dark ? C.orange : C.black;
+    addBox(slide, { left: 72, top: 205, width: 250, height: 400, fill: sideFill, name: `side-rail-${item.number}` });
+    addText(slide, screenFor(item).explanation || "", {
+      left: 102,
+      top: 250,
+      width: 190,
+      height: 220,
+      size: 22,
+      color: sideFill === C.black ? C.white : C.black,
+      typeface: F.title,
+      bold: true,
+      lineSpacing: 1.2,
+      name: `side-rail-copy-${item.number}`,
+    });
+    const points = bulletsFor(item);
+    addPointList(slide, points.slice(0, 4), theme, { left: 378, top: 220, width: 760, height: 320 }, {
+      max: 4,
+      columns: 2,
+      fill: orange ? C.cream : dark ? C.black : C.white,
+      compact: true,
+      context: `slide ${item.number} side-rail modules`,
+    });
+    addFooter(slide, item, theme);
+    return slide;
+  }
   addExplanation(slide, item, theme, { left: 72, top: 205, width: 720, height: 90 });
   const points = bulletsFor(item);
   const split = Math.ceil(points.length / 2);
