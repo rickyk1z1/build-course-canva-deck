@@ -29,6 +29,7 @@ FORBIDDEN = [
     "本页顺序", "本页内容", "本页对应", "本页覆盖", "来源路径", "源路径",
     "source path", "source_node", "screen_evidence", "coverage_note",
 ]
+STATIC_FOOTER_TEXT = "线上录课课件"
 IMAGE_LAYOUTS = {
     "image-left", "image-right",
     "image-left-dark", "image-right-dark",
@@ -142,6 +143,27 @@ def top_section_for(node_id: str, root_id: str | None, parent_by_id: dict[str, s
             return current
         seen.add(current)
         current = parent or ""
+    return None
+
+
+def framework_progress_expected(
+    layout: str,
+    node_ids: list[str],
+    root_id: str | None,
+    parent_by_id: dict[str, str | None],
+    source_text_by_id: dict[str, str],
+    top_section_ids: list[str],
+) -> str | None:
+    if layout == "section-cover" and len(node_ids) == 1 and node_ids[0] in top_section_ids:
+        return source_text_by_id.get(node_ids[0])
+    section_ids = {
+        top_section_for(node_id, root_id, parent_by_id)
+        for node_id in node_ids
+        if node_id in source_text_by_id
+    }
+    section_ids = {section_id for section_id in section_ids if section_id}
+    if len(section_ids) == 1:
+        return source_text_by_id.get(next(iter(section_ids)))
     return None
 
 
@@ -357,6 +379,24 @@ def main() -> int:
             warnings.append(f"{label} uses a question-style title; director should verify the answer is visible on the same page")
 
         slide_visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+        node_ids = [str(value) for value in (slide.get("source_node_ids") or [])]
+        framework_progress_label = str(slide.get("framework_progress_label", "")).strip()
+        if normalized_match_text(framework_progress_label) == normalized_match_text(STATIC_FOOTER_TEXT):
+            errors.append(f"{label} framework_progress_label must not be the static courseware footer")
+        expected_progress = framework_progress_expected(
+            layout,
+            node_ids,
+            root_id,
+            parent_by_id,
+            source_text_by_id,
+            top_section_ids,
+        )
+        if layout in KNOWLEDGE_LAYOUTS and not framework_progress_label:
+            errors.append(f"{label} must set framework_progress_label for the left footer")
+        if framework_progress_label and expected_progress and framework_progress_label != expected_progress:
+            errors.append(
+                f"{label} framework_progress_label must be current top-level section: {expected_progress}"
+            )
 
         screen = slide.get("screen") or {}
         if layout in CONTENT_LAYOUTS:

@@ -85,4 +85,4 @@ Layout rhythm: for long decks, use fixed structural families for `lesson-overvie
 
 ## Before build
 
-For every knowledge slide verify: a concrete visual plan mapped to a source node; the visual is actually on the slide; the slide explains the image for learners; the image integrates with the node's text rather than replacing it; text/visual balance leaves room for readable evidence and a useful visual; all labels are editable slide text; generated images are concrete teaching scenes, not abstract placeholders; no production words (`PDF`, `原稿`, `来源文档`, `图旁注明`, `制作说明`) appear.
+For every knowledge slide verify: a concrete visual plan mapped to a source node; the visual is actually on the slide; the slide explains the image for learners; the image integrates with the node's text rather than replacing it; text/visual balance leaves room for readable evidence and a useful visual; all labels are editable slide text; generated images are concrete teaching scenes, not abstract placeholders; the left footer names the current second-level knowledge framework on normal content pages; no production words (`PDF`, `原稿`, `来源文档`, `图旁注明`, `制作说明`) appear.

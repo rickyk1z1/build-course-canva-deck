@@ -42,6 +42,7 @@ def slide(
     branch="n0",
     bullets=None,
     section_preview_items=None,
+    framework_progress_label=None,
 ):
     evidence = evidence or title
     node_ids = node_ids or []
@@ -73,6 +74,10 @@ def slide(
             "labels_as_slide_text": True,
         },
     }
+    if framework_progress_label is not None:
+        result["framework_progress_label"] = framework_progress_label
+    elif layout not in {"cover", "lesson-overview", "section-cover", "summary"}:
+        result["framework_progress_label"] = "第一节"
     if section_preview_items is not None:
         result["section_preview_items"] = section_preview_items
     return result
@@ -126,7 +131,15 @@ class OutlineStructureAuditTests(unittest.TestCase):
                 [
                     slide(1, "cover", "课程标题", ["n0"], "课程标题"),
                     slide(2, "light", "第一节内容", ["n1", "n2"], "第一节", branch="n1"),
-                    slide(3, "light", "第二节内容", ["n3", "n4"], "第二节", branch="n3"),
+                    slide(
+                        3,
+                        "light",
+                        "第二节内容",
+                        ["n3", "n4"],
+                        "第二节",
+                        branch="n3",
+                        framework_progress_label="第二节",
+                    ),
                 ]
             )
         )
@@ -135,6 +148,59 @@ class OutlineStructureAuditTests(unittest.TestCase):
         self.assertIn("first non-cover slide must use lesson-overview layout", joined)
         self.assertIn("missing section-cover for top-level source section n1", joined)
         self.assertIn("final slide must use summary layout", joined)
+
+    def test_rejects_static_footer_and_requires_current_second_level_progress(self):
+        slides = [
+            slide(1, "lesson-overview", "课程总领", ["n0"], "课程标题"),
+            slide(
+                2,
+                "section-cover",
+                "第一节",
+                ["n1"],
+                "第一节",
+                branch="n1",
+                bullets=["第一节内容"],
+                section_preview_items=[
+                    {"source_node_id": "n2", "screen_evidence": "第一节内容"}
+                ],
+            ),
+            slide(
+                3,
+                "light",
+                "第一节内容",
+                ["n2"],
+                "第一节内容",
+                branch="n1",
+                framework_progress_label="线上录课课件",
+            ),
+            slide(
+                4,
+                "section-cover",
+                "第二节",
+                ["n3"],
+                "第二节",
+                branch="n3",
+                bullets=["第二节内容"],
+                section_preview_items=[
+                    {"source_node_id": "n4", "screen_evidence": "第二节内容"}
+                ],
+            ),
+            slide(
+                5,
+                "light",
+                "第二节内容",
+                ["n4"],
+                "第二节内容",
+                branch="n3",
+                framework_progress_label="第二节",
+            ),
+            slide(6, "summary", "总结", [], "按章节回收本课重点"),
+        ]
+        code, report = run_audit(deck(slides))
+        self.assertNotEqual(code, 0)
+        joined = "\n".join(report["errors"])
+        self.assertIn("slide 3 framework_progress_label must not be the static courseware footer", joined)
+        self.assertIn("slide 3 framework_progress_label must be current top-level section: 第一节", joined)
 
     def test_accepts_overview_then_each_section_cover_then_content_then_summary(self):
         slides = [
@@ -164,7 +230,15 @@ class OutlineStructureAuditTests(unittest.TestCase):
                     {"source_node_id": "n4", "screen_evidence": "第二节内容"}
                 ],
             ),
-            slide(5, "light", "第二节内容", ["n4"], "第二节内容", branch="n3"),
+            slide(
+                5,
+                "light",
+                "第二节内容",
+                ["n4"],
+                "第二节内容",
+                branch="n3",
+                framework_progress_label="第二节",
+            ),
             slide(6, "summary", "总结", [], "按章节回收本课重点"),
         ]
         code, report = run_audit(deck(slides))
@@ -196,7 +270,15 @@ class OutlineStructureAuditTests(unittest.TestCase):
                     {"source_node_id": "n4", "screen_evidence": "第二节内容"}
                 ],
             ),
-            slide(5, "light", "第二节内容", ["n4"], "第二节内容", branch="n3"),
+            slide(
+                5,
+                "light",
+                "第二节内容",
+                ["n4"],
+                "第二节内容",
+                branch="n3",
+                framework_progress_label="第二节",
+            ),
             slide(6, "summary", "总结", [], "按章节回收本课重点"),
         ]
         code, report = run_audit(deck(slides))

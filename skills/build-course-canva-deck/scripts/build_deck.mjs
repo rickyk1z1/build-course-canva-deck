@@ -289,10 +289,13 @@ function addHeader(slide, item, theme) {
 
 function addFooter(slide, item, theme) {
   const dark = theme === "dark";
-  addText(slide, "线上录课课件", {
-    left: 72, top: 684, width: 280, height: 16, size: 10,
-    color: dark ? C.white : C.muted, typeface: F.deco,
-  });
+  const progress = item.framework_progress_label || item.progress_label || "";
+  if (progress) {
+    addText(slide, progress, {
+      left: 72, top: 684, width: 360, height: 16, size: 10,
+      color: dark ? C.white : C.muted, typeface: F.deco,
+    });
+  }
   addText(slide, String(item.number).padStart(2, "0"), {
     left: 1150, top: 680, width: 58, height: 20, size: 12,
     color: dark ? C.orange : C.black, typeface: F.deco, bold: true, align: "right",

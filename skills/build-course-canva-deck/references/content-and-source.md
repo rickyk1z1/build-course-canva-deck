@@ -97,10 +97,17 @@ Coverage mapping for structural pages: the `lesson-overview` page covers the roo
 
 Use `source_node_ids` instead of `source_node_id` only when one preview bullet deliberately groups adjacent child headings; keep grouped IDs in source order.
 
+## Framework progress footer
+
+Normal content pages use the left footer as a knowledge-framework progress label, not as a generic courseware stamp. Set `framework_progress_label` to the current second-level outline heading/root child for the page's mapped knowledge nodes. Example: if the page teaches the first third-level topic under `选题方向规划`, the footer reads `选题方向规划`.
+
+Do not render `线上录课课件` as the left footer. Structural pages (`cover`, `lesson-overview`, `section-cover`, `summary`) may omit the left-footer progress label because they already signal deck structure. If a structural page does include it, it must not use the static courseware stamp.
+
 ## Authoring standard
 
 - Preserve source order before optimizing transitions; preserve every source node before adding vertical explanation.
 - Preserve the deck spine before optimizing page count or visual rhythm: total overview, section cover, section content, next section cover, final summary.
+- Put the current second-level heading in `framework_progress_label` for normal content pages; omit it on structural pages when it would add visual noise.
 - Give each knowledge page one clear teaching point with enough visible points to preserve the branch; do not add filler to hit a count.
 - Use comparison/table/two-panel layouts only when the content relationship is real and named in learner-facing labels.
 - Keep pages readable without narration.

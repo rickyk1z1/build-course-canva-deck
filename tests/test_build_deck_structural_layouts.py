@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 
@@ -92,6 +93,13 @@ class StructuralLayoutBuildTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue(out_path.exists())
             self.assertEqual(len(list((workspace / "preview").glob("slide-*.png"))), 3)
+            with zipfile.ZipFile(out_path) as pptx:
+                slide_xml = "\n".join(
+                    pptx.read(name).decode("utf-8", errors="replace")
+                    for name in pptx.namelist()
+                    if name.startswith("ppt/slides/slide") and name.endswith(".xml")
+                )
+            self.assertNotIn("线上录课课件", slide_xml)
 
 
 if __name__ == "__main__":
