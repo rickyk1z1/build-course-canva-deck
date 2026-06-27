@@ -18,7 +18,7 @@ If the runtime cannot dispatch subagents, requires user authorization that has n
 - **课程统筹师** defines curriculum position, prerequisites, neighboring boundaries, and shared terms. Prevents adjacent-course drift.
 - **原稿场记** preserves source hierarchy, source path, sibling order, second-level section spine, third-level section-cover previews, examples, metaphors, source images, and slide grouping. Prevents the mind map from being flattened or rearranged.
 - **课堂编剧** writes learner-facing screen copy from approved source-node excerpts, including lesson overview, section-cover copy, section content, framework progress labels, and final summary. Section-cover bullets summarize upcoming third-level headings rather than conclusions. Prevents invented labels, missing explanations, narration-only knowledge, source-level mismatch, and visible production/meta copy.
-- **视觉分镜师** plans fixed structural layouts, source images, generated-image candidates, editable diagrams, template references, section-internal layout variety, balance, and fit. Prevents meaningless comparison/table blocks, off-point generated images, repeated content-page structures, text-image collisions, top-heavy/underfilled pages, and decorative visuals.
+- **视觉分镜师** plans fixed structural layouts, source images, generated-image candidates, editable diagrams, template references, case-visual maps, section-internal layout variety, balance, and fit. Prevents meaningless comparison/table blocks, off-point or weakly teaching case images, repeated content-page structures, text-image collisions, top-heavy/underfilled pages, and decorative visuals.
 
 Each worker returns one compact handoff the director can pass downstream instead of broad context: 课程统筹师 → boundary card; 原稿场记 → source-order spine with section-cover spine and preview child IDs; 课堂编剧 → zero-basis teaching-script spine with overview/section/summary copy; 视觉分镜师 → structural-layout and visual-understanding map.
 
@@ -41,7 +41,7 @@ Role continuity is lightweight: the four worker names are logical roles. For mul
 3. 总导演 reviews both against their self-check and briefs 课堂编剧 and visual triage.
 4. 课堂编剧 and 视觉分镜师 (triage pass) may run in parallel after the slide plan is approved.
 5. 总导演 reviews copy and triage, then briefs the final visual pass.
-6. 视觉分镜师 finalizes structural layout families, visuals, layout capacity, template references, section-internal layout variety, composition balance, and `image_generation_tasks`. Long decks may split by contiguous slide ranges.
+6. 视觉分镜师 finalizes structural layout families, visuals, layout capacity, template references, case-visual maps, section-internal layout variety, composition balance, and `image_generation_tasks`. Long decks may split by contiguous slide ranges.
 7. 总导演 executes approved image generation, merges proposals into durable files, runs the audit, builds the PPTX, renders and reviews as a learner, imports into Canva, and asks for final approval.
 
 ## Specialist skill routing

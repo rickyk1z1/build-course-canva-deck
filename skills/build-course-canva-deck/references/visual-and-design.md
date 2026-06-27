@@ -20,7 +20,8 @@ Before building the PPTX, every normal knowledge slide includes a short `visual_
   "generation_route": "",
   "knowledge_anchor": "",
   "observable_teaching_detail": "",
-  "instant_takeaway": ""
+  "instant_takeaway": "",
+  "case_visual_map": []
 }
 ```
 
@@ -49,19 +50,20 @@ Source images are authoritative teaching units, not a moodboard.
 
 ## Generated images
 
-Generate text-free case images for abstract, metaphor-heavy, or image-poor branches that become clearer with a concrete scene. Decide by teaching need, not by a quota. Route order: `gpt-image-2` first; built-in `imagegen` if GPT Image 2 is unavailable or fails; deterministic SVG/PPT diagram or redrawn source visual only if both fail or an editable diagram teaches better. Save final assets into the course asset folder.
+Generate text-free case images for abstract, metaphor-heavy, or image-poor branches that become clearer with a concrete scene. For plain text pages, default to asking whether a generated case image or editable diagram would let learners grasp the point faster; do not keep a page text-only merely because the source has no image. Decide by teaching need, not by a quota. Route order: `gpt-image-2` first; built-in `imagegen` if GPT Image 2 is unavailable or fails; deterministic SVG/PPT diagram or redrawn source visual only if both fail or an editable diagram teaches better. Save final assets into the course asset folder.
 
 Every generated case image must start from the knowledge point. In `visual_plan` and the matching `course.image_generation_tasks` item, record:
 
 - `knowledge_anchor`: the source concept, claim, contrast, misconception, or metaphor the image must make visible;
 - `observable_teaching_detail`: the concrete object, action, state, before/after change, or decision point in the picture that lets a zero-basis learner recognize the point;
 - `instant_takeaway`: the one-sentence understanding a zero-basis learner should get before the instructor explains.
+- `case_visual_map`: a list mapping each visible teaching point, bullet, or enumerated item to the exact image detail that makes it visible, using `{ "screen_evidence": "...", "visible_detail": "..." }`.
 
-These three fields are **human-readable judgment cues**, not length-checked fields. The script does not measure them; the storyboard worker and director use them to decide whether the image teaches, and the non-regression checklist verifies it on the rendered page. If you cannot name a concrete `observable_teaching_detail` and `instant_takeaway`, do not generate — choose an editable diagram, split the page, or ask for a clearer example. After generation, inspect the image at slide size and ask: "what visible detail teaches this slide's point, and what should a learner grasp in three seconds?" If the answer is only mood, palette, or a generic scene, regenerate or replace.
+These fields are **human-readable judgment cues**, not prompt decoration. The storyboard worker and director use them to decide whether the image teaches, and the non-regression checklist verifies it on the rendered page. If you cannot map the slide's visible points to concrete image details, the image is probably too generic. Regenerate, choose an editable diagram, split the page, or ask for a clearer example. After generation, inspect the image at slide size and ask: "can a learner see the page's enumerated ideas in the image before reading every bullet?" If the answer is only mood, palette, or a generic scene, regenerate or replace.
 
-Prefer vivid teaching scenes (before/after contrast, wrong/right choice, visible consequence, physical analogy, concrete workflow artifact) over a generic person at a desk, floating icons, abstract arrows, or decorative dashboards. Keep generated images free of baked-in Chinese text, UI labels, watermarks, and slogans; all labels, arrows, and captions stay editable slide text.
+Prefer vivid teaching scenes (before/after contrast, wrong/right choice, visible consequence, physical analogy, concrete workflow artifact, or a scene where each enumerated idea has a visible object/action) over a generic person at a desk, floating icons, abstract arrows, or decorative dashboards. Keep generated images free of baked-in Chinese text, UI labels, watermarks, and slogans; all labels, arrows, and captions stay editable slide text.
 
-Use `editable-diagram` or `editable-table` instead of generation for arrows, chains, comparisons, label-heavy structures, and factual grids that must stay editable.
+Use `editable-diagram` or `editable-table` instead of generation for arrows, chains, comparisons, label-heavy structures, and factual grids that must stay editable. Use `text-only-exception` only when a concrete case image or diagram would genuinely make the point less clear; record `text_only_exception_reason` or `generated_case_bypass_reason`.
 
 ## Template fidelity (layout language first)
 
@@ -85,4 +87,4 @@ Layout rhythm: for long decks, use fixed structural families for `lesson-overvie
 
 ## Before build
 
-For every knowledge slide verify: a concrete visual plan mapped to a source node; the visual is actually on the slide; the slide explains the image for learners; the image integrates with the node's text rather than replacing it; text/visual balance leaves room for readable evidence and a useful visual; all labels are editable slide text; generated images are concrete teaching scenes, not abstract placeholders; the left footer names the current second-level knowledge framework on normal content pages; no production words (`PDF`, `原稿`, `来源文档`, `图旁注明`, `制作说明`) appear.
+For every knowledge slide verify: a concrete visual plan mapped to a source node; the visual is actually on the slide; the slide explains the image for learners; image pages include `case_visual_map` so the image visibly supports the slide's enumerated points; the image integrates with the node's text rather than replacing it; text/visual balance leaves room for readable evidence and a useful visual; all labels are editable slide text; generated images are concrete teaching scenes, not abstract placeholders; text-only pages have a concrete bypass reason; the left footer names the current second-level knowledge framework on normal content pages; no production words (`PDF`, `原稿`, `来源文档`, `图旁注明`, `制作说明`) appear.

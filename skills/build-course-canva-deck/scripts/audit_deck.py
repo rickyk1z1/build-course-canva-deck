@@ -92,6 +92,26 @@ def visible_text(slide: dict[str, Any]) -> str:
     return "\n".join(flatten_text(values))
 
 
+def visible_teaching_points(slide: dict[str, Any]) -> list[str]:
+    screen = slide.get("screen") or {}
+    points: list[str] = []
+    for item in screen.get("bullets") or []:
+        value = str(item.get("text") if isinstance(item, dict) else item).strip()
+        if value:
+            points.append(value)
+    for block in screen.get("blocks") or []:
+        if not isinstance(block, dict):
+            continue
+        heading = str(block.get("heading", "")).strip()
+        if heading and not is_generic_block_label(heading):
+            points.append(heading)
+        for item in block.get("items") or []:
+            value = str(item.get("text") if isinstance(item, dict) else item).strip()
+            if value:
+                points.append(value)
+    return points
+
+
 def normalized_match_text(value: Any) -> str:
     return re.sub(r"\s+", "", str(value or "")).lower()
 
@@ -459,6 +479,36 @@ def main() -> int:
                         errors.append(f"{label} image assets must use an image-integrated layout")
                     if not screen.get("caption"):
                         errors.append(f"{label} image asset lacks learner-facing visual interpretation")
+                    case_visual_map = visual_plan.get("case_visual_map")
+                    if not isinstance(case_visual_map, list) or not case_visual_map:
+                        errors.append(
+                            f"{label} image visual_plan must map visible case details to the slide's teaching points"
+                        )
+                    else:
+                        map_evidence: list[str] = []
+                        for map_index, map_item in enumerate(case_visual_map, start=1):
+                            prefix = f"{label} visual_plan.case_visual_map[{map_index}]"
+                            if not isinstance(map_item, dict):
+                                errors.append(f"{prefix} must be an object")
+                                continue
+                            evidence = str(map_item.get("screen_evidence", "")).strip()
+                            detail = str(map_item.get("visible_detail", "")).strip()
+                            if not evidence:
+                                errors.append(f"{prefix} must cite a visible slide teaching point")
+                            elif normalized_match_text(evidence) not in normalized_match_text(text):
+                                errors.append(f"{prefix} screen_evidence is not visible on the slide")
+                            else:
+                                map_evidence.append(normalized_match_text(evidence))
+                            if not detail:
+                                errors.append(f"{prefix} must describe the image detail that makes the point visible")
+                        for point in visible_teaching_points(slide):
+                            normalized_point = normalized_match_text(point)
+                            if not normalized_point:
+                                continue
+                            if not any(normalized_point in evidence or evidence in normalized_point for evidence in map_evidence):
+                                errors.append(
+                                    f"{label} case_visual_map does not cover visible teaching point: {point}"
+                                )
                 if asset_type in {"source-image", "redrawn-source-image"}:
                     visual_source_image_ids = visual_plan.get("source_image_ids")
                     if not isinstance(visual_source_image_ids, list) or not visual_source_image_ids:
@@ -485,6 +535,16 @@ def main() -> int:
                         errors.append(f"{label} generated image must record a supported generation route")
                 if asset_type == "text-only-exception" and layout in IMAGE_LAYOUTS | {"comparison"}:
                     errors.append(f"{label} uses an image/comparison layout but declares a text-only visual exception")
+                if asset_type == "text-only-exception":
+                    bypass = str(
+                        visual_plan.get("text_only_exception_reason")
+                        or visual_plan.get("generated_case_bypass_reason")
+                        or ""
+                    ).strip()
+                    if not bypass:
+                        errors.append(
+                            f"{label} text-only exception must explain why generated case image or diagram is not useful"
+                        )
 
         node_ids = slide.get("source_node_ids") or []
         if not node_ids and layout not in UNMAPPED_ALLOWED_LAYOUTS:
