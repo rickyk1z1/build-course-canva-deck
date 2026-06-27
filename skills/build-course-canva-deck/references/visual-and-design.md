@@ -1,6 +1,6 @@
 # Visual and design
 
-This reference covers per-slide teaching visuals, source-image priority, generated-image teaching specificity, and template fidelity. Template fidelity here means the template's **colors, fonts, type scale, and layout language reproduced as editable composition** — never copying Canva's own vector/shape elements. There is no native-element reuse in this skill.
+This reference covers structural page layouts, per-slide teaching visuals, source-image priority, generated-image teaching specificity, and template fidelity. Template fidelity here means the template's **colors, fonts, type scale, alignment axes, spacing, density, color mass, and layout language reproduced as editable composition** — not copying Canva's own vector/shape elements and not forcing every element into square blocks. There is no native-element reuse in this skill.
 
 Visuals are teaching devices, not decoration and not a separate production checklist. The final deck shows each case image or example diagram on the knowledge page where it helps the learner understand the concept. Never put production notes ("next we will make these images", "reuse PDF images", "source screenshot") on a learner-facing slide; those belong only in internal files.
 
@@ -25,6 +25,17 @@ Before building the PPTX, every normal knowledge slide includes a short `visual_
 ```
 
 Allowed `asset_type`: `source-image`, `redrawn-source-image`, `generated-image`, `editable-diagram`, `editable-table`, `text-only-exception`. `integration` must be `knowledge-page`; reject `standalone-stage`, `asset-list`, `production-note`. Every normal knowledge slide needs a teaching visual or a justified text-only exception.
+
+## Structural layout system
+
+Use fixed layout families for deck structure and varied layout families for section content:
+
+- `lesson-overview`: exactly one total-introduction page after the optional cover. It previews the lesson problem and the ordered second-level sections.
+- `section-cover`: exactly one page for each second-level source heading/root child, before its section content. All section-cover pages use the same family so learners feel chapter boundaries.
+- `summary`: exactly one final page, visually distinct from the overview and section covers, consolidating the course.
+- Normal knowledge pages inside a section may vary (`image-*`, `comparison`, `table`, `roadmap`, `light`, `dark`, `orange`, etc.) according to the content relationship.
+
+Do not treat structural pages as interchangeable pacing slides. A section-cover is not a place to teach descendant detail; it names the section, states the section's job, and optionally previews two or three immediate cues. A normal knowledge page must not replace or impersonate the section-cover.
 
 ## Source image priority
 
@@ -52,9 +63,9 @@ Prefer vivid teaching scenes (before/after contrast, wrong/right choice, visible
 
 Use `editable-diagram` or `editable-table` instead of generation for arrows, chains, comparisons, label-heavy structures, and factual grids that must stay editable.
 
-## Template fidelity (color + font + layout language only)
+## Template fidelity (layout language first)
 
-The selected Canva template is the visual source for **palette, typography, type scale, alignment axes, spacing, module shapes, and image treatment** — reproduced as editable PPT/Canva composition. The deck fails when it only borrows the palette while ignoring the template's type scale, axes, spacing, and image discipline. It also fails when it becomes a generic slide deck with only the template colors applied.
+The selected Canva template is the visual source for **palette, typography, type scale, alignment axes, spacing, density, color mass, and image treatment** — reproduced as editable PPT/Canva composition. The deck fails when it only borrows the palette while ignoring the template's type scale, axes, spacing, and image discipline. It also fails when it becomes a generic slide deck with only the template colors applied.
 
 Default profile for `DAHM5fsVEB0` (record an equivalent `course.design_profile` for any other template before authoring):
 
@@ -62,15 +73,15 @@ Default profile for `DAHM5fsVEB0` (record an equivalent `course.design_profile` 
 - Black `#1C1C1C`, Orange `#FC6736`, Cream `#F2EBE3`, White `#FFFFFF`.
 - Title font Canva `站酷高端黑体` (local `站酷高端黑`); secondary `思源黑体-细体` (local `思源黑体 CN Light`); body `字由点字烈黑`; decorative `思源黑体-粗体` (local `思源黑体 CN Bold`).
 
-Composition: large flat color fields, square divisions, strong typography, disciplined image crops. Treat the template as a layout language: inspect the template contact sheet and choose a template-like composition for each slide, adapting ideas from one or more template pages while keeping structure, density, title axis, color mass, and image treatment native to the template. Avoid rounded card grids, pills, badges, button-like labels, heavy borders, and dashboard styling. Keep one dominant focus per slide and deliberate breathing room.
+Composition: large flat color fields, strong typography, disciplined image crops, clear axes, and intentional negative space. Treat the template as a layout language: inspect the template contact sheet and choose a template-like composition for each slide, adapting ideas from one or more template pages while keeping structure, density, title axis, color mass, and image treatment native to the template. Do not overfit to element shape: the original template may inspire blocks, bands, offsets, large fields, image crops, or open space, but the goal is a coordinated overall layout, not square boxes everywhere. Avoid rounded card grids, pills, badges, button-like labels, heavy borders, and dashboard styling unless a user-supplied template clearly uses them. Keep one dominant focus per slide and deliberate breathing room.
 
-Typography discipline: body text ≥16 pt; captions/tertiary ≥15 pt; never 12–13 pt for content the learner must read. Ordinary titles ≥36 pt (short titles usually 46–58 pt; only long Chinese titles step toward 36–40 pt); avoid single-character title wraps. If a page needs tiny text to fit, split the slide or reduce copy rather than shrinking.
+Typography discipline: body text ≥16 pt; captions/tertiary ≥15 pt; never 12–13 pt for content the learner must read. Ordinary titles ≥36 pt (short titles usually 46–58 pt; only long Chinese titles step toward 36–40 pt); avoid single-character title wraps. If a page needs tiny text to fit, split the slide or reduce copy rather than shrinking. If the content occupies only the upper half or one corner of the page, rebuild the composition instead of accepting empty imbalance; useful breathing room is intentional, but unfilled or top-heavy pages fail.
 
-Layout rhythm: for long decks, vary image side, color field (light/dark/accent), comparison, table, roadmap, close-reading, and summary layouts while keeping the same template language. Choose layouts by content relationship, not by mechanically alternating colors. Do not let the deck collapse into one repeated two-column pattern, and do not let a long middle section become mostly plain light pages. This rhythm is verified by the director against the contact sheet and the non-regression checklist, not by numeric repetition thresholds.
+Layout rhythm: for long decks, use fixed structural families for `lesson-overview`, `section-cover`, and `summary`, then vary image side, color field (light/dark/accent), comparison, table, roadmap, close-reading, and statement layouts inside each section while keeping the same template language. Choose layouts by content relationship, not by mechanically alternating colors. Do not let section content collapse into one repeated two-column pattern, and do not let a long middle section become mostly plain light pages. This rhythm is verified by the director against the contact sheet and the non-regression checklist, not by numeric repetition thresholds.
 
 ## Layout bank
 
-`cover`, `roadmap`, `light`, `dark`, `orange`/`accent`, `image-left`/`image-right` (+ `-dark`, `-orange`/`-accent` variants), `comparison`, `table`, `summary`. Use `comparison`/`table`/two-panel only when the relationship is real and named in learner-facing labels. Use `table` family as an occasional pacing tool, not the default way to fit several points; if several adjacent nodes all seem to need it, split, summarize, or convert one to a flow/statement/image-evidence page.
+`cover`, `lesson-overview`, `section-cover`, `roadmap`, `light`, `dark`, `orange`/`accent`, `image-left`/`image-right` (+ `-dark`, `-orange`/`-accent` variants), `comparison`, `table`, `summary`. Use `lesson-overview`, `section-cover`, and `summary` only for their structural roles. Use `comparison`/`table`/two-panel only when the relationship is real and named in learner-facing labels. Use `table` family as an occasional pacing tool, not the default way to fit several points; if several adjacent nodes all seem to need it, split, summarize, or convert one to a flow/statement/image-evidence page.
 
 ## Before build
 

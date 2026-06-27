@@ -224,7 +224,7 @@ function addPointList(slide, items, theme, position, options = {}) {
 
 function themeFor(layout) {
   if (layout === "dark" || layout === "summary" || String(layout).endsWith("-dark")) return "dark";
-  if (layout === "orange" || layout === "accent" || layout === "roadmap" || String(layout).endsWith("-orange") || String(layout).endsWith("-accent")) return "orange";
+  if (layout === "orange" || layout === "accent" || layout === "roadmap" || layout === "lesson-overview" || layout === "section-cover" || String(layout).endsWith("-orange") || String(layout).endsWith("-accent")) return "orange";
   return "light";
 }
 
@@ -371,6 +371,78 @@ async function buildCover(presentation, item) {
     left: 800, top: 275, width: 390, height: 190, size: 22, color: C.black,
     typeface: F.deco, bold: true, align: "center", valign: "middle", lineSpacing: 1.45,
   });
+  addFooter(slide, item, "dark");
+  return slide;
+}
+
+async function buildLessonOverview(presentation, item) {
+  const slide = presentation.slides.add();
+  slide.background.fill = C.orange;
+  addText(slide, item.section || "COURSE / 章节总领", {
+    left: 72, top: 48, width: 560, height: 24, size: 13, color: C.black,
+    typeface: F.deco, bold: true,
+  });
+  addText(slide, item.title, {
+    left: 72, top: 110, width: 720, height: 118, size: String(item.title || "").length > 20 ? 48 : 58,
+    color: C.black, typeface: F.title, bold: true, lineSpacing: 1.05,
+    name: `overview-title-${item.number}`,
+  });
+  addText(slide, screenFor(item).explanation || "", {
+    left: 72, top: 260, width: 640, height: 130, size: 22, color: C.black,
+    typeface: F.body, lineSpacing: 1.28, name: `overview-explanation-${item.number}`,
+  });
+  const points = bulletsFor(item);
+  addBox(slide, { left: 790, top: 95, width: 338, height: 438, fill: C.cream, name: `overview-index-field-${item.number}` });
+  addText(slide, "本节结构", {
+    left: 826, top: 132, width: 260, height: 38, size: 26, color: C.black,
+    typeface: F.title, bold: true,
+  });
+  addPointList(slide, points.slice(0, 6), "light", { left: 826, top: 190, width: 265, height: 285 }, {
+    max: 6,
+    numbered: true,
+    compact: true,
+    context: `slide ${item.number} lesson overview sections`,
+  });
+  addBox(slide, { left: 72, top: 505, width: 640, height: 54, fill: C.black, name: `overview-anchor-${item.number}` });
+  addText(slide, screenFor(item).caption || "先知道整节课怎么展开，再进入每一节。", {
+    left: 104, top: 522, width: 575, height: 24, size: 18, color: C.white,
+    typeface: F.deco, bold: true,
+  });
+  addFooter(slide, item, "orange");
+  return slide;
+}
+
+async function buildSectionCover(presentation, item) {
+  const slide = presentation.slides.add();
+  slide.background.fill = C.black;
+  const sectionLabel = item.section_label || item.section || `SECTION ${String(item.number).padStart(2, "0")}`;
+  addText(slide, sectionLabel, {
+    left: 72, top: 58, width: 580, height: 28, size: 14, color: C.orange,
+    typeface: F.deco, bold: true, name: `section-eyebrow-${item.number}`,
+  });
+  addBox(slide, { left: 0, top: 0, width: 342, height: 720, fill: C.orange, name: `section-color-field-${item.number}` });
+  addText(slide, String(item.section_number || item.number).padStart(2, "0"), {
+    left: 84, top: 238, width: 160, height: 92, size: 76, color: C.black,
+    typeface: F.title, bold: true, name: `section-number-${item.number}`,
+  });
+  addText(slide, item.title, {
+    left: 405, top: 190, width: 690, height: 130, size: String(item.title || "").length > 18 ? 50 : 64,
+    color: C.orange, typeface: F.title, bold: true, lineSpacing: 1.05,
+    name: `section-title-${item.number}`,
+  });
+  addText(slide, screenFor(item).explanation || "", {
+    left: 410, top: 348, width: 650, height: 92, size: 23, color: C.white,
+    typeface: F.secondary, lineSpacing: 1.28, name: `section-explanation-${item.number}`,
+  });
+  const points = bulletsFor(item);
+  if (points.length) {
+    addPointList(slide, points.slice(0, 3), "dark", { left: 410, top: 478, width: 650, height: 88 }, {
+      max: 3,
+      columns: Math.min(3, points.length),
+      compact: true,
+      context: `slide ${item.number} section cover cues`,
+    });
+  }
   addFooter(slide, item, "dark");
   return slide;
 }
@@ -618,13 +690,13 @@ async function buildTextSlide(presentation, item) {
     || pattern.includes("visual-band")
   ) {
     const fieldFill = orange ? C.black : C.orange;
-    addBox(slide, { left: 72, top: 215, width: 650, height: 250, fill: fieldFill, name: `statement-field-${item.number}` });
+    addBox(slide, { left: 72, top: 220, width: 650, height: 330, fill: fieldFill, name: `statement-field-${item.number}` });
     addText(slide, screenFor(item).explanation || "", {
       left: 108,
-      top: 255,
+      top: 258,
       width: 578,
-      height: 150,
-      size: 25,
+      height: 210,
+      size: 24,
       color: fieldFill === C.black ? C.white : C.black,
       typeface: F.title,
       bold: true,
@@ -632,14 +704,14 @@ async function buildTextSlide(presentation, item) {
       name: `statement-copy-${item.number}`,
     });
     const points = bulletsFor(item);
-    addBox(slide, { left: 780, top: 225, width: 360, height: 96, fill: orange ? C.cream : C.black, name: `statement-support-a-${item.number}` });
-    addBox(slide, { left: 780, top: 355, width: 360, height: 96, fill: orange ? C.cream : C.black, name: `statement-support-b-${item.number}` });
-    addPointList(slide, points.slice(0, 2), orange ? "light" : "dark", { left: 812, top: 246, width: 300, height: 72 }, {
+    addBox(slide, { left: 780, top: 228, width: 360, height: 126, fill: orange ? C.cream : C.black, name: `statement-support-a-${item.number}` });
+    addBox(slide, { left: 780, top: 410, width: 360, height: 126, fill: orange ? C.cream : C.black, name: `statement-support-b-${item.number}` });
+    addPointList(slide, points.slice(0, 2), orange ? "light" : "dark", { left: 812, top: 252, width: 300, height: 82 }, {
       max: 2,
       compact: true,
       context: `slide ${item.number} statement support A`,
     });
-    addPointList(slide, points.slice(2, 4), orange ? "light" : "dark", { left: 812, top: 376, width: 300, height: 72 }, {
+    addPointList(slide, points.slice(2, 4), orange ? "light" : "dark", { left: 812, top: 434, width: 300, height: 82 }, {
       max: 2,
       compact: true,
       context: `slide ${item.number} statement support B`,
@@ -706,6 +778,8 @@ async function main() {
   const presentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
   for (const item of slides) {
     if (item.layout === "cover") await buildCover(presentation, item);
+    else if (item.layout === "lesson-overview") await buildLessonOverview(presentation, item);
+    else if (item.layout === "section-cover") await buildSectionCover(presentation, item);
     else if (String(item.layout).startsWith("image-left") || String(item.layout).startsWith("image-right")) await buildImageSlide(presentation, item);
     else if (item.layout === "comparison") await buildComparison(presentation, item);
     else if (item.layout === "table") await buildTable(presentation, item);

@@ -35,8 +35,11 @@ IMAGE_LAYOUTS = {
     "image-left-orange", "image-right-orange",
     "image-left-accent", "image-right-accent",
 }
-KNOWLEDGE_LAYOUTS = {"roadmap", "light", "dark", "orange", "accent", *IMAGE_LAYOUTS, "comparison", "table", "summary"}
-ALLOWED_LAYOUTS = {"cover", *KNOWLEDGE_LAYOUTS}
+STRUCTURAL_LAYOUTS = {"lesson-overview", "section-cover", "summary"}
+UNMAPPED_ALLOWED_LAYOUTS = {"cover", "summary"}
+KNOWLEDGE_LAYOUTS = {"roadmap", "light", "dark", "orange", "accent", *IMAGE_LAYOUTS, "comparison", "table"}
+CONTENT_LAYOUTS = { *STRUCTURAL_LAYOUTS, *KNOWLEDGE_LAYOUTS }
+ALLOWED_LAYOUTS = {"cover", *CONTENT_LAYOUTS}
 ALLOWED_ADDITION_KINDS = {"definition", "cause", "relationship", "example", "misconception", "boundary"}
 VISUAL_ASSET_TYPES = {
     "source-image",
@@ -128,6 +131,20 @@ def ancestors_for(node_id: str, parent_by_id: dict[str, str | None]) -> list[str
     return ancestors
 
 
+def top_section_for(node_id: str, root_id: str | None, parent_by_id: dict[str, str | None]) -> str | None:
+    if not root_id or node_id == root_id:
+        return None
+    current = node_id
+    seen: set[str] = set()
+    while current and current not in seen:
+        parent = parent_by_id.get(current)
+        if parent == root_id:
+            return current
+        seen.add(current)
+        current = parent or ""
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--deck-spec", required=True, type=Path)
@@ -176,6 +193,17 @@ def main() -> int:
         node_id: ancestors_for(node_id, parent_by_id)
         for node_id in source_text_by_id
     }
+    root_ids = [
+        str(node.get("id"))
+        for node in sorted(source_nodes, key=lambda item: item.get("order", 0))
+        if not node.get("parent_id")
+    ]
+    root_id = root_ids[0] if root_ids else None
+    top_section_ids = [
+        str(node.get("id"))
+        for node in sorted(source_nodes, key=lambda item: item.get("order", 0))
+        if root_id and str(node.get("parent_id") or "") == root_id
+    ]
 
     slides = deck.get("slides")
     if not isinstance(slides, list) or not slides:
@@ -185,6 +213,61 @@ def main() -> int:
     actual_numbers = [slide.get("number") for slide in slides]
     if actual_numbers != expected_numbers:
         errors.append("slide numbers must be contiguous and match list order")
+
+    if slides:
+        non_cover_slides = [
+            (index, slide)
+            for index, slide in enumerate(slides, start=1)
+            if slide.get("layout") != "cover"
+        ]
+        if not non_cover_slides or non_cover_slides[0][1].get("layout") != "lesson-overview":
+            errors.append("first non-cover slide must use lesson-overview layout")
+        if slides[-1].get("layout") != "summary":
+            errors.append("final slide must use summary layout")
+
+        overview_count = sum(1 for slide in slides if slide.get("layout") == "lesson-overview")
+        if overview_count != 1:
+            errors.append("deck must contain exactly one lesson-overview slide")
+        summary_count = sum(1 for slide in slides if slide.get("layout") == "summary")
+        if summary_count != 1:
+            errors.append("deck must contain exactly one summary slide")
+
+        seen_sections: list[str] = []
+        seen_section_set: set[str] = set()
+        for index, slide in enumerate(slides, start=1):
+            layout = slide.get("layout", "light")
+            node_ids = [str(value) for value in (slide.get("source_node_ids") or [])]
+            if layout == "section-cover":
+                if len(node_ids) != 1 or node_ids[0] not in top_section_ids:
+                    errors.append(f"slide {index} section-cover must map exactly one top-level source section")
+                    continue
+                section_id = node_ids[0]
+                expected_section = top_section_ids[len(seen_sections)] if len(seen_sections) < len(top_section_ids) else None
+                if section_id in seen_section_set:
+                    errors.append(f"slide {index} repeats section-cover for top-level source section {section_id}")
+                elif expected_section and section_id != expected_section:
+                    errors.append(
+                        f"slide {index} section-cover breaks top-level source section order: "
+                        f"expected {expected_section}, got {section_id}"
+                    )
+                seen_sections.append(section_id)
+                seen_section_set.add(section_id)
+                continue
+            if layout in {"cover", "lesson-overview", "summary"}:
+                continue
+            slide_sections = {
+                top_section_for(node_id, root_id, parent_by_id)
+                for node_id in node_ids
+                if node_id in source_ids
+            }
+            for section_id in sorted(value for value in slide_sections if value):
+                if section_id not in seen_section_set:
+                    errors.append(
+                        f"slide {index} shows content before section-cover for top-level source section {section_id}"
+                    )
+        for section_id in top_section_ids:
+            if section_id not in seen_section_set:
+                errors.append(f"missing section-cover for top-level source section {section_id}")
 
     mapped: list[str] = []
     previous_min_order = 0
@@ -214,7 +297,7 @@ def main() -> int:
         slide_visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
 
         screen = slide.get("screen") or {}
-        if layout in KNOWLEDGE_LAYOUTS:
+        if layout in CONTENT_LAYOUTS:
             explanation = str(screen.get("explanation", "")).strip()
             bullets = screen.get("bullets") or []
             blocks = screen.get("blocks") or []
@@ -250,7 +333,7 @@ def main() -> int:
             if not explanation:
                 errors.append(f"{label} lacks a self-contained learner explanation")
 
-            if layout != "summary":
+            if layout in KNOWLEDGE_LAYOUTS:
                 visual_plan = slide.get("visual_plan")
                 if not isinstance(visual_plan, dict):
                     errors.append(f"{label} lacks a slide-level visual_plan")
@@ -302,11 +385,11 @@ def main() -> int:
                     errors.append(f"{label} uses an image/comparison layout but declares a text-only visual exception")
 
         node_ids = slide.get("source_node_ids") or []
-        if not node_ids:
+        if not node_ids and layout not in UNMAPPED_ALLOWED_LAYOUTS:
             errors.append(f"{label} has no source-node mapping")
         scope = slide.get("scope_check") or {}
         branch_node_id = str(scope.get("branch_node_id", "")).strip()
-        if layout in KNOWLEDGE_LAYOUTS and layout != "summary":
+        if layout in KNOWLEDGE_LAYOUTS:
             if not isinstance(scope, dict) or scope.get("status") != "within-branch" or not branch_node_id:
                 errors.append(f"{label} must record scope_check.status within-branch and a branch_node_id")
             elif branch_node_id not in source_ids:
@@ -321,7 +404,9 @@ def main() -> int:
 
         treatment_ids: list[str] = []
         treatments = slide.get("source_node_treatments")
-        if not isinstance(treatments, list) or not treatments:
+        if not node_ids and layout in UNMAPPED_ALLOWED_LAYOUTS:
+            treatments = []
+        elif not isinstance(treatments, list) or not treatments:
             errors.append(
                 f"{label} must include source_node_treatments proving every mapped source node "
                 "is present in learner-facing copy"
@@ -346,6 +431,8 @@ def main() -> int:
                         f"{prefix} coverage_status must be one of "
                         + ", ".join(sorted(SOURCE_COVERAGE_STATUSES))
                     )
+                if layout == "section-cover" and coverage_status != "section-heading":
+                    errors.append(f"{prefix} section-cover coverage_status must be section-heading")
                 evidence = str(item.get("screen_evidence", "")).strip()
                 normalized_evidence = normalized_match_text(evidence)
                 if not normalized_evidence:
