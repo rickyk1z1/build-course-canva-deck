@@ -27,6 +27,9 @@ FORBIDDEN = [
     "预计讲解时间", "视觉说明", "对应节点", "Genji 是真想教会你",
     "lorem ipsum", "TODO", "[TODO", "{{", "}}", "turn0", "ref_id",
     "本页顺序", "本页内容", "本页对应", "本页覆盖", "来源路径", "源路径",
+    "源图", "挂载",
+    "先知道整节课", "整节课怎么展开", "再进入每一节",
+    "构建课件", "课件思路", "制作思路", "构建思路",
     "source path", "source_node", "screen_evidence", "coverage_note",
 ]
 STATIC_FOOTER_TEXT = "线上录课课件"
@@ -53,7 +56,22 @@ VISUAL_ASSET_TYPES = {
 IMAGE_ASSET_TYPES = {"source-image", "redrawn-source-image", "generated-image"}
 VISUAL_LAYOUTS = {*IMAGE_LAYOUTS, "comparison", "table", "roadmap"}
 FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-note", "later", "future-task"}
-GENERATED_IMAGE_ROUTES = {"gpt-image-2", "imagegen", "user-provided"}
+GENERATED_IMAGE_ROUTES = {"gpt-image-2", "imagegen", "deterministic-svg", "user-provided"}
+GENERATION_ATTEMPT_STATUSES = {"success", "failed", "unavailable"}
+NEGATIVE_SCOPE_VERBS = "不(?:进入|讲|涉及|展开|复讲|教学|教|做)"
+NEGATIVE_SCOPE_OBJECTS = (
+    "软件|按钮|剪映|快捷键|关键帧|蒙版|调色|发布|复盘|拍摄|参数|导入|导出|"
+    "时间线|效率工作流|HSL|LUT|完播率|点击率|留存曲线|A/B测试|AI"
+)
+COMPOSITE_IMAGE_MARKERS = {
+    "composite",
+    "composites",
+    "montage",
+    "contact-sheet",
+    "contact_sheet",
+    "collage",
+    "stitched",
+}
 SOURCE_COVERAGE_STATUSES = {
     "preserved",
     "clarified",
@@ -90,6 +108,102 @@ def visible_text(slide: dict[str, Any]) -> str:
     screen = slide.get("screen") or {}
     values = [slide.get("title", ""), screen.get("explanation", ""), screen.get("bullets", []), screen.get("caption", ""), screen.get("blocks", [])]
     return "\n".join(flatten_text(values))
+
+
+def negative_scope_leaks(text: str) -> list[str]:
+    compact = normalized_match_text(text)
+    pattern = re.compile(f"{NEGATIVE_SCOPE_VERBS}.{{0,16}}(?:{NEGATIVE_SCOPE_OBJECTS})", re.I)
+    return [match.group(0) for match in pattern.finditer(compact)]
+
+
+def generation_attempt_status(attempts: list[Any], route: str) -> str:
+    for attempt in attempts:
+        if not isinstance(attempt, dict):
+            continue
+        if str(attempt.get("route", "")).strip() == route:
+            return str(attempt.get("status", "")).strip()
+    return ""
+
+
+def generation_attempt_errors(
+    label: str,
+    visual_plan: dict[str, Any],
+    task: dict[str, Any] | None,
+) -> list[str]:
+    errors: list[str] = []
+    route = str(visual_plan.get("generation_route", "")).strip()
+    if route not in GENERATED_IMAGE_ROUTES:
+        return [f"{label} generated image must record a supported generation route"]
+
+    if not task:
+        errors.append(f"{label} generated image must have a matching course.image_generation_tasks entry")
+        task = {}
+    elif str(task.get("route", "")).strip() != route:
+        errors.append(f"{label} image_generation_tasks route must match visual_plan.generation_route")
+
+    attempts = visual_plan.get("generation_attempts")
+    if not isinstance(attempts, list) or not attempts:
+        attempts = task.get("generation_attempts")
+    fallback_reason_type = str(
+        visual_plan.get("fallback_reason_type")
+        or task.get("fallback_reason_type")
+        or ""
+    ).strip()
+    diagram_clearer_fallback = route == "deterministic-svg" and fallback_reason_type == "diagram-clearer"
+
+    if route != "user-provided":
+        if not isinstance(attempts, list) or not attempts:
+            if not diagram_clearer_fallback:
+                errors.append(f"{label} generated image must record generation_attempts for the route chain")
+            attempts = []
+        for index, attempt in enumerate(attempts, start=1):
+            if not isinstance(attempt, dict):
+                errors.append(f"{label} generation_attempts[{index}] must be an object")
+                continue
+            attempt_route = str(attempt.get("route", "")).strip()
+            status = str(attempt.get("status", "")).strip()
+            evidence = str(attempt.get("evidence", "")).strip()
+            if attempt_route not in {"gpt-image-2", "imagegen"}:
+                errors.append(f"{label} generation_attempts[{index}] has unsupported route {attempt_route or '<empty>'}")
+            if status not in GENERATION_ATTEMPT_STATUSES:
+                errors.append(f"{label} generation_attempts[{index}] has unsupported status {status or '<empty>'}")
+            if not evidence:
+                errors.append(f"{label} generation_attempts[{index}] must record tool result, error, or reason")
+
+    gpt_status = generation_attempt_status(attempts if isinstance(attempts, list) else [], "gpt-image-2")
+    imagegen_status = generation_attempt_status(attempts if isinstance(attempts, list) else [], "imagegen")
+    if route == "gpt-image-2":
+        if gpt_status != "success":
+            errors.append(f"{label} gpt-image-2 route requires a successful gpt-image-2 attempt")
+    elif route == "imagegen":
+        if gpt_status not in {"failed", "unavailable"}:
+            errors.append(f"{label} imagegen route requires failed/unavailable gpt-image-2 attempt first")
+        if imagegen_status != "success":
+            errors.append(f"{label} imagegen route requires a successful imagegen attempt")
+    elif route == "deterministic-svg":
+        fallback_reason = str(
+            visual_plan.get("fallback_reason")
+            or task.get("fallback_reason")
+            or ""
+        ).strip()
+        if not fallback_reason:
+            errors.append(f"{label} deterministic-svg fallback must record fallback_reason")
+        if fallback_reason_type not in {"route-failed", "diagram-clearer"}:
+            errors.append(f"{label} deterministic-svg fallback must set fallback_reason_type route-failed or diagram-clearer")
+        elif fallback_reason_type == "route-failed":
+            if gpt_status not in {"failed", "unavailable"}:
+                errors.append(f"{label} deterministic-svg fallback requires failed/unavailable gpt-image-2 attempt")
+            if imagegen_status not in {"failed", "unavailable"}:
+                errors.append(f"{label} deterministic-svg fallback requires failed/unavailable imagegen attempt")
+    elif route == "user-provided":
+        user_provided = visual_plan.get("user_provided_asset") is True or task.get("user_provided_asset") is True
+        source = str(visual_plan.get("user_asset_source") or task.get("user_asset_source") or "").strip()
+        if not user_provided or not source:
+            errors.append(
+                f"{label} user-provided route is only valid for an actual user-supplied/selected asset "
+                "with user_provided_asset and user_asset_source"
+            )
+    return errors
 
 
 def visible_teaching_points(slide: dict[str, Any]) -> list[str]:
@@ -141,6 +255,30 @@ def is_generic_block_label(value: Any) -> bool:
     return bool(re.fullmatch(r"(对比|结构顺序|方案|要点|重点|模块|路径|顺序)[a-bａ-ｂ]?", label))
 
 
+def layout_geometry_signature(slide: dict[str, Any]) -> tuple:
+    """A coarse structural fingerprint of a content slide.
+
+    This is intentionally not an aesthetic judgement. It only captures the
+    handful of structural choices that, when repeated across many adjacent
+    pages, mean the contact sheet will look the same: the layout family,
+    whether the page carries a real image, the bullet count, and the block
+    count. It exists to raise a warning so the director knows where to look,
+    never to approve or fail a deck on a number.
+    """
+    screen = slide.get("screen") or {}
+    visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+    asset_type = str(visual_plan.get("asset_type", "")).strip()
+    has_image = asset_type in IMAGE_ASSET_TYPES and bool(slide.get("visuals"))
+    bullet_count = len([b for b in (screen.get("bullets") or []) if str(b).strip()])
+    block_count = len([b for b in (screen.get("blocks") or []) if isinstance(b, dict)])
+    return (
+        str(slide.get("layout", "")),
+        has_image,
+        bullet_count,
+        block_count,
+    )
+
+
 def ancestors_for(node_id: str, parent_by_id: dict[str, str | None]) -> list[str]:
     ancestors: list[str] = []
     current = parent_by_id.get(node_id)
@@ -152,38 +290,57 @@ def ancestors_for(node_id: str, parent_by_id: dict[str, str | None]) -> list[str
     return ancestors
 
 
-def top_section_for(node_id: str, root_id: str | None, parent_by_id: dict[str, str | None]) -> str | None:
-    if not root_id or node_id == root_id:
-        return None
+def section_for(node_id: str, section_ids: list[str], parent_by_id: dict[str, str | None]) -> str | None:
+    section_set = set(section_ids)
+    if node_id in section_set:
+        return node_id
     current = node_id
     seen: set[str] = set()
     while current and current not in seen:
-        parent = parent_by_id.get(current)
-        if parent == root_id:
+        if current in section_set:
             return current
+        parent = parent_by_id.get(current)
         seen.add(current)
         current = parent or ""
     return None
 
 
+def chapter_spine_ids(course: dict[str, Any], source_nodes: list[dict[str, Any]], root_id: str | None) -> tuple[list[str], bool]:
+    raw = course.get("chapter_spine")
+    if isinstance(raw, list) and raw:
+        ids: list[str] = []
+        for item in raw:
+            if isinstance(item, dict):
+                value = item.get("source_node_id") or item.get("id")
+            else:
+                value = item
+            if str(value or "").strip():
+                ids.append(str(value).strip())
+        return ids, True
+    return [
+        str(node.get("id"))
+        for node in sorted(source_nodes, key=lambda item: item.get("order", 0))
+        if root_id and str(node.get("parent_id") or "") == root_id
+    ], False
+
+
 def framework_progress_expected(
     layout: str,
     node_ids: list[str],
-    root_id: str | None,
+    section_ids: list[str],
     parent_by_id: dict[str, str | None],
     source_text_by_id: dict[str, str],
-    top_section_ids: list[str],
 ) -> str | None:
-    if layout == "section-cover" and len(node_ids) == 1 and node_ids[0] in top_section_ids:
+    if layout == "section-cover" and len(node_ids) == 1 and node_ids[0] in section_ids:
         return source_text_by_id.get(node_ids[0])
-    section_ids = {
-        top_section_for(node_id, root_id, parent_by_id)
+    mapped_section_ids = {
+        section_for(node_id, section_ids, parent_by_id)
         for node_id in node_ids
         if node_id in source_text_by_id
     }
-    section_ids = {section_id for section_id in section_ids if section_id}
-    if len(section_ids) == 1:
-        return source_text_by_id.get(next(iter(section_ids)))
+    mapped_section_ids = {section_id for section_id in mapped_section_ids if section_id}
+    if len(mapped_section_ids) == 1:
+        return source_text_by_id.get(next(iter(mapped_section_ids)))
     return None
 
 
@@ -214,6 +371,19 @@ def main() -> int:
         errors.append("curriculum_context.module is required")
     if not curriculum.get("course_role"):
         errors.append("curriculum_context.course_role is required")
+    image_generation_tasks = course.get("image_generation_tasks") or []
+    if not isinstance(image_generation_tasks, list):
+        errors.append("course.image_generation_tasks must be a list when provided")
+        image_generation_tasks = []
+    image_generation_task_by_slide: dict[int, dict[str, Any]] = {}
+    for task in image_generation_tasks:
+        if not isinstance(task, dict):
+            continue
+        try:
+            slide_number = int(task.get("slide"))
+        except (TypeError, ValueError):
+            continue
+        image_generation_task_by_slide.setdefault(slide_number, task)
 
     source_nodes = [node for node in source.get("nodes", []) if node.get("include", True)]
     source_images = [
@@ -221,6 +391,12 @@ def main() -> int:
         if isinstance(image, dict) and "thumbnail" not in str(image.get("path", "")).lower()
     ]
     source_image_ids = {image.get("id") for image in source_images if image.get("id")}
+    source_image_by_id = {
+        str(image.get("id")): image
+        for image in source_images
+        if str(image.get("id") or "").strip()
+    }
+    used_source_image_ids: list[str] = []
     source_ids = {node.get("id") for node in source_nodes}
     source_order = {node.get("id"): node.get("order") for node in source_nodes}
     source_text_by_id = {
@@ -246,11 +422,47 @@ def main() -> int:
         if not node.get("parent_id")
     ]
     root_id = root_ids[0] if root_ids else None
-    top_section_ids = [
-        str(node.get("id"))
-        for node in sorted(source_nodes, key=lambda item: item.get("order", 0))
-        if root_id and str(node.get("parent_id") or "") == root_id
-    ]
+    top_section_ids, explicit_chapter_spine = chapter_spine_ids(course, source_nodes, root_id)
+    if explicit_chapter_spine and not top_section_ids:
+        errors.append("course.chapter_spine must contain at least one source_node_id")
+    unknown_chapter_ids = [node_id for node_id in top_section_ids if node_id not in source_ids]
+    if unknown_chapter_ids:
+        errors.append(
+            "course.chapter_spine contains unknown source nodes: "
+            + ", ".join(unknown_chapter_ids[:12])
+        )
+    duplicate_chapter_ids = sorted({node_id for node_id in top_section_ids if top_section_ids.count(node_id) > 1})
+    if duplicate_chapter_ids:
+        errors.append(
+            "course.chapter_spine repeats source nodes: "
+            + ", ".join(duplicate_chapter_ids[:12])
+        )
+    chapter_orders = [source_order[node_id] for node_id in top_section_ids if node_id in source_order]
+    if chapter_orders != sorted(chapter_orders):
+        errors.append("course.chapter_spine must follow source order")
+    for section_id in top_section_ids:
+        for other_id in top_section_ids:
+            if section_id == other_id:
+                continue
+            if section_id in ancestor_ids_by_id.get(other_id, []):
+                errors.append(
+                    f"course.chapter_spine contains overlapping chapters: {section_id} is an ancestor of {other_id}"
+                )
+    for image in source_images:
+        image_id = str(image.get("id") or "").strip()
+        anchor_id = str(image.get("source_node_id") or "").strip()
+        if not image_id:
+            errors.append("non-thumbnail source image is missing id")
+            continue
+        if not anchor_id:
+            errors.append(
+                f"non-thumbnail source image {image_id} is missing source_node_id; "
+                "extract_source.py must preserve the XMind image topic anchor"
+            )
+        elif anchor_id not in source_ids:
+            errors.append(
+                f"non-thumbnail source image {image_id} has unknown source_node_id {anchor_id}"
+            )
 
     slides = deck.get("slides")
     if not isinstance(slides, list) or not slides:
@@ -286,15 +498,15 @@ def main() -> int:
             node_ids = [str(value) for value in (slide.get("source_node_ids") or [])]
             if layout == "section-cover":
                 if len(node_ids) != 1 or node_ids[0] not in top_section_ids:
-                    errors.append(f"slide {index} section-cover must map exactly one top-level source section")
+                    errors.append(f"slide {index} section-cover must map exactly one approved chapter node")
                     continue
                 section_id = node_ids[0]
                 expected_section = top_section_ids[len(seen_sections)] if len(seen_sections) < len(top_section_ids) else None
                 if section_id in seen_section_set:
-                    errors.append(f"slide {index} repeats section-cover for top-level source section {section_id}")
+                    errors.append(f"slide {index} repeats section-cover for approved chapter node {section_id}")
                 elif expected_section and section_id != expected_section:
                     errors.append(
-                        f"slide {index} section-cover breaks top-level source section order: "
+                        f"slide {index} section-cover breaks approved chapter order: "
                         f"expected {expected_section}, got {section_id}"
                     )
                 seen_sections.append(section_id)
@@ -353,27 +565,28 @@ def main() -> int:
                         for bullet in section_bullets:
                             if not any(bullet in evidence or evidence in bullet for evidence in preview_evidence):
                                 errors.append(
-                                    f"slide {index} section-cover bullets must be third-level preview items, not conclusions"
+                                    f"slide {index} section-cover bullets must be approved chapter child preview items, not conclusions"
                                 )
                                 break
                 continue
             if layout in {"cover", "lesson-overview", "summary"}:
                 continue
             slide_sections = {
-                top_section_for(node_id, root_id, parent_by_id)
+                section_for(node_id, top_section_ids, parent_by_id)
                 for node_id in node_ids
                 if node_id in source_ids
             }
             for section_id in sorted(value for value in slide_sections if value):
                 if section_id not in seen_section_set:
                     errors.append(
-                        f"slide {index} shows content before section-cover for top-level source section {section_id}"
+                        f"slide {index} shows content before section-cover for approved chapter node {section_id}"
                     )
         for section_id in top_section_ids:
             if section_id not in seen_section_set:
-                errors.append(f"missing section-cover for top-level source section {section_id}")
+                errors.append(f"missing section-cover for approved chapter node {section_id}")
 
     mapped: list[str] = []
+    mapped_for_order: list[str] = []
     previous_min_order = 0
     exclusions = [str(value) for value in course.get("explicit_exclusions", [])]
     exclusions.extend(str(value) for value in curriculum.get("excluded_neighbor_topics", []))
@@ -391,6 +604,12 @@ def main() -> int:
         for term in exclusions:
             if term and term.lower() in lower:
                 errors.append(f"{label} contains an explicit out-of-scope term: {term}")
+        leaks = negative_scope_leaks(text)
+        for leak in leaks:
+            errors.append(
+                f"{label} contains learner-facing negative scope wording: {leak}; "
+                "course boundaries belong in curriculum metadata, not screen copy"
+            )
 
         title = str(slide.get("title", "")).strip()
         if layout != "cover" and not title:
@@ -400,22 +619,36 @@ def main() -> int:
 
         slide_visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
         node_ids = [str(value) for value in (slide.get("source_node_ids") or [])]
-        framework_progress_label = str(slide.get("framework_progress_label", "")).strip()
+        raw_framework_progress_label = slide.get("framework_progress_label", "")
+        framework_progress_label = "" if raw_framework_progress_label is None else str(raw_framework_progress_label).strip()
         if normalized_match_text(framework_progress_label) == normalized_match_text(STATIC_FOOTER_TEXT):
             errors.append(f"{label} framework_progress_label must not be the static courseware footer")
         expected_progress = framework_progress_expected(
             layout,
             node_ids,
-            root_id,
+            top_section_ids,
             parent_by_id,
             source_text_by_id,
-            top_section_ids,
         )
         if layout in KNOWLEDGE_LAYOUTS and not framework_progress_label:
             errors.append(f"{label} must set framework_progress_label for the left footer")
+        if layout in KNOWLEDGE_LAYOUTS:
+            slide_section_ids = {
+                section_for(node_id, top_section_ids, parent_by_id)
+                for node_id in node_ids
+                if node_id in source_ids
+            }
+            slide_section_ids = {section_id for section_id in slide_section_ids if section_id}
+            if len(slide_section_ids) > 1:
+                spanned = ", ".join(
+                    sorted(source_text_by_id.get(section_id, section_id) for section_id in slide_section_ids)
+                )
+                errors.append(
+                    f"{label} mixes content from multiple approved chapters on one knowledge page: {spanned}"
+                )
         if framework_progress_label and expected_progress and framework_progress_label != expected_progress:
             errors.append(
-                f"{label} framework_progress_label must be current top-level section: {expected_progress}"
+                f"{label} framework_progress_label must be current approved chapter: {expected_progress}"
             )
 
         screen = slide.get("screen") or {}
@@ -524,15 +757,91 @@ def main() -> int:
                                 f"{label} visual_plan.source_image_ids contains unknown source images: "
                                 + ", ".join(unknown_images[:8])
                             )
-                    if len(visual_source_image_ids) > 3:
+                        for image_id in visual_source_image_ids:
+                            image = source_image_by_id.get(str(image_id))
+                            if not image:
+                                continue
+                            anchor_id = str(image.get("source_node_id") or "").strip()
+                            if not anchor_id or anchor_id not in source_ids:
+                                continue
+                            mapped_node_ids = [
+                                str(value)
+                                for value in node_ids
+                                if str(value) in source_ids
+                            ]
+                            anchor_matches_slide = False
+                            for mapped_node_id in mapped_node_ids:
+                                if (
+                                    anchor_id == mapped_node_id
+                                    or mapped_node_id in ancestor_ids_by_id.get(anchor_id, [])
+                                    or anchor_id in ancestor_ids_by_id.get(mapped_node_id, [])
+                                ):
+                                    anchor_matches_slide = True
+                                    break
+                            if not anchor_matches_slide:
+                                errors.append(
+                                    f"{label} uses source image {image_id} anchored to source node "
+                                    f"{anchor_id} ({source_text_by_id.get(anchor_id, anchor_id)}) outside "
+                                    "the slide's mapped source branch; source-image placement must follow "
+                                    "the image's XMind node anchor"
+                                )
+                    visual_paths = [
+                        str(visual.get("path") or visual.get("src") or "").lower()
+                        for visual in visuals
+                        if isinstance(visual, dict)
+                    ]
+                    if len(visual_source_image_ids) > 1:
+                        if len(visuals) < len(visual_source_image_ids):
+                            errors.append(
+                                f"{label} combines {len(visual_source_image_ids)} source images into "
+                                f"{len(visuals)} rendered visual asset(s); render source images as separate "
+                                "large panels or split the page"
+                            )
+                        composite_paths = [
+                            path for path in visual_paths
+                            if any(marker in path for marker in COMPOSITE_IMAGE_MARKERS)
+                        ]
+                        if composite_paths:
+                            errors.append(
+                                f"{label} uses a composite/montage asset for multiple source images; "
+                                "do not shrink source cases into a single stitched image"
+                            )
+                        visual_ids = [
+                            str(visual.get("source_image_id") or "")
+                            for visual in visuals
+                            if isinstance(visual, dict) and str(visual.get("source_image_id") or "").strip()
+                        ]
+                        if len(visual_ids) != len(visual_source_image_ids):
+                            errors.append(
+                                f"{label} multi-source visuals must set one visuals[].source_image_id per rendered image"
+                            )
+                        elif sorted(visual_ids) != sorted(str(image_id) for image_id in visual_source_image_ids):
+                            errors.append(
+                                f"{label} visuals[].source_image_id must match visual_plan.source_image_ids"
+                            )
+                    if len(visual_source_image_ids) > 2 and not visual_plan.get("multi_image_readability_exception"):
                         errors.append(
                             f"{label} combines {len(visual_source_image_ids)} independent source images; "
-                            "source-image slides may use at most 3 readable source images"
+                            "split the page unless a director readability exception proves each image remains large"
+                        )
+                    if layout in KNOWLEDGE_LAYOUTS and integration == "knowledge-page":
+                        used_source_image_ids.extend(
+                            str(image_id)
+                            for image_id in visual_source_image_ids
+                            if image_id in source_image_ids
                         )
                 if asset_type == "generated-image":
-                    route = str(visual_plan.get("generation_route", "")).strip()
-                    if route not in GENERATED_IMAGE_ROUTES:
-                        errors.append(f"{label} generated image must record a supported generation route")
+                    try:
+                        slide_number = int(slide.get("number"))
+                    except (TypeError, ValueError):
+                        slide_number = -1
+                    errors.extend(
+                        generation_attempt_errors(
+                            label,
+                            visual_plan,
+                            image_generation_task_by_slide.get(slide_number),
+                        )
+                    )
                 if asset_type == "text-only-exception" and layout in IMAGE_LAYOUTS | {"comparison"}:
                     errors.append(f"{label} uses an image/comparison layout but declares a text-only visual exception")
                 if asset_type == "text-only-exception":
@@ -625,8 +934,10 @@ def main() -> int:
                 errors.append(f"{label} maps unknown source node {node_id}")
             else:
                 mapped.append(node_id)
+                if layout not in {"cover", "lesson-overview", "summary"}:
+                    mapped_for_order.append(node_id)
         orders = sorted(source_order[node_id] for node_id in node_ids if node_id in source_order)
-        if orders:
+        if orders and layout not in {"cover", "lesson-overview", "summary"}:
             if orders[0] < previous_min_order:
                 errors.append(f"{label} breaks authoritative source order")
             previous_min_order = max(previous_min_order, orders[0])
@@ -649,13 +960,75 @@ def main() -> int:
                 if not urls or not all(str(url).startswith("https://") for url in urls):
                     errors.append(f"{prefix} lacks authoritative HTTPS evidence")
 
+    if source_image_ids:
+        used_source_image_set = set(used_source_image_ids)
+        missing_source_images = sorted(source_image_ids - used_source_image_set)
+        if missing_source_images:
+            errors.append(
+                "non-thumbnail source images must be used or redrawn on knowledge pages; missing "
+                f"{len(missing_source_images)} source image(s): "
+                + ", ".join(missing_source_images[:20])
+            )
+
+        image_coverage = course.get("source_image_coverage")
+        if not isinstance(image_coverage, list) or not image_coverage:
+            errors.append("course.source_image_coverage must account for every non-thumbnail source image")
+        else:
+            coverage_by_id: dict[str, list[dict[str, Any]]] = {}
+            for item in image_coverage:
+                if not isinstance(item, dict):
+                    errors.append("course.source_image_coverage entries must be objects")
+                    continue
+                image_id = str(item.get("source_image_id", "")).strip()
+                if not image_id:
+                    errors.append("course.source_image_coverage entry is missing source_image_id")
+                    continue
+                coverage_by_id.setdefault(image_id, []).append(item)
+            coverage_missing = sorted(source_image_ids - set(coverage_by_id))
+            if coverage_missing:
+                errors.append(
+                    "course.source_image_coverage is missing non-thumbnail source images: "
+                    + ", ".join(coverage_missing[:20])
+                )
+            unknown_coverage = sorted(set(coverage_by_id) - source_image_ids)
+            allowed_non_case_statuses = {"thumbnail_omitted", "system_omitted"}
+            unexpected_coverage = [
+                image_id for image_id in unknown_coverage
+                if all(
+                    str(item.get("status", "")).strip() not in allowed_non_case_statuses
+                    for item in coverage_by_id[image_id]
+                )
+            ]
+            if unexpected_coverage:
+                errors.append(
+                    "course.source_image_coverage contains unknown non-thumbnail source images: "
+                    + ", ".join(unexpected_coverage[:20])
+                )
+            for image_id in sorted(source_image_ids):
+                entries = coverage_by_id.get(image_id, [])
+                accepted = False
+                for item in entries:
+                    status = str(item.get("status", "")).strip()
+                    if status not in {"used", "redrawn"}:
+                        errors.append(
+                            f"course.source_image_coverage for {image_id} must be status used or redrawn; "
+                            "non-thumbnail source images are presumed teaching case images"
+                        )
+                    if status in {"used", "redrawn"}:
+                        accepted = True
+                if accepted and image_id not in used_source_image_set:
+                    errors.append(
+                        f"course.source_image_coverage marks {image_id} as used/redrawn, "
+                        "but no knowledge-page visual_plan.source_image_ids references it"
+                    )
+
     missing = [node_id for node_id in source_ids if node_id not in mapped]
     if missing:
         errors.append(f"source coverage is incomplete; missing {len(missing)} nodes: {', '.join(sorted(missing)[:12])}")
     duplicates = sorted({node_id for node_id in mapped if mapped.count(node_id) > 1})
     if duplicates:
         errors.append(f"source coverage maps nodes more than once: {', '.join(duplicates[:12])}")
-    mapped_orders = [source_order[node_id] for node_id in mapped if node_id in source_order]
+    mapped_orders = [source_order[node_id] for node_id in mapped_for_order if node_id in source_order]
     if mapped_orders != sorted(mapped_orders):
         errors.append("source-node mappings are not monotonic across slides")
 
@@ -695,6 +1068,51 @@ def main() -> int:
                 errors.append(f"layout reports overflow: {path.name}")
             if re.search(r'"(?:unintendedOverlap|overlapWarning)"\s*:\s*true', raw, re.I):
                 errors.append(f"layout reports unintended overlap: {path.name}")
+
+    # Geometry-repetition signal: this is a warning, not a hard gate. The audit
+    # cannot judge layout aesthetics, but it can flag where the contact sheet is
+    # likely to look the same so the director knows to inspect those pages. We
+    # only look at knowledge pages inside one section; structural families
+    # (cover/overview/section-cover/summary) are supposed to repeat.
+    run_start_index = 0
+    run_signature: tuple | None = None
+    run_length = 0
+    current_section: str | None = None
+
+    def flush_geometry_run(end_index_exclusive: int) -> None:
+        if run_signature is not None and run_length >= 3:
+            warnings.append(
+                f"slides {run_start_index}-{end_index_exclusive - 1} share the same content-page "
+                f"geometry ({run_length} pages: layout/image/bullet/block signature {run_signature}); "
+                "director should confirm on the contact sheet that this is not repeated layout"
+            )
+
+    for index, slide in enumerate(slides, start=1):
+        layout = slide.get("layout", "light")
+        if layout not in KNOWLEDGE_LAYOUTS:
+            flush_geometry_run(index)
+            run_signature = None
+            run_length = 0
+            current_section = None
+            continue
+        node_ids = [str(value) for value in (slide.get("source_node_ids") or [])]
+        slide_sections = {
+            section_for(node_id, top_section_ids, parent_by_id)
+            for node_id in node_ids
+            if node_id in source_ids
+        }
+        slide_sections = {section_id for section_id in slide_sections if section_id}
+        section_key = next(iter(slide_sections)) if len(slide_sections) == 1 else None
+        signature = layout_geometry_signature(slide)
+        if signature == run_signature and section_key == current_section and section_key is not None:
+            run_length += 1
+        else:
+            flush_geometry_run(index)
+            run_signature = signature
+            run_length = 1
+            run_start_index = index
+            current_section = section_key
+    flush_geometry_run(len(slides) + 1)
 
     report = {
         "ok": not errors,

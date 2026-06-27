@@ -57,6 +57,27 @@ def base_slide(visual_plan):
 
 
 def deck(slide):
+    visual_plan = slide.get("visual_plan") or {}
+    image_generation_tasks = []
+    if visual_plan.get("asset_type") == "generated-image":
+        image_generation_tasks.append(
+            {
+                "slide": slide["number"],
+                "route": visual_plan.get("generation_route"),
+                "asset_path": "placeholder.png",
+                "knowledge_anchor": visual_plan.get("knowledge_anchor"),
+                "observable_teaching_detail": visual_plan.get("observable_teaching_detail"),
+                "instant_takeaway": visual_plan.get("instant_takeaway"),
+                "generation_attempts": [
+                    {
+                        "route": "gpt-image-2",
+                        "status": "success",
+                        "evidence": "test fixture generated image",
+                    }
+                ],
+                "case_visual_map": visual_plan.get("case_visual_map", []),
+            }
+        )
     return {
         "course": {
             "outline_mode": "detailed",
@@ -65,6 +86,7 @@ def deck(slide):
                 "module": "测试模块",
                 "course_role": "测试案例图",
             },
+            "image_generation_tasks": image_generation_tasks,
         },
         "slides": [
             {

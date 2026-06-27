@@ -147,7 +147,7 @@ class OutlineStructureAuditTests(unittest.TestCase):
         self.assertNotEqual(code, 0)
         joined = "\n".join(report["errors"])
         self.assertIn("first non-cover slide must use lesson-overview layout", joined)
-        self.assertIn("missing section-cover for top-level source section n1", joined)
+        self.assertIn("missing section-cover for approved chapter node n1", joined)
         self.assertIn("final slide must use summary layout", joined)
 
     def test_rejects_static_footer_and_requires_current_second_level_progress(self):
@@ -201,7 +201,7 @@ class OutlineStructureAuditTests(unittest.TestCase):
         self.assertNotEqual(code, 0)
         joined = "\n".join(report["errors"])
         self.assertIn("slide 3 framework_progress_label must not be the static courseware footer", joined)
-        self.assertIn("slide 3 framework_progress_label must be current top-level section: 第一节", joined)
+        self.assertIn("slide 3 framework_progress_label must be current approved chapter: 第一节", joined)
 
     def test_accepts_overview_then_each_section_cover_then_content_then_summary(self):
         slides = [

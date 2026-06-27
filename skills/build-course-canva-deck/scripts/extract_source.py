@@ -37,6 +37,7 @@ class SourceMapBuilder:
         self.nodes: list[dict[str, Any]] = []
         self.images: list[dict[str, Any]] = []
         self.warnings: list[str] = []
+        self._image_sha_to_id: dict[str, str] = {}
 
     def add_node(
         self,
@@ -73,17 +74,55 @@ class SourceMapBuilder:
         )
         return node_id
 
-    def add_image(self, path: Path, locator: str) -> None:
+    def add_image(
+        self,
+        path: Path,
+        locator: str,
+        *,
+        source_node_id: str | None = None,
+        source_node_text: str | None = None,
+        source_path_ids: list[str] | None = None,
+        source_path_text: list[str] | None = None,
+    ) -> str | None:
         if not path.exists() or path.stat().st_size == 0:
-            return
-        self.images.append(
-            {
-                "id": f"img{len(self.images) + 1:03d}",
-                "path": str(path.resolve()),
-                "source_locator": locator,
-                "sha256": sha256(path),
-            }
-        )
+            return None
+        digest = sha256(path)
+        existing_id = self._image_sha_to_id.get(digest)
+        if existing_id:
+            if source_node_id:
+                for image in self.images:
+                    if image.get("id") != existing_id:
+                        continue
+                    image.setdefault("source_node_ids", [])
+                    if source_node_id not in image["source_node_ids"]:
+                        image["source_node_ids"].append(source_node_id)
+                    image.setdefault("source_node_texts", [])
+                    if source_node_text and source_node_text not in image["source_node_texts"]:
+                        image["source_node_texts"].append(source_node_text)
+                    break
+            return existing_id
+        image_id = f"img{len(self.images) + 1:03d}"
+        item = {
+            "id": image_id,
+            "path": str(path.resolve()),
+            "source_locator": locator,
+            "sha256": digest,
+        }
+        if source_node_id:
+            item.update(
+                {
+                    "source_node_id": source_node_id,
+                    "source_node_text": source_node_text or "",
+                    "source_path_ids": source_path_ids or [],
+                    "source_path_text": source_path_text or [],
+                    "source_path": " > ".join(source_path_text or []),
+                    "source_node_ids": [source_node_id],
+                    "source_node_texts": [source_node_text or ""],
+                }
+            )
+        self.images.append(item)
+        self._image_sha_to_id[digest] = image_id
+        return image_id
 
     def result(self) -> dict[str, Any]:
         return {
@@ -191,26 +230,39 @@ def safe_archive_name(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", Path(name).name).strip("-") or "asset"
 
 
-def extract_archive_images(builder: SourceMapBuilder, archive: zipfile.ZipFile) -> None:
+def archive_image_target(builder: SourceMapBuilder, archive: zipfile.ZipFile, name: str, used_names: set[str]) -> Path:
+    filename = safe_archive_name(name)
+    if filename in used_names:
+        stem = Path(filename).stem
+        suffix = Path(filename).suffix
+        filename = f"{len(used_names) + 1:03d}-{stem}{suffix}"
+    used_names.add(filename)
+    target = builder.assets_dir / filename
+    if not target.exists():
+        target.write_bytes(archive.read(name))
+    return target
+
+
+def extract_archive_images(builder: SourceMapBuilder, archive: zipfile.ZipFile, *, anchored_only: bool = False) -> dict[str, Path]:
     builder.assets_dir.mkdir(parents=True, exist_ok=True)
     allowed = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}
+    copied: dict[str, Path] = {}
     seen: set[str] = set()
     for name in archive.namelist():
         suffix = Path(name).suffix.lower()
         if suffix not in allowed or name.endswith("/"):
             continue
-        filename = safe_archive_name(name)
-        if filename in seen:
-            filename = f"{len(seen) + 1:03d}-{filename}"
-        seen.add(filename)
-        target = builder.assets_dir / filename
-        target.write_bytes(archive.read(name))
-        builder.add_image(target, f"archive:{name}")
+        target = archive_image_target(builder, archive, name, seen)
+        copied[name] = target
+        if not anchored_only:
+            builder.add_image(target, f"archive:{name}")
+    return copied
 
 
 def parse_xmind(builder: SourceMapBuilder, path: Path) -> None:
     with zipfile.ZipFile(path) as archive:
-        extract_archive_images(builder, archive)
+        archive_images = extract_archive_images(builder, archive, anchored_only=True)
+        anchored_archive_names: set[str] = set()
         if "content.json" in archive.namelist():
             payload = json.loads(archive.read("content.json"))
 
@@ -219,6 +271,34 @@ def parse_xmind(builder: SourceMapBuilder, path: Path) -> None:
                     topic.get("title", ""), parent_id=parent, depth=depth,
                     kind="topic", locator=locator,
                 )
+                image = topic.get("image") if isinstance(topic.get("image"), dict) else None
+                image_src = str((image or {}).get("src") or "").strip()
+                if image_src:
+                    archive_name = image_src
+                    if archive_name.startswith("xap:"):
+                        archive_name = archive_name[4:]
+                    archive_name = archive_name.lstrip("/")
+                    target = archive_images.get(archive_name)
+                    anchor_id = current or parent
+                    anchor_node = next((node for node in builder.nodes if node.get("id") == anchor_id), None)
+                    if target and anchor_node:
+                        builder.add_image(
+                            target,
+                            f"{locator}:image:{archive_name}",
+                            source_node_id=str(anchor_node.get("id")),
+                            source_node_text=str(anchor_node.get("text", "")),
+                            source_path_ids=list(anchor_node.get("source_path_ids", [])),
+                            source_path_text=list(anchor_node.get("source_path_text", [])),
+                        )
+                        anchored_archive_names.add(archive_name)
+                    elif target and not anchor_node:
+                        builder.warnings.append(
+                            f"image referenced by topic has no textual node anchor: {archive_name}"
+                        )
+                    else:
+                        builder.warnings.append(
+                            f"image referenced by topic was not found in archive: {archive_name}"
+                        )
                 notes = clean(((topic.get("notes") or {}).get("plain") or {}).get("content"))
                 if notes:
                     builder.add_node(
@@ -238,6 +318,15 @@ def parse_xmind(builder: SourceMapBuilder, path: Path) -> None:
             for sheet_index, sheet in enumerate(sheets, start=1):
                 root_topic = sheet.get("rootTopic") or {}
                 visit(root_topic, None, 0, f"sheet:{sheet_index}")
+            for archive_name, target in archive_images.items():
+                if archive_name in anchored_archive_names:
+                    continue
+                if "thumbnail" in archive_name.lower():
+                    builder.add_image(target, f"archive:{archive_name}")
+                elif Path(archive_name).suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}:
+                    builder.warnings.append(
+                        f"image resource has no topic anchor and was not treated as a source case image: {archive_name}"
+                    )
             return
         if "content.xml" not in archive.namelist():
             raise ValueError("XMind archive has neither content.json nor content.xml")

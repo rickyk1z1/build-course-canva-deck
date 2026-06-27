@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Regression test: source images cannot be placed outside their XMind node branch."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import tempfile
+from pathlib import Path
+
+AUDIT = Path(__file__).resolve().parents[1] / "scripts" / "audit_deck.py"
+
+
+def write(path: Path, data: dict) -> None:
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def main() -> int:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        source = {
+            "outline_mode": "sparse",
+            "mode_declared_by_user": True,
+            "nodes": [
+                {"id": "n1", "order": 1, "parent_id": None, "text": "root", "include": True},
+                {"id": "n2", "order": 2, "parent_id": "n1", "text": "chapter", "include": True},
+                {"id": "n3", "order": 3, "parent_id": "n2", "text": "anchored point", "include": True},
+                {"id": "n4", "order": 4, "parent_id": "n2", "text": "wrong sibling", "include": True},
+            ],
+            "images": [
+                {
+                    "id": "img001",
+                    "path": "/tmp/case-a.png",
+                    "source_node_id": "n3",
+                    "source_node_text": "anchored point",
+                }
+            ],
+        }
+        deck = {
+            "course": {
+                "outline_mode": "sparse",
+                "curriculum_context": {
+                    "system_name": "test",
+                    "module": "test",
+                    "course_role": "test",
+                    "excluded_neighbor_topics": [],
+                },
+                "chapter_spine": [{"source_node_id": "n2", "title": "chapter"}],
+                "source_image_coverage": [{"source_image_id": "img001", "status": "used"}],
+            },
+            "slides": [
+                {
+                    "number": 1,
+                    "layout": "lesson-overview",
+                    "title": "overview",
+                    "source_node_ids": ["n1"],
+                    "screen": {"explanation": "root", "bullets": [], "caption": "", "blocks": []},
+                    "source_node_treatments": [
+                        {"source_node_id": "n1", "coverage_status": "clarified", "screen_evidence": "root"}
+                    ],
+                    "scope_check": {"status": "within-branch", "branch_node_id": "n1"},
+                },
+                {
+                    "number": 2,
+                    "layout": "section-cover",
+                    "title": "chapter",
+                    "source_node_ids": ["n2"],
+                    "screen": {
+                        "explanation": "chapter",
+                        "bullets": ["anchored point", "wrong sibling"],
+                        "caption": "",
+                        "blocks": [],
+                    },
+                    "section_preview_items": [
+                        {"source_node_id": "n3", "screen_evidence": "anchored point"},
+                        {"source_node_id": "n4", "screen_evidence": "wrong sibling"},
+                    ],
+                    "source_node_treatments": [
+                        {"source_node_id": "n2", "coverage_status": "section-heading", "screen_evidence": "chapter"}
+                    ],
+                    "scope_check": {"status": "within-branch", "branch_node_id": "n2"},
+                },
+                {
+                    "number": 3,
+                    "layout": "image-right",
+                    "title": "wrong sibling",
+                    "source_node_ids": ["n4"],
+                    "framework_progress_label": "chapter",
+                    "screen": {
+                        "explanation": "wrong sibling",
+                        "bullets": ["visible idea"],
+                        "caption": "inspect image",
+                        "blocks": [],
+                    },
+                    "source_node_treatments": [
+                        {"source_node_id": "n4", "coverage_status": "visualized", "screen_evidence": "wrong sibling"}
+                    ],
+                    "scope_check": {"status": "within-branch", "branch_node_id": "n2"},
+                    "visual_plan": {
+                        "asset_type": "source-image",
+                        "integration": "knowledge-page",
+                        "source_node_id": "n4",
+                        "source_image_ids": ["img001"],
+                        "labels_as_slide_text": True,
+                        "case_visual_map": [{"screen_evidence": "visible idea", "visible_detail": "case a"}],
+                    },
+                    "visuals": [{"path": "/tmp/case-a.png"}],
+                    "added_content": [
+                        {
+                            "source_node_id": "n4",
+                            "kind": "definition",
+                            "relevance": "direct",
+                            "evidence_urls": ["https://example.com"],
+                        }
+                    ],
+                },
+                {
+                    "number": 4,
+                    "layout": "summary",
+                    "title": "summary",
+                    "source_node_ids": [],
+                    "screen": {"explanation": "done", "bullets": [], "caption": "", "blocks": []},
+                    "source_node_treatments": [],
+                },
+            ],
+        }
+        source_path = root / "source.json"
+        deck_path = root / "deck.json"
+        report_path = root / "report.json"
+        write(source_path, source)
+        write(deck_path, deck)
+        result = subprocess.run(
+            [
+                "python3",
+                str(AUDIT),
+                "--deck-spec",
+                str(deck_path),
+                "--source-map",
+                str(source_path),
+                "--report",
+                str(report_path),
+            ],
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            raise AssertionError(result.stdout)
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        if not any("img001" in err and "outside the slide's mapped source branch" in err for err in report["errors"]):
+            raise AssertionError(report)
+    print("source image anchor audit regression passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

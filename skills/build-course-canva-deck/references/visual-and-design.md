@@ -1,6 +1,6 @@
 # Visual and design
 
-This reference covers structural page layouts, per-slide teaching visuals, source-image priority, generated-image teaching specificity, and template fidelity. Template fidelity here means the template's **colors, fonts, type scale, alignment axes, spacing, density, color mass, and layout language reproduced as editable composition** — not copying Canva's own vector/shape elements and not forcing every element into square blocks. There is no native-element reuse in this skill.
+This reference covers structural page layouts, per-slide teaching visuals, source-image inclusion and node anchoring, case-image stage execution, generated-image teaching specificity, and template fidelity. Template fidelity here means the template's **colors, fonts, type scale, alignment axes, spacing, density, color mass, and layout language reproduced as editable composition** — not copying Canva's own vector/shape elements and not forcing every element into square blocks. There is no native-element reuse in this skill.
 
 Visuals are teaching devices, not decoration and not a separate production checklist. The final deck shows each case image or example diagram on the knowledge page where it helps the learner understand the concept. Never put production notes ("next we will make these images", "reuse PDF images", "source screenshot") on a learner-facing slide; those belong only in internal files.
 
@@ -21,36 +21,86 @@ Before building the PPTX, every normal knowledge slide includes a short `visual_
   "knowledge_anchor": "",
   "observable_teaching_detail": "",
   "instant_takeaway": "",
-  "case_visual_map": []
+  "case_visual_map": [],
+  "generated_case_bypass_reason": ""
 }
 ```
 
 Allowed `asset_type`: `source-image`, `redrawn-source-image`, `generated-image`, `editable-diagram`, `editable-table`, `text-only-exception`. `integration` must be `knowledge-page`; reject `standalone-stage`, `asset-list`, `production-note`. Every normal knowledge slide needs a teaching visual or a justified text-only exception.
 
+## Per-slide visual asset decision
+
+The visual pass is made per normal knowledge slide. Do not decide that "the deck already has enough images" and then leave image-less pages as text-heavy diagrams. For each normal knowledge slide:
+
+1. If the source node has anchored source images, use or redraw those source images first.
+2. If no anchored source image exists, default to asking what concrete case image would make the point visible to a zero-basis learner. Use `generated-image` for judgment examples, before/after states, wrong/right choices, metaphors, consequences, user reactions, visible workflow artifacts, or any point where a learner benefits from seeing the situation.
+3. Use `editable-diagram` only when the teaching object is the relationship, sequence, hierarchy, axis, or label-heavy structure itself.
+4. Use `editable-table` only for factual comparisons, grids, or category matrices that must remain editable.
+5. Use `text-only-exception` only when a case image or diagram would make the point less clear; record the concrete bypass reason.
+
+The final visual plan must leave a trace of this decision. For every normal knowledge slide without `source-image` / `redrawn-source-image`, record either a `generated-image` plan plus a matching `course.image_generation_tasks` entry, or a positive `generated_case_bypass_reason` explaining why `editable-diagram`, `editable-table`, or `text-only-exception` teaches better than a generated case image. The builder rejects no-source knowledge pages that choose diagram/table/text-only without this reason.
+
 ## Structural layout system
 
 Use fixed layout families for deck structure and varied layout families for section content:
 
-- `lesson-overview`: exactly one total-introduction page after the optional cover. It previews the lesson problem and the ordered second-level sections.
-- `section-cover`: exactly one page for each second-level source heading/root child, before its section content. All section-cover pages use the same family so learners feel chapter boundaries. Its small text is an overview of the section's direct child/third-level headings, not the section's conclusion.
+- `lesson-overview`: exactly one total-introduction page after the optional cover. It previews the lesson problem and the ordered approved chapter nodes from `course.chapter_spine`.
+- `section-cover`: exactly one page for each approved chapter node, before its section content. All section-cover pages use the same family so learners feel chapter boundaries. Its small text is an overview of the chapter's direct child headings, not the section's conclusion.
 - `summary`: exactly one final page, visually distinct from the overview and section covers, consolidating the course.
 - Normal knowledge pages inside a section may vary (`image-*`, `comparison`, `table`, `roadmap`, `light`, `dark`, `orange`, etc.) according to the content relationship.
 
-Do not treat structural pages as interchangeable pacing slides. A section-cover is not a place to teach descendant detail; it names the section and previews the upcoming third-level knowledge points. Do not write the section's conclusion, takeaway, or value promise in the small text. A normal knowledge page must not replace or impersonate the section-cover.
+Do not treat structural pages as interchangeable pacing slides. A section-cover is not a place to teach descendant detail; it names the approved chapter and previews the upcoming child knowledge points. Do not write the section's conclusion, takeaway, or value promise in the small text. A normal knowledge page must not replace or impersonate the section-cover.
 
-## Source image priority
+## Source image inclusion
 
-Source images are authoritative teaching units, not a moodboard.
+Source images are authoritative teaching units, not a moodboard or an optional asset pool. Every non-thumbnail source image extracted from the authoritative source is presumed to be a usable course case image. The source outline already says what each source image teaches: the image's attached XMind/source node is its authoritative teaching anchor. The director and visual storyboarder must read `source_node_id` / `source_path` from `source-map.json` and place the image on a knowledge page covering that node, an ancestor, or a descendant. If a non-thumbnail image lacks this anchor, stop and fix `extract_source.py` or the source extraction; do not visually infer where the image "probably belongs." Within that anchored branch, crop it, pair it with adjacent source images, sequence it, or redraw it if needed. They must not first score whether a source image is "strong enough" to include, and they must not omit it merely because another image seems clearer, because the deck would be shorter without it, or because the image appears visually similar to another source image.
 
 1. Reuse source case images when the source already contains a concrete example.
 2. If a source image is low-resolution or too dense, redraw it cleaner without changing the example logic.
-3. Use one teachable source case per slide by default. A slide may use two or three source images only for an explicit comparison or a source-ordered sequence; four or more should be split across pages.
-4. Account for every non-thumbnail source image as used, redrawn, or omitted with a concrete reason. Do not omit a usable case image merely to shorten the deck.
+3. Use one teachable source case per slide by default. Do not create a raster composite, contact-sheet strip, montage, collage, or stitched panel that shrinks several source images into one unreadable picture. If two source images must appear together, place the original images inside one shared case-image stage with their own `visuals[].source_image_id`; keep learner text short enough that both images are inspectable at recording size. If three or more anchored images are needed, split pages unless the director records a readability exception and the rendered page proves each image remains large enough to inspect.
+4. Account for every non-thumbnail source image as `used` or `redrawn` in `course.source_image_coverage`, and reference the original source image id from a normal knowledge page's `visual_plan.source_image_ids`. Audit fails if any non-thumbnail source image is not represented on a knowledge page, if it is placed outside its anchored source branch, or if multiple source images are hidden inside one composite asset.
 5. Keep source images inside knowledge pages with a learner-facing caption that says what to inspect, not where the image came from.
+6. Only true system artifacts such as mind-map thumbnails, page thumbnails, extraction previews, logos introduced by the export process, or corrupted unreadable files may be omitted. Mark those as `thumbnail_omitted` or `system_omitted`; ordinary case images from the source are not eligible for omission.
+
+## Case image stage execution
+
+Case image pages are `asset_type: source-image`, `redrawn-source-image`, or `generated-image`. They are not ordinary text-image pages. Layout execution starts by reserving the shared case-image stage, then fitting text around it.
+
+1. The case-image stage should normally occupy at least 60% of the slide. 70%+ is allowed when the image is the teaching evidence. Do not invoke "text/visual balance", layout rhythm, or template fidelity to shrink a case image until details are unreadable.
+2. Title and a short caption are the only normal text rendered on a case-image page. Do not render explanation or bullet lists on top of the image stage. Move longer explanation to adjacent non-image pages, compress it into a learner-facing caption, or split the teaching point. Do not add an opaque text backing panel on top of the image stage; if the text needs that much support, the page has too much text for a case-image layout.
+3. One large case image per slide is the default. Two case images may share a slide only inside one shared large stage for a direct comparison/sequence. Do not put separate white/cream backing cards under each image when a single shared stage can hold the images; those extra rectangles make the pictures read as small inserted cards rather than the teaching object.
+4. A case-image page is acceptable when the image stage is the first visual focus and the learner can inspect the case before reading all text. It fails when the title, text panel, empty space, or decorative backing shapes dominate and the case image becomes a small illustration. The good pattern is a large shared picture field plus a short side note or caption; the bad pattern is a normal slide layout with small pictures dropped into leftover rectangles.
 
 ## Generated images
 
-Generate text-free case images for abstract, metaphor-heavy, or image-poor branches that become clearer with a concrete scene. For plain text pages, default to asking whether a generated case image or editable diagram would let learners grasp the point faster; do not keep a page text-only merely because the source has no image. Decide by teaching need, not by a quota. Route order: `gpt-image-2` first; built-in `imagegen` if GPT Image 2 is unavailable or fails; deterministic SVG/PPT diagram or redrawn source visual only if both fail or an editable diagram teaches better. Save final assets into the course asset folder.
+Generate text-free case images for no-source knowledge pages, abstract branches, metaphor-heavy branches, and image-poor branches that become clearer with a concrete scene. For plain text or diagram-heavy pages, default to asking whether a generated case image would let learners grasp the point faster; do not keep a page text-only or diagram-only merely because the source has no image or because other pages already use source images. Decide by teaching need, not by a quota. Generated case images inherit the case-image stage execution above: they are teaching evidence, not small decorative illustrations beside a text panel. Route order is mandatory execution, not a preference: `gpt-image-2` first; built-in `imagegen` only if GPT Image 2 is unavailable or fails; `deterministic-svg` / PPT diagram fallback only if both model routes fail/unavailable **or** the director records why a deterministic diagram teaches this specific knowledge point more clearly than model imagery. Save final assets into the course asset folder.
+
+Every `generated-image` page must record the executed route chain in both `visual_plan` and the matching `course.image_generation_tasks` item. Do not use `user-provided` as a shortcut for locally drawn or SVG fallback assets. `user-provided` is valid only when the user supplied the image file or explicitly selected an existing local image, and it must name that source.
+
+Required route fields:
+
+```json
+{
+  "generation_route": "gpt-image-2 | imagegen | deterministic-svg | user-provided",
+  "generation_attempts": [
+    {"route": "gpt-image-2", "status": "success | failed | unavailable", "evidence": "tool result, error, or reason"},
+    {"route": "imagegen", "status": "success | failed | unavailable", "evidence": "tool result, error, or reason"}
+  ],
+  "fallback_reason_type": "route-failed | diagram-clearer",
+  "fallback_reason": "required when generation_route is deterministic-svg",
+  "user_provided_asset": true,
+  "user_asset_source": "required when generation_route is user-provided"
+}
+```
+
+Allowed route semantics:
+
+- `gpt-image-2`: `generation_attempts` includes a successful `gpt-image-2` attempt.
+- `imagegen`: `generation_attempts` includes failed/unavailable `gpt-image-2` and successful `imagegen`.
+- `deterministic-svg`: either `fallback_reason_type: "route-failed"` with failed/unavailable `gpt-image-2` and failed/unavailable `imagegen`, or `fallback_reason_type: "diagram-clearer"` with a concrete reason why deterministic SVG/PPT explains the knowledge point better than model imagery.
+- `user-provided`: only for a real user-supplied/selected asset; requires `user_provided_asset: true` and `user_asset_source`.
+
+If an editable diagram teaches better than model-generated imagery, do not label the page `generated-image`; use `editable-diagram` / `editable-table` and record `generated_case_bypass_reason`.
 
 Every generated case image must start from the knowledge point. In `visual_plan` and the matching `course.image_generation_tasks` item, record:
 
@@ -77,7 +127,7 @@ Default profile for `DAHM5fsVEB0` (record an equivalent `course.design_profile` 
 
 Composition: large flat color fields, strong typography, disciplined image crops, clear axes, and intentional negative space. Treat the template as a layout language: inspect the template contact sheet and choose a template-like composition for each slide, adapting ideas from one or more template pages while keeping structure, density, title axis, color mass, and image treatment native to the template. Do not overfit to element shape: the original template may inspire blocks, bands, offsets, large fields, image crops, or open space, but the goal is a coordinated overall layout, not square boxes everywhere. Avoid rounded card grids, pills, badges, button-like labels, heavy borders, and dashboard styling unless a user-supplied template clearly uses them. Keep one dominant focus per slide and deliberate breathing room.
 
-Typography discipline: body text ≥16 pt; captions/tertiary ≥15 pt; never 12–13 pt for content the learner must read. Ordinary titles ≥36 pt (short titles usually 46–58 pt; only long Chinese titles step toward 36–40 pt); avoid single-character title wraps. If a page needs tiny text to fit, split the slide or reduce copy rather than shrinking. If the content occupies only the upper half or one corner of the page, rebuild the composition instead of accepting empty imbalance; useful breathing room is intentional, but unfilled or top-heavy pages fail.
+Typography discipline: body text ≥16 pt; captions/tertiary ≥15 pt; never 12–13 pt for content the learner must read. Ordinary titles ≥36 pt (short titles usually 46–58 pt; only long Chinese titles step toward 36–40 pt); avoid single-character title wraps. If a page needs tiny text to fit, split the slide or reduce copy rather than shrinking. On case-image pages, reduce learner text before shrinking the image and allow a smaller title scale than ordinary statement pages if that preserves the image stage. If the content occupies only the upper half or one corner of the page, rebuild the composition instead of accepting empty imbalance; useful breathing room is intentional, but a case-image page with a dominant large image is not considered imbalanced merely because the image uses most of the slide.
 
 Layout rhythm: for long decks, use fixed structural families for `lesson-overview`, `section-cover`, and `summary`, then vary image side, color field (light/dark/accent), comparison, table, roadmap, close-reading, and statement layouts inside each section while keeping the same template language. Choose layouts by content relationship, not by mechanically alternating colors. Do not let section content collapse into one repeated two-column pattern, and do not let a long middle section become mostly plain light pages. This rhythm is verified by the director against the contact sheet and the non-regression checklist, not by numeric repetition thresholds.
 
@@ -87,4 +137,4 @@ Layout rhythm: for long decks, use fixed structural families for `lesson-overvie
 
 ## Before build
 
-For every knowledge slide verify: a concrete visual plan mapped to a source node; the visual is actually on the slide; the slide explains the image for learners; image pages include `case_visual_map` so the image visibly supports the slide's enumerated points; the image integrates with the node's text rather than replacing it; text/visual balance leaves room for readable evidence and a useful visual; all labels are editable slide text; generated images are concrete teaching scenes, not abstract placeholders; text-only pages have a concrete bypass reason; the left footer names the current second-level knowledge framework on normal content pages; no production words (`PDF`, `原稿`, `来源文档`, `图旁注明`, `制作说明`) appear.
+For every knowledge slide verify: a concrete visual plan mapped to a source node; the visual is actually on the slide; the slide explains the image for learners; image pages include `case_visual_map` so the image visibly supports the slide's enumerated points; the image integrates with the node's text rather than replacing it; text/visual balance means the image remains readable and the text is only enough to guide inspection, not that the slide must reserve equal area for text; all labels are editable slide text; generated images are concrete teaching scenes, not abstract placeholders; text-only pages have a concrete bypass reason; the left footer names the current approved chapter framework on normal content pages; no production words (`PDF`, `原稿`, `来源文档`, `图旁注明`, `制作说明`) appear. Before build, also verify that every case-image page (`source-image`, `redrawn-source-image`, or `generated-image`) is rendered inside a dominant shared case-image stage rather than as tiny cards, a composite montage, or a small illustration beside oversized text. For source images, additionally verify that every non-thumbnail source image id has an extracted `source_node_id`, appears in some normal knowledge page's `visual_plan.source_image_ids`, is placed within that image's anchored source branch, and is listed in `course.source_image_coverage` as `used` or `redrawn`.
