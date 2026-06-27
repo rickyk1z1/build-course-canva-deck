@@ -189,6 +189,11 @@ def main() -> int:
         str(node.get("id")): (str(node.get("parent_id")) if node.get("parent_id") else None)
         for node in source_nodes
     }
+    children_by_parent: dict[str, list[str]] = {}
+    for node in sorted(source_nodes, key=lambda item: item.get("order", 0)):
+        parent_id = str(node.get("parent_id") or "")
+        if parent_id:
+            children_by_parent.setdefault(parent_id, []).append(str(node.get("id")))
     ancestor_ids_by_id = {
         node_id: ancestors_for(node_id, parent_by_id)
         for node_id in source_text_by_id
@@ -252,6 +257,63 @@ def main() -> int:
                     )
                 seen_sections.append(section_id)
                 seen_section_set.add(section_id)
+                direct_child_ids = children_by_parent.get(section_id, [])
+                if direct_child_ids:
+                    preview_items = slide.get("section_preview_items")
+                    if not isinstance(preview_items, list) or not preview_items:
+                        errors.append(
+                            f"slide {index} section-cover must preview this section's immediate child source headings"
+                        )
+                    else:
+                        normalized_slide_text = normalized_match_text(visible_text(slide))
+                        preview_evidence: list[str] = []
+                        preview_node_ids: list[str] = []
+                        previous_preview_order = -1
+                        for preview_index, item in enumerate(preview_items, start=1):
+                            prefix = f"slide {index} section_preview_items[{preview_index}]"
+                            if not isinstance(item, dict):
+                                errors.append(f"{prefix} must be an object")
+                                continue
+                            raw_ids = item.get("source_node_ids")
+                            if raw_ids is None:
+                                raw_ids = [item.get("source_node_id")]
+                            if not isinstance(raw_ids, list) or not raw_ids:
+                                errors.append(f"{prefix} must cite immediate child source_node_id(s)")
+                                continue
+                            item_ids = [str(value) for value in raw_ids if str(value or "").strip()]
+                            if not item_ids:
+                                errors.append(f"{prefix} must cite immediate child source_node_id(s)")
+                                continue
+                            for child_id in item_ids:
+                                if child_id not in direct_child_ids:
+                                    errors.append(
+                                        f"{prefix} maps {child_id} outside the section's immediate child headings"
+                                    )
+                                    continue
+                                child_order = source_order.get(child_id, 0)
+                                if child_order < previous_preview_order:
+                                    errors.append(f"{prefix} breaks source order for section preview headings")
+                                previous_preview_order = max(previous_preview_order, child_order)
+                                preview_node_ids.append(child_id)
+                            evidence = str(item.get("screen_evidence", "")).strip()
+                            normalized_evidence = normalized_match_text(evidence)
+                            if not normalized_evidence:
+                                errors.append(f"{prefix} must include visible screen_evidence")
+                            elif normalized_evidence not in normalized_slide_text:
+                                errors.append(f"{prefix} screen_evidence is not visible on the section-cover slide")
+                            else:
+                                preview_evidence.append(normalized_evidence)
+                        section_bullets = [
+                            normalized_match_text(value)
+                            for value in (slide.get("screen") or {}).get("bullets", [])
+                            if normalized_match_text(value)
+                        ]
+                        for bullet in section_bullets:
+                            if not any(bullet in evidence or evidence in bullet for evidence in preview_evidence):
+                                errors.append(
+                                    f"slide {index} section-cover bullets must be third-level preview items, not conclusions"
+                                )
+                                break
                 continue
             if layout in {"cover", "lesson-overview", "summary"}:
                 continue

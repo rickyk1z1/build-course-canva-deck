@@ -16,11 +16,11 @@ If the runtime cannot dispatch subagents, requires user authorization that has n
 
 - **总导演** owns curriculum/source intake and extraction, all durable writes (`source-map.json`, `curriculum-context.json`, `deck-spec.json`, screen-copy files, briefs), generated-image execution, PPTX build, mechanical audit, Canva import/edit, process review after each proposal, and final learner-facing review.
 - **课程统筹师** defines curriculum position, prerequisites, neighboring boundaries, and shared terms. Prevents adjacent-course drift.
-- **原稿场记** preserves source hierarchy, source path, sibling order, second-level section spine, examples, metaphors, source images, and slide grouping. Prevents the mind map from being flattened or rearranged.
-- **课堂编剧** writes learner-facing screen copy from approved source-node excerpts, including lesson overview, section-cover copy, section content, and final summary. Prevents invented labels, missing explanations, narration-only knowledge, source-level mismatch, and visible production/meta copy.
+- **原稿场记** preserves source hierarchy, source path, sibling order, second-level section spine, third-level section-cover previews, examples, metaphors, source images, and slide grouping. Prevents the mind map from being flattened or rearranged.
+- **课堂编剧** writes learner-facing screen copy from approved source-node excerpts, including lesson overview, section-cover copy, section content, and final summary. Section-cover bullets summarize upcoming third-level headings rather than conclusions. Prevents invented labels, missing explanations, narration-only knowledge, source-level mismatch, and visible production/meta copy.
 - **视觉分镜师** plans fixed structural layouts, source images, generated-image candidates, editable diagrams, template references, section-internal layout variety, balance, and fit. Prevents meaningless comparison/table blocks, off-point generated images, repeated content-page structures, text-image collisions, top-heavy/underfilled pages, and decorative visuals.
 
-Each worker returns one compact handoff the director can pass downstream instead of broad context: 课程统筹师 → boundary card; 原稿场记 → source-order spine with section-cover spine; 课堂编剧 → zero-basis teaching-script spine with overview/section/summary copy; 视觉分镜师 → structural-layout and visual-understanding map.
+Each worker returns one compact handoff the director can pass downstream instead of broad context: 课程统筹师 → boundary card; 原稿场记 → source-order spine with section-cover spine and preview child IDs; 课堂编剧 → zero-basis teaching-script spine with overview/section/summary copy; 视觉分镜师 → structural-layout and visual-understanding map.
 
 ## Working language
 

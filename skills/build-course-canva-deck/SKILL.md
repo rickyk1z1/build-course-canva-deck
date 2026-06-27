@@ -43,7 +43,7 @@ If subagents cannot be dispatched, runtime policy requires user authorization th
 2. Complete the source and mode checkpoint above.
 3. Create `curriculum-context.json` and lock the lesson's module, prerequisites, downstream lessons, shared terms, and neighboring topics that must stay out of scope.
 4. Create four scoped worker briefs and dispatch in the staged order from the roles reference.
-5. Build a deck spine from the source hierarchy: optional course cover, one `lesson-overview` total-introduction page, then for each root child/second-level heading in source order one fixed `section-cover` page followed by that section's content pages, and one final `summary` page.
+5. Build a deck spine from the source hierarchy: optional course cover, one `lesson-overview` total-introduction page, then for each root child/second-level heading in source order one fixed `section-cover` page followed by that section's content pages, and one final `summary` page. Section-cover small text previews the section's immediate child/third-level headings as upcoming knowledge points; it must not reveal the section's conclusions.
 6. Build a source coverage matrix in source order: every valid node exactly once, with root/section heading nodes covered by overview or section-cover pages and descendant nodes covered inside their section.
 7. Create `deck-spec.json`. Write one learner-facing screen-copy layer that follows the approved deck spine and source order. Source order, path, coverage, and review evidence live in `source_node_treatments` or notes for the producer, never in rendered slide text. Optional `speaker_notes` are short internal transition hints only.
 8. Create the visual plan: structural pages use their fixed layout families; every normal knowledge slide reuses a source case image, rebuilds a source visual, includes a generated teaching image, or uses an editable diagram/table fused into the page.
@@ -57,6 +57,7 @@ If subagents cannot be dispatched, runtime policy requires user authorization th
 
 - Keep the source's teaching order and hierarchy. In detailed mode the mind-map path is the course structure; do not flatten levels into a reorganized script.
 - Preserve the deck spine: the first non-cover page is a total lesson overview; each second-level outline heading/root child gets its own fixed section-cover page before its content; no section content may appear before its section cover; the final page is a summary.
+- On section-cover pages, bullets/small text are a source-ordered overview of that section's direct child headings or adjacent child-heading groups. They are not conclusions, takeaways, promises, or value judgments. Record their source anchors in `section_preview_items`; do not count these child nodes as covered until their real content pages.
 - Preserve detailed-outline sibling lists as complete visible lists; split slides if they do not fit.
 - Do not invent a teaching label unanchored to the current node, an ancestor path, or a stated relationship. Generic labels such as `对比 A`, `结构顺序 A`, `左侧`, `方案 A/B` are failed screen copy.
 - Do not render producer-facing source evidence as courseware. `本页顺序`, `对应节点`, `来源路径`, `source_node`, `screen_evidence`, coverage notes, and production language are metadata, not learner copy.

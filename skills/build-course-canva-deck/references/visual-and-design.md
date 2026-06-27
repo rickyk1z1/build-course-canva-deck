@@ -31,11 +31,11 @@ Allowed `asset_type`: `source-image`, `redrawn-source-image`, `generated-image`,
 Use fixed layout families for deck structure and varied layout families for section content:
 
 - `lesson-overview`: exactly one total-introduction page after the optional cover. It previews the lesson problem and the ordered second-level sections.
-- `section-cover`: exactly one page for each second-level source heading/root child, before its section content. All section-cover pages use the same family so learners feel chapter boundaries.
+- `section-cover`: exactly one page for each second-level source heading/root child, before its section content. All section-cover pages use the same family so learners feel chapter boundaries. Its small text is an overview of the section's direct child/third-level headings, not the section's conclusion.
 - `summary`: exactly one final page, visually distinct from the overview and section covers, consolidating the course.
 - Normal knowledge pages inside a section may vary (`image-*`, `comparison`, `table`, `roadmap`, `light`, `dark`, `orange`, etc.) according to the content relationship.
 
-Do not treat structural pages as interchangeable pacing slides. A section-cover is not a place to teach descendant detail; it names the section, states the section's job, and optionally previews two or three immediate cues. A normal knowledge page must not replace or impersonate the section-cover.
+Do not treat structural pages as interchangeable pacing slides. A section-cover is not a place to teach descendant detail; it names the section and previews the upcoming third-level knowledge points. Do not write the section's conclusion, takeaway, or value promise in the small text. A normal knowledge page must not replace or impersonate the section-cover.
 
 ## Source image priority
 

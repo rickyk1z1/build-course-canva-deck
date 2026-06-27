@@ -49,11 +49,11 @@ The deck sequence is part of the teaching, not a styling layer added after writi
 
 1. Optional `cover` page for the course title.
 2. Exactly one `lesson-overview` page as the first non-cover page. It introduces what this lesson solves and previews the source's second-level sections in order.
-3. For each root child / second-level outline heading, create exactly one `section-cover` page before any content from that section. This page behaves like a chapter or subsection divider embedded in the presentation, not a decorative title slide.
+3. For each root child / second-level outline heading, create exactly one `section-cover` page before any content from that section. This page behaves like a chapter or subsection divider embedded in the presentation, not a decorative title slide. Its small text previews that section's direct child/third-level headings as the knowledge points about to be taught; it does not state the section's conclusions.
 4. After each section cover, place that section's descendant content pages in source path and sibling order. Page layouts may vary inside a section according to teaching relationship and visual need.
 5. End with exactly one `summary` page that consolidates the lesson's key takeaways across sections.
 
-Do not flatten source headings into ordinary knowledge pages to save page count. Do not begin teaching a section before its section-cover page. Do not mix two top-level sections on one normal knowledge slide. The layout system may repeat fixed structural pages (`lesson-overview`, `section-cover`, `summary`) because they signal course structure; layout variety is expected inside the content pages of each section.
+Do not flatten source headings into ordinary knowledge pages to save page count. Do not begin teaching a section before its section-cover page. Do not mix two top-level sections on one normal knowledge slide. Do not use section-cover bullets for conclusions, takeaways, promises, or value judgments such as "这一节先解决..." when those phrases are not source child headings. The layout system may repeat fixed structural pages (`lesson-overview`, `section-cover`, `summary`) because they signal course structure; layout variety is expected inside the content pages of each section.
 
 ## Source intake
 
@@ -82,7 +82,20 @@ Rules:
 
 For hierarchical outlines, record the current source path for each slide group before writing copy. In detailed mode the path and sibling order are the teaching sequence; do not regroup nodes into a new narrative because it sounds smoother. Preserve sibling enumerations as complete visible peer items: if a node has four peer children, the slide shows four peer items in source order or splits them into consecutive slides. Do not rely on speaker notes, generated images, or metadata to carry omitted siblings. Keep distinctive wording in its source position; do not pull a later node's phrase into an earlier title unless the source already repeats it there.
 
-Coverage mapping for structural pages: the `lesson-overview` page covers the root lesson node; each `section-cover` page covers exactly one root child / second-level heading with `coverage_status: section-heading`; the final `summary` page may have no source-node mapping when it synthesizes previously covered nodes. Normal knowledge pages cover descendants inside the current section only.
+Coverage mapping for structural pages: the `lesson-overview` page covers the root lesson node; each `section-cover` page covers exactly one root child / second-level heading with `coverage_status: section-heading`; the final `summary` page may have no source-node mapping when it synthesizes previously covered nodes. A section-cover also records `section_preview_items` for the immediate child/third-level headings shown as small text, but those child nodes are not considered covered by the section-cover. Normal knowledge pages cover descendants inside the current section only.
+
+`section_preview_items` shape:
+
+```json
+[
+  {
+    "source_node_id": "n0012",
+    "screen_evidence": " visible phrase from the section-cover bullet "
+  }
+]
+```
+
+Use `source_node_ids` instead of `source_node_id` only when one preview bullet deliberately groups adjacent child headings; keep grouped IDs in source order.
 
 ## Authoring standard
 

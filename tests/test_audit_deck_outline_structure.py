@@ -33,10 +33,19 @@ def treatment(node_id, evidence, status="preserved"):
     }
 
 
-def slide(number, layout, title, node_ids=None, evidence=None, branch="n0", bullets=None):
+def slide(
+    number,
+    layout,
+    title,
+    node_ids=None,
+    evidence=None,
+    branch="n0",
+    bullets=None,
+    section_preview_items=None,
+):
     evidence = evidence or title
     node_ids = node_ids or []
-    return {
+    result = {
         "number": number,
         "layout": layout,
         "title": title,
@@ -64,6 +73,9 @@ def slide(number, layout, title, node_ids=None, evidence=None, branch="n0", bull
             "labels_as_slide_text": True,
         },
     }
+    if section_preview_items is not None:
+        result["section_preview_items"] = section_preview_items
+    return result
 
 
 def deck(slides):
@@ -127,15 +139,72 @@ class OutlineStructureAuditTests(unittest.TestCase):
     def test_accepts_overview_then_each_section_cover_then_content_then_summary(self):
         slides = [
             slide(1, "lesson-overview", "课程总领", ["n0"], "课程标题"),
-            slide(2, "section-cover", "第一节", ["n1"], "第一节", branch="n1"),
+            slide(
+                2,
+                "section-cover",
+                "第一节",
+                ["n1"],
+                "第一节",
+                branch="n1",
+                bullets=["第一节内容"],
+                section_preview_items=[
+                    {"source_node_id": "n2", "screen_evidence": "第一节内容"}
+                ],
+            ),
             slide(3, "light", "第一节内容", ["n2"], "第一节内容", branch="n1"),
-            slide(4, "section-cover", "第二节", ["n3"], "第二节", branch="n3"),
+            slide(
+                4,
+                "section-cover",
+                "第二节",
+                ["n3"],
+                "第二节",
+                branch="n3",
+                bullets=["第二节内容"],
+                section_preview_items=[
+                    {"source_node_id": "n4", "screen_evidence": "第二节内容"}
+                ],
+            ),
             slide(5, "light", "第二节内容", ["n4"], "第二节内容", branch="n3"),
             slide(6, "summary", "总结", [], "按章节回收本课重点"),
         ]
         code, report = run_audit(deck(slides))
         self.assertEqual(report["errors"], [])
         self.assertEqual(code, 0)
+
+    def test_rejects_section_cover_without_third_level_preview_items(self):
+        slides = [
+            slide(1, "lesson-overview", "课程总领", ["n0"], "课程标题"),
+            slide(
+                2,
+                "section-cover",
+                "第一节",
+                ["n1"],
+                "第一节",
+                branch="n1",
+                bullets=["这一节先解决第一个核心问题"],
+            ),
+            slide(3, "light", "第一节内容", ["n2"], "第一节内容", branch="n1"),
+            slide(
+                4,
+                "section-cover",
+                "第二节",
+                ["n3"],
+                "第二节",
+                branch="n3",
+                bullets=["第二节内容"],
+                section_preview_items=[
+                    {"source_node_id": "n4", "screen_evidence": "第二节内容"}
+                ],
+            ),
+            slide(5, "light", "第二节内容", ["n4"], "第二节内容", branch="n3"),
+            slide(6, "summary", "总结", [], "按章节回收本课重点"),
+        ]
+        code, report = run_audit(deck(slides))
+        self.assertNotEqual(code, 0)
+        self.assertIn(
+            "slide 2 section-cover must preview this section's immediate child source headings",
+            "\n".join(report["errors"]),
+        )
 
 
 if __name__ == "__main__":
