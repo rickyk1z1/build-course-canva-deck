@@ -314,52 +314,6 @@ async function addImage(slide, visual, position, fit = "cover") {
   return slide.images.add({ blob: info.bytes, contentType: info.contentType, alt: info.alt, fit, position });
 }
 
-function motifFor(item) {
-  return item.template_motif || item.visual_plan?.template_motif || null;
-}
-
-function splitCoverTitle(title) {
-  const text = String(title || "");
-  if (text.includes("决定")) return text.replace("决定", "\n决定");
-  if (text.length <= 14) return text;
-  const punctuation = ["，", "、", "：", "｜", "|", " "];
-  const middle = Math.floor(text.length / 2);
-  let best = -1;
-  for (const mark of punctuation) {
-    let index = text.indexOf(mark);
-    while (index !== -1) {
-      if (index > 4 && index < text.length - 4 && (best === -1 || Math.abs(index - middle) < Math.abs(best - middle))) {
-        best = index + 1;
-      }
-      index = text.indexOf(mark, index + 1);
-    }
-  }
-  if (best !== -1) return `${text.slice(0, best)}\n${text.slice(best)}`;
-  return `${text.slice(0, middle)}\n${text.slice(middle)}`;
-}
-
-function coverKeywordLines(bullets) {
-  const items = (bullets || []).filter(Boolean);
-  if (items.length <= 2) return items.join("   /   ");
-  const split = Math.ceil(items.length / 2);
-  return `${items.slice(0, split).join("   /   ")}\n${items.slice(split).join("   /   ")}`;
-}
-
-async function addTemplateMotifPreview(slide, item) {
-  const motif = motifFor(item);
-  if (!motif) return;
-  const previewPath = motif.local_preview_path || motif.localPreviewPath;
-  const motifLayout = motif.local_ppt_layout || motif.localPptLayout || {};
-  const motifBox = motifLayout.motif_box || motifLayout.motifBox || {};
-  if (!previewPath || typeof motifBox.left !== "number" || typeof motifBox.top !== "number") return;
-  await addImage(slide, { path: previewPath, alt: motif.alt || "模板原生元素预览" }, {
-    left: motifBox.left,
-    top: motifBox.top,
-    width: motifBox.width,
-    height: motifBox.height,
-  }, motif.fit || "contain");
-}
-
 function addExplanation(slide, item, theme, position) {
   const text = screenFor(item).explanation || "";
   const size = text.length > 150 ? 16 : text.length > 105 ? 17 : 18;
@@ -398,54 +352,25 @@ function addCaption(slide, item, theme, position) {
 async function buildCover(presentation, item) {
   const slide = presentation.slides.add();
   slide.background.fill = C.black;
-  const motif = motifFor(item);
-  const heroRightMotif = motif?.kind === "hero-right";
-  const motifLayout = motif?.local_ppt_layout || motif?.localPptLayout || {};
-  const motifBox = motifLayout.motif_box || motifLayout.motifBox || {};
-  const textColumnWidth = motifLayout.text_column_width || motifLayout.textColumnWidth || 560;
-  const titleBox = heroRightMotif
-    ? { left: 72, top: 145, width: textColumnWidth, height: 180, size: 60, text: splitCoverTitle(item.title) }
-    : { left: 72, top: 155, width: 690, height: 140, size: 72, text: item.title };
-  const explanationBox = heroRightMotif
-    ? { left: 72, top: 360, width: textColumnWidth, height: 170, size: 22 }
-    : { left: 72, top: 330, width: 650, height: 160, size: 24 };
   addText(slide, item.section || "COURSE / 线上课程", {
     left: 72, top: 54, width: 520, height: 24, size: 13, color: C.orange,
     typeface: F.deco, bold: true,
   });
-  addText(slide, titleBox.text, {
-    left: titleBox.left, top: titleBox.top, width: titleBox.width, height: titleBox.height,
-    size: titleBox.size, color: C.orange,
+  addText(slide, item.title, {
+    left: 72, top: 155, width: 690, height: 140, size: 72, color: C.orange,
     typeface: F.title, bold: true, name: `title-${item.number}`,
   });
   const screen = screenFor(item);
   addText(slide, screen.explanation || "", {
-    left: explanationBox.left, top: explanationBox.top, width: explanationBox.width,
-    height: explanationBox.height, size: explanationBox.size, color: C.white,
+    left: 72, top: 330, width: 650, height: 160, size: 24, color: C.white,
     typeface: F.secondary, lineSpacing: 1.35,
   });
-  if (heroRightMotif) {
-    const previewPath = motif.local_preview_path || motif.localPreviewPath;
-    if (previewPath) {
-      await addImage(slide, { path: previewPath, alt: motif.alt || "模板装饰素材" }, {
-        left: motifBox.left ?? motif.left ?? 680,
-        top: motifBox.top ?? motif.top ?? 60,
-        width: motifBox.width ?? motif.width ?? 600,
-        height: motifBox.height ?? motif.height ?? 600,
-      }, motif.fit || "contain");
-    }
-    addText(slide, coverKeywordLines(screen.bullets || []), {
-      left: 72, top: 555, width: textColumnWidth, height: 58, size: 15, color: C.orange,
-      typeface: F.deco, bold: true, name: `cover-keywords-${item.number}`,
-    });
-  } else {
-    addBox(slide, { left: 860, top: -40, width: 300, height: 800, fill: C.orange, name: "cover-orange" });
-    addBox(slide, { left: 758, top: 210, width: 470, height: 310, fill: C.cream, name: "cover-focus" });
-    addText(slide, bulletText(screen.bullets || [], 6), {
-      left: 800, top: 275, width: 390, height: 190, size: 22, color: C.black,
-      typeface: F.deco, bold: true, align: "center", valign: "middle", lineSpacing: 1.45,
-    });
-  }
+  addBox(slide, { left: 860, top: -40, width: 300, height: 800, fill: C.orange, name: "cover-orange" });
+  addBox(slide, { left: 758, top: 210, width: 470, height: 310, fill: C.cream, name: "cover-focus" });
+  addText(slide, bulletText(screen.bullets || [], 6), {
+    left: 800, top: 275, width: 390, height: 190, size: 22, color: C.black,
+    typeface: F.deco, bold: true, align: "center", valign: "middle", lineSpacing: 1.45,
+  });
   addFooter(slide, item, "dark");
   return slide;
 }
@@ -457,7 +382,6 @@ async function buildImageSlide(presentation, item) {
   const variant = layoutVariantFor(item);
   const slide = presentation.slides.add();
   slide.background.fill = dark ? C.black : theme === "orange" ? C.orange : C.cream;
-  await addTemplateMotifPreview(slide, item);
   addHeader(slide, item, theme);
   const visual = (item.visuals || [])[0];
   const imageLeft = imageSideFor(item.layout) === "left";
@@ -572,7 +496,6 @@ async function buildImageSlide(presentation, item) {
 async function buildComparison(presentation, item) {
   const slide = presentation.slides.add();
   slide.background.fill = C.cream;
-  await addTemplateMotifPreview(slide, item);
   addHeader(slide, item, "light");
   addExplanation(slide, item, "light", { left: 72, top: 205, width: 760, height: 86 });
   const blocks = screenFor(item).blocks || [];
@@ -591,7 +514,6 @@ async function buildComparison(presentation, item) {
 async function buildTable(presentation, item) {
   const slide = presentation.slides.add();
   slide.background.fill = C.cream;
-  await addTemplateMotifPreview(slide, item);
   addHeader(slide, item, "light");
   addExplanation(slide, item, "light", { left: 72, top: 205, width: 760, height: 78 });
   const blocks = screenFor(item).blocks || [];
@@ -643,7 +565,6 @@ async function buildTextSlide(presentation, item) {
   const pattern = renderedPatternFor(item);
   const slide = presentation.slides.add();
   slide.background.fill = dark ? C.black : orange ? C.orange : C.cream;
-  await addTemplateMotifPreview(slide, item);
   addHeader(slide, item, theme);
   if (
     pattern.includes("branch-map")
@@ -784,12 +705,11 @@ async function main() {
   if (!slides.length) throw new Error("deck-spec contains no slides");
   const presentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
   for (const item of slides) {
-    let slide;
-    if (item.layout === "cover") slide = await buildCover(presentation, item);
-    else if (String(item.layout).startsWith("image-left") || String(item.layout).startsWith("image-right")) slide = await buildImageSlide(presentation, item);
-    else if (item.layout === "comparison") slide = await buildComparison(presentation, item);
-    else if (item.layout === "table") slide = await buildTable(presentation, item);
-    else slide = await buildTextSlide(presentation, item);
+    if (item.layout === "cover") await buildCover(presentation, item);
+    else if (String(item.layout).startsWith("image-left") || String(item.layout).startsWith("image-right")) await buildImageSlide(presentation, item);
+    else if (item.layout === "comparison") await buildComparison(presentation, item);
+    else if (item.layout === "table") await buildTable(presentation, item);
+    else await buildTextSlide(presentation, item);
   }
   for (const [index, slide] of presentation.slides.items.entries()) {
     const stem = `slide-${String(index + 1).padStart(3, "0")}`;
