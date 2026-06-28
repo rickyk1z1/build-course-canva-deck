@@ -1,6 +1,6 @@
 # Content and source
 
-This reference covers source intake, the detailed/sparse/script mode contract, the deck-level chapter spine, the zero-basis teaching standard, the curriculum-system boundary, the source coverage ledger, and screen copy as the teaching layer. The goal is a deck a careful human instructor would build: the source hierarchy or lecture-script teaching sequence is visible as presentation structure, the real teaching chapter nodes or script teaching units are identified before authoring, page logic is coherent, and a zero-basis learner understands each page without guessing.
+This reference covers source intake, the detailed/sparse mode contract, optional lecture-script reference, the deck-level chapter spine, the zero-basis teaching standard, the curriculum-system boundary, the source coverage ledger, and screen copy as the teaching layer. The goal is a deck a careful human instructor would build: the authoritative source hierarchy is visible as presentation structure, the real teaching chapter nodes are identified before authoring, page logic is coherent, and a zero-basis learner understands each page without guessing.
 
 ## Teaching standard
 
@@ -12,7 +12,7 @@ Before layout, create `screen.teaching_expansion` for every normal knowledge sli
 
 ```json
 {
-  "mode_handling": "sparse-vertical-expansion | detailed-clarification | script-distillation",
+  "mode_handling": "sparse-vertical-expansion | detailed-clarification",
   "learner_takeaway": "学员看完这一页能判断或说出的结论",
   "source_based_explanation": "可直接上屏的解释，不是制作思路",
   "example_or_judgment_cue": "熟悉例子、判断标准、常见误区或图像观察提示",
@@ -54,29 +54,35 @@ Keep an internal `课程体系关联说明.md` in the output folder recording th
 
 ## Mode contract
 
-The user explicitly replies `细纲`, `粗纲`, or `讲稿`. Never infer the mode from length, hierarchy, file type, or apparent detail.
+The user explicitly replies `细纲` or `粗纲`. Never infer the mode from length, hierarchy, file type, or apparent detail.
 
 **`细纲` / detailed** — preserve the source path, level hierarchy, sibling order, examples, metaphors, claims, and scope. Improve sentence clarity, grouping, wording, and visuals only. Screen copy may add connective phrasing, definitions already implied by the source, observation cues for source images, and cleaner peer labels, but may not introduce concepts, workflows, software operations, or adjacent branches the source did not develop. Do not treat the outline as a loose material pool. Verify unstable facts when necessary, but flag a substantive conflict for the user instead of silently expanding. Use the accepted `影像基础参数` deck as the depth baseline.
 
 **`粗纲` / sparse** — produce more detailed content than the baseline while staying faithful to the supplied tree. Expand vertically inside each existing node with: a direct definition; why it matters or what causes it; its relationship to sibling/parent nodes; a familiar example or analogy; a common misconception when useful; a practical boundary. Do not expand horizontally. These expansions are meant to become learner-facing page content, not hidden notes: use them to replace empty layout areas with concrete teaching value. For every addition: map it to one original source node, classify it with an allowed kind (`definition`, `cause`, `relationship`, `example`, `misconception`, `boundary`), mark relevance `direct`, record authoritative HTTPS evidence, and remove it if explaining it requires a new branch, if it belongs to `excluded_neighbor_topics`, or if it conflicts with `course_role`.
 
-**`讲稿` / script** — use the complete lecture script as the authoritative teaching source, then distill it into courseware. Preserve the script's teaching order, core judgments, examples, metaphors, and practical boundaries, but do not copy paragraphs verbatim unless the sentence is already a strong learner-facing screen line. Remove greetings,口播过渡, repeated phrasing, recording reminders, self-talk, and setup chatter. The goal is not to create and approve a separate outline deliverable; the director internally identifies script teaching units and `chapter_spine`, then writes screen copy from those units. If the script's chapter structure is ambiguous, the same passage supports two materially different chapter spines, or the script conflicts with curriculum boundaries, stop and ask the user. For normal knowledge slides, use `screen.teaching_expansion.mode_handling: "script-distillation"`. Never render process phrases such as `根据讲稿整理`, `这一段讲的是`, `本段讲的是`, or `讲稿整理`.
+## Optional lecture-script reference
 
-## Script source zoning
+If the user supplies both an authoritative outline/XMind and a lecture script, the outline remains the only authoritative source. The script is optional reference material for the screen-copy pass: it can help the classroom writer choose more natural phrasing, understand the intended emphasis, and avoid screen copy that sounds disconnected from the eventual recording.
 
-Complete lecture-script files often contain more than the learner-facing script body. In `讲稿` / `script` mode, the director must preserve these sections but route them to different jobs instead of treating all lines as slide content:
+Record this in `deck-spec.json` only as:
 
-- `metadata`: generation notes, course goal, target learner, assumptions, and source references. Use only for curriculum context, boundary checks, and worker briefs. Do not require screen coverage.
-- `structure_seed`: explicit "讲课结构" / lesson structure. Use to propose or verify `chapter_spine`; do not render it as a slide outline unless the same teaching point appears in the script body.
-- `learner_content`: the complete lecture-script body or distilled `script-unit` nodes. Only this role is automatically included in source coverage and normal knowledge pages.
-- `visual_case_brief`: case design notes, case preparation lists, examples to demonstrate, or operation素材清单. Give this to 视觉分镜师 for visual plans, source/generation decisions, and recording-material requirements; do not turn it into learner-facing bullet copy.
-- `recording_note`: recording tips, mouse movement reminders, operation-performance suggestions, and production cautions. Keep internal; never render on slides.
+```json
+{
+  "course": {
+    "reference_script": {
+      "path": "path/to/script.md",
+      "authoritative": false,
+      "usage": "screen-copy-reference-only"
+    }
+  }
+}
+```
 
-`scripts/extract_source.py --source-kind script` marks nodes with `source_role` and sets `include: true` only for `learner_content`. The automatic zoning is only a first pass: it uses explicit headings when present, then line-level semantic hints, and records `source_role_confidence` plus warnings for default assumptions. Do not rely on natural paragraph structure or fixed headings; some scripts may interleave metadata, teaching, case planning, and recording notes in one loose text stream. The director/原稿场记 must review and correct `source_role` before authoring whenever headings are unusual, sections are interleaved, or warnings mention default role inference. The coverage ledger is for included learner-content/script-unit nodes; metadata, structure seeds, visual briefs, and recording notes can be referenced in internal planning files but are not missing coverage when absent from slides.
+The reference script must not become `source-map.json`, `outline_mode`, `chapter_spine`, `source_node_ids`, `source_node_treatments`, source-image anchoring, generated-image obligation, or coverage evidence. Do not ask the user to provide a script by default; this is only used when the user already supplies one. Never render reference-process phrases such as `根据讲稿整理`, `这一段讲的是`, `本段讲的是`, or `讲稿整理`.
 
 ## Source-structure reading pass
 
-Before building the deck spine, read the whole source as a teaching structure. For outlines, read the whole source tree as a teaching outline. Do not assume that root children, second-level headings, or any fixed depth are chapters. Many course mind maps use one or more wrapper levels such as a course title, framing question, ability statement, or administrative container before the real chapter nodes begin. For complete lecture scripts, identify the script's teaching turns: where the instructor changes the question being answered, introduces a new judgment, demonstrates an example, compares two ideas, or closes a unit. Treat greetings, recap chatter, transition wording, and repeated oral emphasis as non-chapter material unless they carry a real teaching point.
+Before building the deck spine, read the whole source as a teaching structure. Read the whole source tree as a teaching outline. Do not assume that root children, second-level headings, or any fixed depth are chapters. Many course mind maps use one or more wrapper levels such as a course title, framing question, ability statement, or administrative container before the real chapter nodes begin.
 
 Create and approve an ordered `chapter_spine`:
 
@@ -96,7 +102,6 @@ Create and approve an ordered `chapter_spine`:
 Chapter-selection rules:
 
 - Choose chapter nodes from the source, not invented labels. A chapter node is a source node whose descendants form a coherent teachable unit and whose siblings at the same chosen chapter level form the lesson's main sequence.
-- In script mode, chapter nodes may be internally created `script-unit` nodes extracted from the authoritative script, but their titles must be concise learner-facing teaching labels grounded in the script wording and source order.
 - Chapter nodes must be in source order and must not overlap: a selected chapter cannot be an ancestor or descendant of another selected chapter.
 - If the root child is only a wrapper, do not create a section-cover for it. Cover wrapper/title/framing nodes on the lesson overview while keeping every source node covered exactly once.
 - Prefer the shallowest depth that represents real teaching units, but allow third, fourth, or deeper chapter starts when upper levels are containers.
@@ -119,12 +124,12 @@ Do not flatten source headings into ordinary knowledge pages to save page count.
 
 1. Enumerate supplied files and compute hashes.
 2. Resolve the authoritative source with the user if more than one file could control content. Do not merge by assumption.
-3. Extract text, hierarchy, order, notes, and embedded images via `scripts/extract_source.py` into `source-map.json`; pass `--source-kind script` for a complete lecture script. For `.xmind`, every topic-attached image must carry the textual topic anchor as `source_node_id`, `source_node_text`, `source_path_ids`, `source_path_text`, and `source_path`; image-only child topics inherit the nearest textual parent topic. A non-thumbnail image without a topic anchor is an extraction blocker, not a visual-storyboard decision. For complete lecture scripts, first extract the original paragraphs in order and mark `source_role`; then the director/原稿场记 reviews the role confidence/warnings, corrects non-standard or interleaved sections, and identifies or refines `script-unit` teaching nodes for the durable `source-map.json`; these nodes preserve order and locator evidence but omit oral filler.
+3. Extract text, hierarchy, order, notes, and embedded images from the authoritative outline via `scripts/extract_source.py` into `source-map.json`. For `.xmind`, every topic-attached image must carry the textual topic anchor as `source_node_id`, `source_node_text`, `source_path_ids`, `source_path_text`, and `source_path`; image-only child topics inherit the nearest textual parent topic. A non-thumbnail image without a topic anchor is an extraction blocker, not a visual-storyboard decision.
 4. For PDFs or exported mind maps, render and visually inspect hierarchy; text order alone is not hierarchy evidence.
-5. Ask the user to choose `细纲`, `粗纲`, or `讲稿`; record the explicit reply with `scripts/validate_source_map.py --mode detailed|sparse|script --write`.
+5. Ask the user to choose `细纲` or `粗纲`; record the explicit reply with `scripts/validate_source_map.py --mode detailed|sparse --write`.
 6. Read the full source structure and approve `chapter_spine`; create `curriculum-context.json`.
 
-Deterministic extraction routes: `.xmind` (parse `content.json` or legacy `content.xml`, keep topic order and resources); `.opml`/`.mm` (XML outline order); `.docx` (paragraph styles + `word/media`); `.md`/`.txt` (heading/list/paragraph order); `.pdf` (page text and images, then visually reconstruct hierarchy or script sequence). If scan quality or connectors are unreadable, stop and request a clearer export.
+Deterministic extraction routes: `.xmind` (parse `content.json` or legacy `content.xml`, keep topic order and resources); `.opml`/`.mm` (XML outline order); `.docx` (paragraph styles + `word/media`); `.md`/`.txt` (heading/list/paragraph order); `.pdf` (page text and images, then visually reconstruct hierarchy). If scan quality or connectors are unreadable, stop and request a clearer export.
 
 ## Source coverage ledger
 
@@ -165,11 +170,11 @@ Do not render `线上录课课件` as the left footer. Structural pages (`cover`
 
 ## Authoring standard
 
-- Preserve source order before optimizing transitions; preserve every source node or script teaching unit before adding vertical explanation.
+- Preserve source order before optimizing transitions; preserve every source node before adding vertical explanation.
 - Preserve the deck spine before optimizing page count or visual rhythm: total overview, section cover, section content, next section cover, final summary.
 - Put the current approved chapter heading in `framework_progress_label` for normal content pages; omit it on structural pages when it would add visual noise.
 - Cover and lesson-overview bullets state positive learner outcomes, the lesson's major chapter sequence, or what the learner will be able to judge/do after the lesson. They must not state excluded neighboring tasks as "不进入/不讲/不涉及 X"; those are production boundaries, not student-facing teaching points.
-- Every normal knowledge page must have `screen.teaching_expansion` before visual layout. In sparse mode, this is where vertical expansion lives and later becomes visible explanation, examples, judgment cues, and image prompts. In detailed mode, this records source-faithful clarification and observation cues. In script mode, this records the distilled learner-facing point from the current script unit and explicitly separates screen-worthy teaching from oral filler. If the expansion cannot yield useful visible copy, split/merge/reframe the page instead of filling layout space with producer-facing text.
+- Every normal knowledge page must have `screen.teaching_expansion` before visual layout. In sparse mode, this is where vertical expansion lives and later becomes visible explanation, examples, judgment cues, and image prompts. In detailed mode, this records source-faithful clarification and observation cues. If an optional lecture script is present, it can refine the wording inside the current source node's scope, but it cannot add new coverage or reorder the page. If the expansion cannot yield useful visible copy, split/merge/reframe the page instead of filling layout space with producer-facing text.
 - Give each knowledge page one clear teaching point with enough visible points to preserve the branch; do not add filler to hit a count.
 - Use comparison/table/two-panel layouts only when the content relationship is real and named in learner-facing labels.
 - Keep pages readable without narration.

@@ -16,6 +16,8 @@ def validate(payload: dict) -> list[str]:
         errors.append("authoritative source is not confirmed")
     if not payload.get("authoritative_source"):
         errors.append("authoritative_source is missing")
+    if payload.get("source_kind") == "script":
+        errors.append("source_kind=script is no longer supported; use an outline/XMind as the authoritative source and attach lecture scripts only as optional reference material")
     nodes = payload.get("nodes")
     if not isinstance(nodes, list) or not nodes:
         return errors + ["nodes must be a non-empty list"]
@@ -38,13 +40,6 @@ def validate(payload: dict) -> list[str]:
     position = {node.get("id"): i for i, node in enumerate(nodes)}
     depth_by_id = {node.get("id"): node.get("depth") for node in nodes}
     for node in nodes:
-        if payload.get("source_kind") == "script":
-            source_role = str(node.get("source_role") or "").strip()
-            if node.get("include", True) and source_role not in {"learner_content", "outline_content"}:
-                errors.append(
-                    f"script node {node.get('id')} has include=true but source_role={source_role or '<empty>'}; "
-                    "only learner_content nodes should be source coverage obligations"
-                )
         parent = node.get("parent_id")
         if parent is None:
             continue
@@ -56,8 +51,8 @@ def validate(payload: dict) -> list[str]:
             if depth_by_id[parent] >= node["depth"]:
                 errors.append(f"node {node.get('id')} depth must be greater than parent {parent}")
     mode = payload.get("outline_mode")
-    if mode is not None and mode not in {"detailed", "sparse", "script"}:
-        errors.append("outline_mode must be detailed, sparse, script, or null")
+    if mode is not None and mode not in {"detailed", "sparse"}:
+        errors.append("outline_mode must be detailed, sparse, or null")
     if mode and not payload.get("mode_declared_by_user"):
         errors.append("outline_mode exists without mode_declared_by_user=true")
     return errors
@@ -66,7 +61,7 @@ def validate(payload: dict) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("source_map", type=Path)
-    parser.add_argument("--mode", choices=["detailed", "sparse", "script"])
+    parser.add_argument("--mode", choices=["detailed", "sparse"])
     parser.add_argument("--write", action="store_true")
     parser.add_argument("--require-mode", action="store_true")
     args = parser.parse_args()
@@ -79,8 +74,8 @@ def main() -> int:
         payload["mode_declared_at"] = datetime.now(timezone.utc).isoformat()
         payload["requires_user_outline_mode"] = False
     errors = validate(payload)
-    if args.require_mode and payload.get("outline_mode") not in {"detailed", "sparse", "script"}:
-        errors.append("user must explicitly choose 细纲, 粗纲, or 讲稿 before authoring")
+    if args.require_mode and payload.get("outline_mode") not in {"detailed", "sparse"}:
+        errors.append("user must explicitly choose 细纲 or 粗纲 before authoring")
     if errors:
         print(json.dumps({"ok": False, "errors": errors}, ensure_ascii=False, indent=2))
         return 1

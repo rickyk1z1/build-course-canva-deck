@@ -41,8 +41,8 @@ def main() -> int:
         raise AssertionError("build_deck.mjs must validate learner-facing teaching expansion before rendering")
     if "screen.teaching_expansion" not in build_source or "display_priority" not in build_source:
         raise AssertionError("build_deck.mjs must require visible teaching_expansion phrases for knowledge slides")
-    if "script-distillation" not in build_source:
-        raise AssertionError("build_deck.mjs must support script-mode teaching expansion")
+    if "script-distillation" in build_source:
+        raise AssertionError("build_deck.mjs must not support script-mode teaching expansion")
     if "function validateGeneratedImageRoute" not in build_source:
         raise AssertionError("build_deck.mjs must validate generated-image route chains before rendering")
     for phrase in [

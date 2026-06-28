@@ -33,11 +33,10 @@ FORBIDDEN = [
     "讲稿整理", "根据讲稿", "这一段讲的是", "本段讲的是",
     "source path", "source_node", "screen_evidence", "coverage_note",
 ]
-ALLOWED_MODES = {"detailed", "sparse", "script"}
+ALLOWED_MODES = {"detailed", "sparse"}
 TEACHING_EXPANSION_MODE = {
     "detailed": "detailed-clarification",
     "sparse": "sparse-vertical-expansion",
-    "script": "script-distillation",
 }
 STATIC_FOOTER_TEXT = "线上录课课件"
 IMAGE_LAYOUTS = {
@@ -65,6 +64,22 @@ VISUAL_LAYOUTS = {*IMAGE_LAYOUTS, "comparison", "table", "roadmap"}
 FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-note", "later", "future-task"}
 GENERATED_IMAGE_ROUTES = {"gpt-image-2", "imagegen", "deterministic-svg", "user-provided"}
 GENERATION_ATTEMPT_STATUSES = {"success", "failed", "unavailable"}
+NO_SOURCE_GENERATION_MIN_SLIDES = 4
+GENERIC_GENERATED_CASE_BYPASS_PATTERNS = [
+    "可编辑图解比模型场景图更清楚",
+    "可编辑结构图比表格更适配",
+    "使用可编辑结构图比表格更适配当前信息量",
+    "本页教学对象是结构、关系或清单判断",
+    "本页是连续源节点整理",
+    "本页是单个源节点的操作判断",
+    "生成场景图更准确",
+    "生成案例图更准确",
+    "更适配当前信息量",
+]
+BYPASS_STRUCTURE_TERMS = {
+    "流程", "步骤", "顺序", "路径", "关系", "层级", "矩阵", "表格",
+    "参数", "快捷键", "操作", "轴", "分类", "对比", "清单", "标签",
+}
 NEGATIVE_SCOPE_VERBS = "不(?:进入|讲|涉及|展开|复讲|教学|教|做)"
 NEGATIVE_SCOPE_OBJECTS = (
     "软件|按钮|剪映|快捷键|关键帧|蒙版|调色|发布|复盘|拍摄|参数|导入|导出|"
@@ -210,6 +225,47 @@ def generation_attempt_errors(
                 f"{label} user-provided route is only valid for an actual user-supplied/selected asset "
                 "with user_provided_asset and user_asset_source"
             )
+    return errors
+
+
+def generated_case_bypass_errors(label: str, slide: dict[str, Any], bypass: str) -> list[str]:
+    """Reject generic no-source bypass copy that does not prove generation was considered."""
+    errors: list[str] = []
+    reason = str(bypass or "").strip()
+    if not reason:
+        return [f"{label} must explain why a generated case image would teach worse"]
+    compact_reason = normalized_match_text(reason)
+    generic_matches = [
+        phrase for phrase in GENERIC_GENERATED_CASE_BYPASS_PATTERNS
+        if normalized_match_text(phrase) in compact_reason
+    ]
+    if generic_matches:
+        errors.append(
+            f"{label} uses a generic generated_case_bypass_reason ({generic_matches[0]}); "
+            "write a page-specific reason tied to the current visual structure"
+        )
+    title = str(slide.get("title") or "").strip()
+    visible_points = visible_teaching_points(slide)
+    anchors = [title, *visible_points]
+    anchor_found = False
+    for anchor in anchors:
+        normalized_anchor = normalized_match_text(anchor)
+        if normalized_anchor and (
+            normalized_anchor in compact_reason or compact_reason in normalized_anchor
+        ):
+            anchor_found = True
+            break
+    if not anchor_found:
+        errors.append(
+            f"{label} generated_case_bypass_reason must name the current title or a visible teaching point; "
+            "do not use deck-level visual-policy language"
+        )
+    if not any(term in reason for term in BYPASS_STRUCTURE_TERMS):
+        errors.append(
+            f"{label} generated_case_bypass_reason must identify the concrete structure "
+            "(flow, sequence, relationship, axis, table, parameter, shortcut, operation path, etc.) "
+            "that is clearer than a generated case image"
+        )
     return errors
 
 
@@ -401,9 +457,22 @@ def main() -> int:
     mode = source.get("outline_mode")
     if mode not in ALLOWED_MODES or not source.get("mode_declared_by_user"):
         errors.append("outline mode was not explicitly declared by the user")
+    if source.get("source_kind") == "script":
+        errors.append("source_kind=script is not a valid authoritative source route; use the outline/XMind source map and keep lecture scripts as optional screen-copy reference")
     course = deck.get("course") or {}
     if course.get("outline_mode") != mode:
         errors.append("deck-spec mode does not match source-map mode")
+    reference_script = course.get("reference_script")
+    if reference_script is not None:
+        if not isinstance(reference_script, dict):
+            errors.append("course.reference_script must be an object when provided")
+        else:
+            if reference_script.get("authoritative") is not False:
+                errors.append("course.reference_script.authoritative must be false")
+            if str(reference_script.get("usage", "")).strip() != "screen-copy-reference-only":
+                errors.append("course.reference_script.usage must be screen-copy-reference-only")
+            if not str(reference_script.get("path") or reference_script.get("source") or "").strip():
+                errors.append("course.reference_script must record the reference script path/source")
     curriculum = course.get("curriculum_context") or {}
     if not curriculum.get("system_name"):
         errors.append("curriculum_context.system_name is required")
@@ -630,6 +699,9 @@ def main() -> int:
     previous_min_order = 0
     exclusions = [str(value) for value in course.get("explicit_exclusions", [])]
     exclusions.extend(str(value) for value in curriculum.get("excluded_neighbor_topics", []))
+    no_source_knowledge_slide_count = 0
+    generated_image_slide_count = 0
+    no_source_non_generated_slides: list[int] = []
 
     for index, slide in enumerate(slides, start=1):
         label = f"slide {index}"
@@ -872,6 +944,7 @@ def main() -> int:
                             if image_id in source_image_ids
                         )
                 if asset_type == "generated-image":
+                    generated_image_slide_count += 1
                     try:
                         slide_number = int(slide.get("number"))
                     except (TypeError, ValueError):
@@ -895,6 +968,21 @@ def main() -> int:
                         errors.append(
                             f"{label} text-only exception must explain why generated case image or diagram is not useful"
                         )
+                if (
+                    layout in KNOWLEDGE_LAYOUTS
+                    and asset_type not in {"source-image", "redrawn-source-image"}
+                    and not (isinstance(visual_plan.get("source_image_ids"), list) and visual_plan.get("source_image_ids"))
+                ):
+                    no_source_knowledge_slide_count += 1
+                    if asset_type != "generated-image":
+                        no_source_non_generated_slides.append(index)
+                        bypass = str(
+                            visual_plan.get("text_only_exception_reason")
+                            or visual_plan.get("generated_case_bypass_reason")
+                            or visual_plan.get("no_generated_case_reason")
+                            or ""
+                        ).strip()
+                        errors.extend(generated_case_bypass_errors(label, slide, bypass))
 
         node_ids = slide.get("source_node_ids") or []
         if not node_ids and layout not in UNMAPPED_ALLOWED_LAYOUTS:
@@ -1062,6 +1150,17 @@ def main() -> int:
                         f"course.source_image_coverage marks {image_id} as used/redrawn, "
                         "but no knowledge-page visual_plan.source_image_ids references it"
                     )
+
+    if (
+        no_source_knowledge_slide_count >= NO_SOURCE_GENERATION_MIN_SLIDES
+        and generated_image_slide_count == 0
+    ):
+        errors.append(
+            f"deck has {no_source_knowledge_slide_count} normal knowledge slides without source images "
+            "but no generated-image slides/image_generation_tasks; run the generated case-image decision "
+            "flow instead of bypassing every no-source page. Non-generated no-source slides include: "
+            + ", ".join(str(value) for value in no_source_non_generated_slides[:20])
+        )
 
     missing = [node_id for node_id in source_ids if node_id not in mapped]
     if missing:

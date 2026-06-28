@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract an ordered, format-neutral source map from a course outline or script file."""
+"""Extract an ordered, format-neutral source map from a course outline file."""
 
 from __future__ import annotations
 
@@ -30,46 +30,14 @@ def sha256(path: Path) -> str:
 
 
 class SourceMapBuilder:
-    def __init__(self, source: Path, source_type: str, assets_dir: Path, source_kind: str = "outline"):
+    def __init__(self, source: Path, source_type: str, assets_dir: Path):
         self.source = source
         self.source_type = source_type
         self.assets_dir = assets_dir
-        self.source_kind = source_kind
         self.nodes: list[dict[str, Any]] = []
         self.images: list[dict[str, Any]] = []
         self.warnings: list[str] = []
         self._image_sha_to_id: dict[str, str] = {}
-
-    def source_role_for_path(self, source_path_text: list[str], kind: str) -> tuple[str, str, str]:
-        if self.source_kind != "script":
-            return "outline_content", "explicit", "outline source"
-        text = source_path_text[-1] if source_path_text else ""
-        compact_path = " > ".join(source_path_text)
-        if any(label in compact_path for label in ("讲稿生成说明", "生成说明", "课程目标", "目标学员", "核心问题", "关键假设")):
-            return "metadata", "explicit", "matched script metadata heading"
-        if any(label in compact_path for label in ("讲课结构", "课程结构", "本课结构")):
-            return "structure_seed", "explicit", "matched script structure heading"
-        if any(label in compact_path for label in ("案例设计说明", "案例准备清单")):
-            return "visual_case_brief", "explicit", "matched visual case heading"
-        if any(label in compact_path for label in ("录制提示", "录屏提示", "拍摄提示")):
-            return "recording_note", "explicit", "matched recording note heading"
-        if kind == "heading" and any(label in text for label in ("完整录播讲稿", "完整讲稿", "录播讲稿正文")):
-            return "script_container", "explicit", "matched learner script body container"
-        if any(label in compact_path for label in ("完整录播讲稿", "完整讲稿", "录播讲稿正文")):
-            return "learner_content", "explicit", "matched learner script body heading"
-        if re.match(r"^(大纲来源|讲法类型|课程目标|目标学员|核心问题|关键假设|来源)[:：]", text):
-            return "metadata", "heuristic", "matched metadata line prefix"
-        if kind == "list-item" and len(text) < 80:
-            return "structure_seed", "heuristic", "short script list item"
-        if re.match(r"^(第?\s*\d+\s*[.、)]|[一二三四五六七八九十]+[、.])\s*.+", text) and len(text) < 80:
-            return "structure_seed", "heuristic", "short ordered lesson-structure line"
-        if any(marker in text for marker in ("案例处理方式", "要准备的案例", "用来说明什么", "画面/操作要求", "直接做出来", "案例：", "案例设计")):
-            return "visual_case_brief", "heuristic", "matched case-planning wording"
-        if any(marker in text for marker in ("录制时", "录屏时", "鼠标框选", "建议录", "拍摄时", "现场演示")):
-            return "recording_note", "heuristic", "matched recording-production wording"
-        if kind == "heading":
-            return "script_container", "default", "unmatched script heading"
-        return "learner_content", "default", "unmatched script text; director must review source_role"
 
     def add_node(
         self,
@@ -89,14 +57,6 @@ class SourceMapBuilder:
         parent_path_text = list(parent_node.get("source_path_text", [])) if parent_node else []
         source_path_ids = [*parent_path_ids, node_id]
         source_path_text = [*parent_path_text, text]
-        source_role, source_role_confidence, source_role_reason = self.source_role_for_path(source_path_text, kind)
-        include = True
-        if self.source_kind == "script":
-            include = source_role == "learner_content"
-            if source_role_confidence == "default":
-                self.warnings.append(
-                    f"script node role inferred by default at {locator}; director must verify: {text[:80]}"
-                )
         self.nodes.append(
             {
                 "id": node_id,
@@ -109,10 +69,10 @@ class SourceMapBuilder:
                 "source_path_ids": source_path_ids,
                 "source_path_text": source_path_text,
                 "source_path": " > ".join(source_path_text),
-                "source_role": source_role,
-                "source_role_confidence": source_role_confidence,
-                "source_role_reason": source_role_reason,
-                "include": include,
+                "source_role": "outline_content",
+                "source_role_confidence": "explicit",
+                "source_role_reason": "outline source",
+                "include": True,
             }
         )
         return node_id
@@ -173,7 +133,7 @@ class SourceMapBuilder:
             "authoritative": True,
             "authoritative_source": str(self.source.resolve()),
             "source_type": self.source_type,
-            "source_kind": self.source_kind,
+            "source_kind": "outline",
             "source_sha256": sha256(self.source),
             "extracted_at": datetime.now(timezone.utc).isoformat(),
             "outline_mode": None,
@@ -490,7 +450,6 @@ def main() -> int:
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--assets-dir", type=Path)
-    parser.add_argument("--source-kind", choices=["outline", "script"], default="outline")
     args = parser.parse_args()
 
     source = args.input.expanduser().resolve()
@@ -500,7 +459,7 @@ def main() -> int:
     assets_dir = (args.assets_dir or output.parent / "assets" / "source").expanduser().resolve()
     suffix = source.suffix.lower()
     source_type = suffix.lstrip(".") or "text"
-    builder = SourceMapBuilder(source, source_type, assets_dir, args.source_kind)
+    builder = SourceMapBuilder(source, source_type, assets_dir)
 
     if suffix == ".xmind":
         parse_xmind(builder, source)

@@ -89,8 +89,34 @@ const F = {
 const STRUCTURAL_LAYOUTS = new Set(["cover", "lesson-overview", "section-cover", "summary"]);
 const IMAGE_ASSET_TYPES = new Set(["source-image", "redrawn-source-image", "generated-image"]);
 const NON_SOURCE_VISUAL_TYPES = new Set(["editable-diagram", "editable-table", "text-only-exception"]);
+const EDITABLE_DIAGRAM_PATTERNS = [
+  "branch-map",
+  "flow",
+  "roadmap",
+  "route",
+  "statement",
+  "principle",
+  "visual-band",
+  "side-rail",
+];
 const GENERATED_IMAGE_ROUTES = new Set(["gpt-image-2", "imagegen", "deterministic-svg", "user-provided"]);
 const GENERATION_ATTEMPT_STATUSES = new Set(["success", "failed", "unavailable"]);
+const NO_SOURCE_GENERATION_MIN_SLIDES = 4;
+const GENERIC_GENERATED_CASE_BYPASS_PATTERNS = [
+  "可编辑图解比模型场景图更清楚",
+  "可编辑结构图比表格更适配",
+  "使用可编辑结构图比表格更适配当前信息量",
+  "本页教学对象是结构、关系或清单判断",
+  "本页是连续源节点整理",
+  "本页是单个源节点的操作判断",
+  "生成场景图更准确",
+  "生成案例图更准确",
+  "更适配当前信息量",
+];
+const BYPASS_STRUCTURE_TERMS = [
+  "流程", "步骤", "顺序", "路径", "关系", "层级", "矩阵", "表格",
+  "参数", "快捷键", "操作", "轴", "分类", "对比", "清单", "标签",
+];
 const NEGATIVE_SCOPE_RE = /不(?:进入|讲|涉及|展开|复讲|教学|教|做).{0,16}(?:软件|按钮|剪映|快捷键|关键帧|蒙版|调色|发布|复盘|拍摄|参数|导入|导出|时间线|效率工作流|HSL|LUT|完播率|点击率|留存曲线|A\/B测试|AI)/i;
 const PRODUCER_COPY_PATTERNS = [
   "构建" + "课件",
@@ -132,6 +158,45 @@ function compactText(value) {
   return String(value || "").replace(/\s+/g, "");
 }
 
+function visibleTeachingPoints(item) {
+  const screen = screenFor(item);
+  const out = [];
+  for (const bullet of Array.isArray(screen.bullets) ? screen.bullets : []) {
+    const value = typeof bullet === "string" ? bullet : bullet?.text;
+    if (String(value || "").trim()) out.push(String(value).trim());
+  }
+  for (const block of Array.isArray(screen.blocks) ? screen.blocks : []) {
+    if (!block || typeof block !== "object") continue;
+    if (String(block.heading || "").trim()) out.push(String(block.heading).trim());
+    for (const entry of Array.isArray(block.items) ? block.items : []) {
+      const value = typeof entry === "string" ? entry : entry?.text;
+      if (String(value || "").trim()) out.push(String(value).trim());
+    }
+  }
+  return out;
+}
+
+function validateGeneratedCaseBypass(item, bypass) {
+  const slideLabel = `slide ${item.number || "?"}`;
+  const reason = String(bypass || "").trim();
+  if (!reason) {
+    throw new Error(`${slideLabel} must explain why a generated case image would teach worse`);
+  }
+  const compactReason = compactText(reason);
+  const genericMatch = GENERIC_GENERATED_CASE_BYPASS_PATTERNS.find((phrase) => compactReason.includes(compactText(phrase)));
+  if (genericMatch) {
+    throw new Error(`${slideLabel} uses a generic generated_case_bypass_reason (${genericMatch}); write a page-specific reason tied to the current visual structure`);
+  }
+  const anchors = [item.title || "", ...visibleTeachingPoints(item)].map((value) => compactText(value)).filter(Boolean);
+  const anchorFound = anchors.some((anchor) => compactReason.includes(anchor) || anchor.includes(compactReason));
+  if (!anchorFound) {
+    throw new Error(`${slideLabel} generated_case_bypass_reason must name the current title or a visible teaching point`);
+  }
+  if (!BYPASS_STRUCTURE_TERMS.some((term) => reason.includes(term))) {
+    throw new Error(`${slideLabel} generated_case_bypass_reason must identify the concrete structure that is clearer than a generated case image`);
+  }
+}
+
 function validateTeachingExpansion(item, visibleText, courseMode) {
   const screen = screenFor(item);
   const expansion = screen.teaching_expansion;
@@ -144,9 +209,7 @@ function validateTeachingExpansion(item, visibleText, courseMode) {
     ? "sparse-vertical-expansion"
     : courseMode === "detailed"
       ? "detailed-clarification"
-      : courseMode === "script"
-        ? "script-distillation"
-        : "";
+      : "";
   if (expectedModeHandling && modeHandling !== expectedModeHandling) {
     throw new Error(`${slideLabel} screen.teaching_expansion.mode_handling must be ${expectedModeHandling}`);
   }
@@ -268,8 +331,64 @@ function validateGeneratedImageRoute(item, deckSpec) {
   }
 }
 
+function plannedPatternForValidation(item) {
+  const plan = item.visual_plan || {};
+  const ref = plan.template_reference || item.template_reference || {};
+  return String(
+    plan.rendered_pattern
+    || plan.thumbnail_pattern
+    || plan.layout_variant
+    || plan.composition_variant
+    || ref.rendered_pattern
+    || ref.thumbnail_pattern
+    || ref.layout_variant
+    || ref.composition_family
+    || "",
+  );
+}
+
+function hasRenderableEditableVisual(item, assetType) {
+  const hasVisualAsset = Array.isArray(item.visuals) && item.visuals.some((visual) => visual?.path || visual?.src);
+  if (hasVisualAsset) {
+    return true;
+  }
+  const layout = String(item.layout || "");
+  if (assetType === "editable-table") {
+    return layout === "table";
+  }
+  if (assetType !== "editable-diagram") {
+    return false;
+  }
+  const blocks = Array.isArray(item.screen?.blocks) ? item.screen.blocks : [];
+  if (layout === "roadmap") {
+    return true;
+  }
+  if (layout === "comparison" && blocks.length >= 2) {
+    return true;
+  }
+  const pattern = plannedPatternForValidation(item);
+  return EDITABLE_DIAGRAM_PATTERNS.some((entry) => pattern.includes(entry));
+}
+
 function validateSpecBeforeBuild(deckSpec) {
   const courseMode = String(deckSpec.course?.outline_mode || "").trim();
+  if (!["detailed", "sparse"].includes(courseMode)) {
+    throw new Error("deck-spec course.outline_mode must be detailed or sparse");
+  }
+  const referenceScript = deckSpec.course?.reference_script;
+  if (referenceScript !== undefined) {
+    if (
+      !referenceScript
+      || referenceScript.authoritative !== false
+      || String(referenceScript.usage || "").trim() !== "screen-copy-reference-only"
+      || !String(referenceScript.path || referenceScript.source || "").trim()
+    ) {
+      throw new Error("course.reference_script must be non-authoritative screen-copy-reference-only metadata");
+    }
+  }
+  let noSourceKnowledgeSlideCount = 0;
+  let generatedImageSlideCount = 0;
+  const noSourceNonGeneratedSlides = [];
   for (const item of deckSpec.slides || []) {
     const slideLabel = `slide ${item.number || "?"}`;
     const visibleText = screenTextForValidation(item);
@@ -290,11 +409,18 @@ function validateSpecBeforeBuild(deckSpec) {
     const visualPlan = item.visual_plan || {};
     const assetType = String(visualPlan.asset_type || "").trim();
     if (assetType === "generated-image") {
+      generatedImageSlideCount += 1;
       validateGeneratedImageRoute(item, deckSpec);
+    }
+    if (assetType === "editable-diagram" || assetType === "editable-table") {
+      if (!hasRenderableEditableVisual(item, assetType)) {
+        throw new Error(`${slideLabel} declares ${assetType} but has no renderable diagram/table pattern or visual asset`);
+      }
     }
     if (!NON_SOURCE_VISUAL_TYPES.has(assetType)) continue;
     const hasSourceImages = Array.isArray(visualPlan.source_image_ids) && visualPlan.source_image_ids.length > 0;
     if (hasSourceImages) continue;
+    noSourceKnowledgeSlideCount += 1;
     const bypass = String(
       visualPlan.generated_case_bypass_reason
       || visualPlan.no_generated_case_reason
@@ -304,6 +430,14 @@ function validateSpecBeforeBuild(deckSpec) {
     if (!bypass) {
       throw new Error(`${slideLabel} has no source image and uses ${assetType}; create a generated-image task or record why a generated case image would teach worse`);
     }
+    noSourceNonGeneratedSlides.push(item.number || "?");
+    validateGeneratedCaseBypass(item, bypass);
+  }
+  if (noSourceKnowledgeSlideCount >= NO_SOURCE_GENERATION_MIN_SLIDES && generatedImageSlideCount === 0) {
+    throw new Error(
+      `deck has ${noSourceKnowledgeSlideCount} normal knowledge slides without source images but no generated-image slides/image_generation_tasks; `
+      + `run the generated case-image decision flow instead of bypassing every no-source page. Non-generated no-source slides include: ${noSourceNonGeneratedSlides.slice(0, 20).join(", ")}`,
+    );
   }
 }
 
@@ -451,6 +585,16 @@ function themeFor(layout) {
   return "light";
 }
 
+function flowNodeFillForTheme(theme, index) {
+  if (theme === "orange") {
+    return index % 2 === 0 ? C.black : C.cream;
+  }
+  if (theme === "dark") {
+    return index % 2 === 0 ? C.cream : C.orange;
+  }
+  return index % 2 === 0 ? C.black : C.orange;
+}
+
 function imageSideFor(layout) {
   return String(layout).includes("image-left") ? "left" : "right";
 }
@@ -465,6 +609,7 @@ function referencePageFor(item) {
 }
 
 function layoutVariantFor(item) {
+  if (String(item.layout || "") === "roadmap") return "roadmap";
   const explicit = item.visual_plan?.layout_variant
     || item.visual_plan?.composition_variant
     || templateReferenceFor(item).layout_variant
@@ -1016,14 +1161,35 @@ async function buildTextSlide(presentation, item) {
       throw new Error(`slide ${item.number} flow pattern has ${points.length} visible points; split into a shorter route page`);
     }
     const railTop = 360;
-    const railWidth = 1000;
-    addBox(slide, { left: 100, top: railTop + 86, width: railWidth, height: 8, fill: dark ? C.orange : C.black, name: `flow-rail-${item.number}` });
-    points.forEach((point, index) => {
-      const nodeWidth = 210;
-      const gap = (railWidth - nodeWidth * points.length) / Math.max(1, points.length - 1);
-      const left = 72 + index * (nodeWidth + Math.max(24, gap));
-      const fill = index % 2 === 0 ? (dark ? C.cream : C.black) : C.orange;
-      const nodeTheme = index % 2 === 0 && !dark ? "dark" : "light";
+    const stageLeft = 72;
+    const stageWidth = 1088;
+    const nodeWidth = 210;
+    const nodeHeight = 172;
+    const gap = points.length > 1
+      ? (stageWidth - nodeWidth * points.length) / (points.length - 1)
+      : 0;
+    const nodeFrames = points.map((point, index) => ({
+      point,
+      left: stageLeft + index * (nodeWidth + gap),
+    }));
+    nodeFrames.slice(0, -1).forEach((frame, index) => {
+      const next = nodeFrames[index + 1];
+      const connectorLeft = frame.left + nodeWidth;
+      const connectorWidth = Math.max(0, next.left - connectorLeft);
+      if (connectorWidth > 0) {
+        addBox(slide, {
+          left: connectorLeft,
+          top: railTop + 86,
+          width: connectorWidth,
+          height: 8,
+          fill: dark ? C.orange : C.black,
+          name: `flow-connector-${item.number}-${index}`,
+        });
+      }
+    });
+    nodeFrames.forEach(({ point, left }, index) => {
+      const fill = flowNodeFillForTheme(theme, index);
+      const nodeTheme = fill === C.black ? "dark" : "light";
       addBox(slide, { left, top: railTop, width: nodeWidth, height: 172, fill, name: `flow-node-${item.number}-${index}` });
       addText(slide, String(index + 1).padStart(2, "0"), {
         left: left + 18,
@@ -1039,7 +1205,7 @@ async function buildTextSlide(presentation, item) {
         left: left + 18,
         top: railTop + 64,
         width: nodeWidth - 36,
-        height: 78,
+        height: nodeHeight - 94,
         size: 16,
         color: nodeTheme === "dark" ? C.white : C.black,
         typeface: F.body,
