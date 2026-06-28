@@ -38,6 +38,13 @@ def validate(payload: dict) -> list[str]:
     position = {node.get("id"): i for i, node in enumerate(nodes)}
     depth_by_id = {node.get("id"): node.get("depth") for node in nodes}
     for node in nodes:
+        if payload.get("source_kind") == "script":
+            source_role = str(node.get("source_role") or "").strip()
+            if node.get("include", True) and source_role not in {"learner_content", "outline_content"}:
+                errors.append(
+                    f"script node {node.get('id')} has include=true but source_role={source_role or '<empty>'}; "
+                    "only learner_content nodes should be source coverage obligations"
+                )
         parent = node.get("parent_id")
         if parent is None:
             continue

@@ -170,6 +170,116 @@ class ScriptModeTests(unittest.TestCase):
             payload = json.loads(output_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["source_kind"], "script")
 
+    def test_extract_source_zones_script_sections_by_role(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_path = tmp_path / "script.md"
+            output_path = tmp_path / "source.json"
+            input_path.write_text(
+                "\n".join(
+                    [
+                        "# 录播讲稿：第一节课",
+                        "## 讲稿生成说明",
+                        "- 课程目标：内部背景",
+                        "## 讲课结构",
+                        "1. 开场",
+                        "## 完整录播讲稿",
+                        "### 片段 1：开场",
+                        "今天这一课我们先学时间线。",
+                        "## 案例设计说明",
+                        "- 口播粗剪主案例：直接做出来",
+                        "## 案例准备清单",
+                        "| 位置 | 知识点 |",
+                        "| --- | --- |",
+                        "| 片段 1 | 时间线 |",
+                        "## 录制提示",
+                        "- 录制时用鼠标框选四个区域",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(EXTRACT),
+                    "--input",
+                    str(input_path),
+                    "--output",
+                    str(output_path),
+                    "--source-kind",
+                    "script",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            roles = {node["text"]: node["source_role"] for node in payload["nodes"]}
+            includes = {node["text"]: node["include"] for node in payload["nodes"]}
+            confidence = {node["text"]: node["source_role_confidence"] for node in payload["nodes"]}
+            self.assertEqual(roles["课程目标：内部背景"], "metadata")
+            self.assertFalse(includes["课程目标：内部背景"])
+            self.assertEqual(confidence["课程目标：内部背景"], "explicit")
+            self.assertEqual(roles["开场"], "structure_seed")
+            self.assertFalse(includes["开场"])
+            self.assertEqual(roles["完整录播讲稿"], "script_container")
+            self.assertFalse(includes["完整录播讲稿"])
+            self.assertEqual(roles["今天这一课我们先学时间线。"], "learner_content")
+            self.assertTrue(includes["今天这一课我们先学时间线。"])
+            self.assertEqual(roles["口播粗剪主案例：直接做出来"], "visual_case_brief")
+            self.assertFalse(includes["口播粗剪主案例：直接做出来"])
+            self.assertEqual(roles["录制时用鼠标框选四个区域"], "recording_note")
+            self.assertFalse(includes["录制时用鼠标框选四个区域"])
+
+    def test_extract_source_uses_content_heuristics_when_script_has_no_clean_sections(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_path = tmp_path / "script.txt"
+            output_path = tmp_path / "source.json"
+            input_path.write_text(
+                "\n".join(
+                    [
+                        "课程目标：让学员理解时间线。",
+                        "1. 开场：先建立时间线意识。",
+                        "今天这一课我们先学时间线，不是先学特效。",
+                        "案例处理方式：直接做出上层截图盖住人物。",
+                        "录制时用鼠标框选四个区域。",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(EXTRACT),
+                    "--input",
+                    str(input_path),
+                    "--output",
+                    str(output_path),
+                    "--source-kind",
+                    "script",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(output_path.read_text(encoding="utf-8"))
+            roles = {node["text"]: node["source_role"] for node in payload["nodes"]}
+            includes = {node["text"]: node["include"] for node in payload["nodes"]}
+            confidence = {node["text"]: node["source_role_confidence"] for node in payload["nodes"]}
+            self.assertEqual(roles["课程目标：让学员理解时间线。"], "metadata")
+            self.assertEqual(roles["开场：先建立时间线意识。"], "structure_seed")
+            self.assertEqual(roles["今天这一课我们先学时间线，不是先学特效。"], "learner_content")
+            self.assertTrue(includes["今天这一课我们先学时间线，不是先学特效。"])
+            self.assertEqual(confidence["今天这一课我们先学时间线，不是先学特效。"], "default")
+            self.assertTrue(payload["warnings"])
+            self.assertEqual(roles["案例处理方式：直接做出上层截图盖住人物。"], "visual_case_brief")
+            self.assertFalse(includes["案例处理方式：直接做出上层截图盖住人物。"])
+            self.assertEqual(roles["录制时用鼠标框选四个区域。"], "recording_note")
+            self.assertFalse(includes["录制时用鼠标框选四个区域。"])
+
     def test_validate_source_map_accepts_script_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
             source_path = Path(tmp) / "source.json"
@@ -184,6 +294,23 @@ class ScriptModeTests(unittest.TestCase):
             payload = json.loads(source_path.read_text(encoding="utf-8"))
             self.assertEqual(payload["outline_mode"], "script")
             self.assertTrue(payload["mode_declared_by_user"])
+
+    def test_validate_source_map_rejects_included_non_learner_script_role(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = source_map()
+            payload["source_kind"] = "script"
+            payload["nodes"][0]["source_role"] = "recording_note"
+            payload["nodes"][0]["include"] = True
+            source_path = Path(tmp) / "source.json"
+            source_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(VALIDATE), str(source_path), "--require-mode"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("only learner_content nodes should be source coverage obligations", result.stdout)
 
     def test_audit_accepts_script_distillation_mode(self):
         code, report = run_audit(deck(knowledge_slide()))
