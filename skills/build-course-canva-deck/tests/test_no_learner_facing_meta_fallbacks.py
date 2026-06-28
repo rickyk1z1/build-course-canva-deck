@@ -16,6 +16,8 @@ FORBIDDEN_META_COPY = [
     "构建课件",
     "课件思路",
     "制作思路",
+    "根据讲稿整理",
+    "这一段讲的是",
 ]
 
 
@@ -39,6 +41,8 @@ def main() -> int:
         raise AssertionError("build_deck.mjs must validate learner-facing teaching expansion before rendering")
     if "screen.teaching_expansion" not in build_source or "display_priority" not in build_source:
         raise AssertionError("build_deck.mjs must require visible teaching_expansion phrases for knowledge slides")
+    if "script-distillation" not in build_source:
+        raise AssertionError("build_deck.mjs must support script-mode teaching expansion")
     if "function validateGeneratedImageRoute" not in build_source:
         raise AssertionError("build_deck.mjs must validate generated-image route chains before rendering")
     for phrase in [
@@ -53,7 +57,7 @@ def main() -> int:
         if phrase not in build_source:
             raise AssertionError(f"build_deck.mjs must enforce generated-image route field: {phrase}")
 
-    for phrase in ["整节课怎么展开", "构建课件", "课件思路", "制作思路"]:
+    for phrase in ["整节课怎么展开", "构建课件", "课件思路", "制作思路", "根据讲稿", "这一段讲的是"]:
         if phrase not in audit_source:
             raise AssertionError(f"audit_deck.py must reject leaked producer-facing phrase: {phrase}")
 

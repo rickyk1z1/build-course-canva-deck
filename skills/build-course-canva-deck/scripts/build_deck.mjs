@@ -96,6 +96,10 @@ const PRODUCER_COPY_PATTERNS = [
   "构建" + "课件",
   "课件" + "思路",
   "制作" + "思路",
+  "讲稿" + "整理",
+  "根据" + "讲稿",
+  "这一段" + "讲的是",
+  "本段" + "讲的是",
   "来源路径",
   "对应节点",
   "本页顺序",
@@ -140,7 +144,9 @@ function validateTeachingExpansion(item, visibleText, courseMode) {
     ? "sparse-vertical-expansion"
     : courseMode === "detailed"
       ? "detailed-clarification"
-      : "";
+      : courseMode === "script"
+        ? "script-distillation"
+        : "";
   if (expectedModeHandling && modeHandling !== expectedModeHandling) {
     throw new Error(`${slideLabel} screen.teaching_expansion.mode_handling must be ${expectedModeHandling}`);
   }
@@ -561,15 +567,54 @@ function splitImagePanels(area, count) {
   }));
 }
 
-function caseImageStageLayout(theme, variant) {
-  const dark = theme === "dark";
+function insetPosition(area, inset) {
   return {
-    imagePosition: { left: 56, top: 168, width: 1168, height: 474 },
+    left: area.left + inset,
+    top: area.top + inset,
+    width: Math.max(1, area.width - inset * 2),
+    height: Math.max(1, area.height - inset * 2),
+  };
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function optionalNumber(...values) {
+  for (const value of values) {
+    if (value === undefined || value === null || value === "") continue;
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function caseImageStageInset(item, imageFrame, visualCount) {
+  const plan = item.visual_plan || {};
+  const composition = plan.composition || {};
+  const authored = optionalNumber(
+    plan.case_stage_inner_padding,
+    composition.case_stage_inner_padding,
+    item.case_stage_inner_padding,
+  );
+  const proportionalDefault = Math.round(Math.min(imageFrame.width, imageFrame.height) * 0.045);
+  const defaultInset = visualCount > 1 ? Math.max(20, proportionalDefault) : proportionalDefault;
+  return Math.round(clampNumber(authored ?? defaultInset, 14, 42));
+}
+
+function caseImageStageLayout(theme, variant, item, visualCount = 1) {
+  const dark = theme === "dark";
+  const imageFrame = { left: 56, top: 168, width: 1168, height: 474, fill: dark ? C.cream : C.white };
+  const innerPadding = caseImageStageInset(item, imageFrame, visualCount);
+  return {
+    imagePosition: imageFrame,
+    imageContentPosition: insetPosition(imageFrame, innerPadding),
+    imageInnerPadding: innerPadding,
     captionPosition: { left: 76, top: 650, width: 900, height: 28 },
     explanationPosition: { left: 882, top: 214, width: 304, height: 98 },
     bulletsPosition: { left: 882, top: 342, width: 304, height: 172 },
     textPanel: null,
-    imageFrame: { left: 56, top: 168, width: 1168, height: 474, fill: dark ? C.cream : C.white },
+    imageFrame,
     textTheme: dark ? "dark" : "light",
     textPanelAfterImages: false,
     perImagePanelBackgrounds: false,
@@ -736,6 +781,7 @@ async function buildImageSlide(presentation, item) {
   let textPanel = null;
   let textPanelAfterImages = false;
   let perImagePanelBackgrounds = true;
+  let imageContentPosition = null;
   let imageFrame = dark ? {
     left: imagePosition.left - 16,
     top: imagePosition.top - 16,
@@ -765,12 +811,13 @@ async function buildImageSlide(presentation, item) {
     imageFrame = dark ? { left: imagePosition.left - 14, top: 186, width: imagePosition.width + 28, height: imagePosition.height + 28, fill: C.cream } : null;
     textTheme = dark ? "dark" : "light";
   } else if (variant === "source-pair-large") {
-    const caseStage = caseImageStageLayout(theme, variant);
+    const caseStage = caseImageStageLayout(theme, variant, item, visuals.length || 1);
     imagePosition = caseStage.imagePosition;
     captionPosition = caseStage.captionPosition;
     explanationPosition = caseStage.explanationPosition;
     bulletsPosition = caseStage.bulletsPosition;
     textPanel = caseStage.textPanel;
+    imageContentPosition = caseStage.imageContentPosition;
     imageFrame = caseStage.imageFrame;
     textPanelAfterImages = caseStage.textPanelAfterImages;
     perImagePanelBackgrounds = caseStage.perImagePanelBackgrounds;
@@ -831,12 +878,13 @@ async function buildImageSlide(presentation, item) {
   }
 
   if (caseImagePage && variant !== "source-pair-large") {
-    const caseStage = caseImageStageLayout(theme, variant);
+    const caseStage = caseImageStageLayout(theme, variant, item, visuals.length || 1);
     imagePosition = caseStage.imagePosition;
     captionPosition = caseStage.captionPosition;
     explanationPosition = caseStage.explanationPosition;
     bulletsPosition = caseStage.bulletsPosition;
     textPanel = caseStage.textPanel;
+    imageContentPosition = caseStage.imageContentPosition;
     imageFrame = caseStage.imageFrame;
     textPanelAfterImages = caseStage.textPanelAfterImages;
     perImagePanelBackgrounds = caseStage.perImagePanelBackgrounds;
@@ -845,7 +893,8 @@ async function buildImageSlide(presentation, item) {
 
   if (textPanel && !textPanelAfterImages) addBox(slide, { ...textPanel, name: `text-field-${variant}-${item.number}` });
   if (imageFrame) addBox(slide, { ...imageFrame, name: `image-field-${variant}-${item.number}` });
-  const imagePanels = splitImagePanels(imagePosition, Math.min(visuals.length || 1, 3));
+  const renderImagePosition = imageContentPosition || imagePosition;
+  const imagePanels = splitImagePanels(renderImagePosition, Math.min(visuals.length || 1, 3));
   if (visuals.length > 1) {
     for (const [index, panel] of imagePanels.entries()) {
       const panelVisual = visuals[index];
@@ -863,7 +912,7 @@ async function buildImageSlide(presentation, item) {
       await addImage(slide, panelVisual, panel, panelVisual.fit || "contain");
     }
   } else {
-    await addImage(slide, visual, imagePosition, visual?.fit || "contain");
+    await addImage(slide, visual, renderImagePosition, visual?.fit || "contain");
   }
   if (textPanel && textPanelAfterImages) addBox(slide, { ...textPanel, name: `text-field-${variant}-${item.number}` });
   addCaption(slide, item, textTheme, captionPosition);

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract an ordered, format-neutral source map from a course outline file."""
+"""Extract an ordered, format-neutral source map from a course outline or script file."""
 
 from __future__ import annotations
 
@@ -30,10 +30,11 @@ def sha256(path: Path) -> str:
 
 
 class SourceMapBuilder:
-    def __init__(self, source: Path, source_type: str, assets_dir: Path):
+    def __init__(self, source: Path, source_type: str, assets_dir: Path, source_kind: str = "outline"):
         self.source = source
         self.source_type = source_type
         self.assets_dir = assets_dir
+        self.source_kind = source_kind
         self.nodes: list[dict[str, Any]] = []
         self.images: list[dict[str, Any]] = []
         self.warnings: list[str] = []
@@ -130,6 +131,7 @@ class SourceMapBuilder:
             "authoritative": True,
             "authoritative_source": str(self.source.resolve()),
             "source_type": self.source_type,
+            "source_kind": self.source_kind,
             "source_sha256": sha256(self.source),
             "extracted_at": datetime.now(timezone.utc).isoformat(),
             "outline_mode": None,
@@ -446,6 +448,7 @@ def main() -> int:
     parser.add_argument("--input", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--assets-dir", type=Path)
+    parser.add_argument("--source-kind", choices=["outline", "script"], default="outline")
     args = parser.parse_args()
 
     source = args.input.expanduser().resolve()
@@ -455,7 +458,7 @@ def main() -> int:
     assets_dir = (args.assets_dir or output.parent / "assets" / "source").expanduser().resolve()
     suffix = source.suffix.lower()
     source_type = suffix.lstrip(".") or "text"
-    builder = SourceMapBuilder(source, source_type, assets_dir)
+    builder = SourceMapBuilder(source, source_type, assets_dir, args.source_kind)
 
     if suffix == ".xmind":
         parse_xmind(builder, source)

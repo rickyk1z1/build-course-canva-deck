@@ -89,6 +89,14 @@ def base_deck() -> dict:
                     "bullets": ["visible point"],
                     "caption": "visible point",
                     "blocks": [],
+                    "teaching_expansion": {
+                        "mode_handling": "sparse-vertical-expansion",
+                        "learner_takeaway": "visible point",
+                        "source_based_explanation": "visible point",
+                        "example_or_judgment_cue": "visible point",
+                        "display_priority": ["visible point"],
+                        "internal_only": [],
+                    },
                 },
                 "source_node_treatments": [
                     {"source_node_id": "n3", "coverage_status": "visualized", "screen_evidence": "visible point"}

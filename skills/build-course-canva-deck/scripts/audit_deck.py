@@ -30,8 +30,15 @@ FORBIDDEN = [
     "源图", "挂载",
     "先知道整节课", "整节课怎么展开", "再进入每一节",
     "构建课件", "课件思路", "制作思路", "构建思路",
+    "讲稿整理", "根据讲稿", "这一段讲的是", "本段讲的是",
     "source path", "source_node", "screen_evidence", "coverage_note",
 ]
+ALLOWED_MODES = {"detailed", "sparse", "script"}
+TEACHING_EXPANSION_MODE = {
+    "detailed": "detailed-clarification",
+    "sparse": "sparse-vertical-expansion",
+    "script": "script-distillation",
+}
 STATIC_FOOTER_TEXT = "线上录课课件"
 IMAGE_LAYOUTS = {
     "image-left", "image-right",
@@ -226,6 +233,39 @@ def visible_teaching_points(slide: dict[str, Any]) -> list[str]:
     return points
 
 
+def teaching_expansion_errors(label: str, screen: dict[str, Any], text: str, mode: str) -> list[str]:
+    errors: list[str] = []
+    expansion = screen.get("teaching_expansion")
+    if not isinstance(expansion, dict):
+        return [f"{label} lacks screen.teaching_expansion"]
+    expected = TEACHING_EXPANSION_MODE.get(mode, "")
+    actual = str(expansion.get("mode_handling", "")).strip()
+    if expected and actual != expected:
+        errors.append(f"{label} screen.teaching_expansion.mode_handling must be {expected}")
+    for key in ("learner_takeaway", "source_based_explanation"):
+        if not str(expansion.get(key, "")).strip():
+            errors.append(f"{label} screen.teaching_expansion.{key} is required")
+    display_priority = [
+        str(value).strip()
+        for value in expansion.get("display_priority", [])
+        if str(value).strip()
+    ] if isinstance(expansion.get("display_priority"), list) else []
+    if not display_priority:
+        errors.append(f"{label} screen.teaching_expansion.display_priority must list learner-facing phrases")
+    else:
+        normalized_text = normalized_match_text(text)
+        if not any(normalized_match_text(phrase) in normalized_text for phrase in display_priority):
+            errors.append(f"{label} does not render any screen.teaching_expansion.display_priority phrase")
+    internal_only = expansion.get("internal_only", [])
+    if isinstance(internal_only, list):
+        normalized_text = normalized_match_text(text)
+        for value in internal_only:
+            phrase = normalized_match_text(value)
+            if phrase and phrase in normalized_text:
+                errors.append(f"{label} renders internal-only teaching/planning text: {value}")
+    return errors
+
+
 def normalized_match_text(value: Any) -> str:
     return re.sub(r"\s+", "", str(value or "")).lower()
 
@@ -359,7 +399,7 @@ def main() -> int:
     warnings: list[str] = []
 
     mode = source.get("outline_mode")
-    if mode not in {"detailed", "sparse"} or not source.get("mode_declared_by_user"):
+    if mode not in ALLOWED_MODES or not source.get("mode_declared_by_user"):
         errors.append("outline mode was not explicitly declared by the user")
     course = deck.get("course") or {}
     if course.get("outline_mode") != mode:
@@ -689,6 +729,7 @@ def main() -> int:
                 errors.append(f"{label} lacks a self-contained learner explanation")
 
             if layout in KNOWLEDGE_LAYOUTS:
+                errors.extend(teaching_expansion_errors(label, screen, text, str(mode or "")))
                 visual_plan = slide.get("visual_plan")
                 if not isinstance(visual_plan, dict):
                     errors.append(f"{label} lacks a slide-level visual_plan")

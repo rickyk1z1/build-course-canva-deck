@@ -44,6 +44,14 @@ def base_slide(visual_plan):
             "bullets": ["先给判断", "再补背景"],
             "caption": "画面要让学员直接看出两个步骤的差别。",
             "blocks": [],
+            "teaching_expansion": {
+                "mode_handling": "detailed-clarification",
+                "learner_takeaway": "开头要先给判断，再补背景。",
+                "source_based_explanation": "开头要像回答急问题：先让观众知道值不值得看，再补必要背景。",
+                "example_or_judgment_cue": "观察画面里结论和背景出现的先后。",
+                "display_priority": ["先给判断", "再补背景"],
+                "internal_only": [],
+            },
         },
         "source_node_ids": ["n2", "n3"],
         "source_node_treatments": [

@@ -56,6 +56,14 @@ def slide(
             "bullets": bullets or ["可读要点"],
             "caption": "",
             "blocks": [],
+            "teaching_expansion": {
+                "mode_handling": "detailed-clarification",
+                "learner_takeaway": evidence,
+                "source_based_explanation": evidence,
+                "example_or_judgment_cue": "结构测试夹具。",
+                "display_priority": [evidence],
+                "internal_only": [],
+            },
         },
         "source_node_ids": node_ids,
         "source_node_treatments": [

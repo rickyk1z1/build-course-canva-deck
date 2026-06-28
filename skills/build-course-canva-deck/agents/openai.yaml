@@ -1,4 +1,4 @@
 interface:
-  display_name: "课程大纲转 Canva 课件"
-  short_description: "将细纲或粗纲制作成统一课程体系的录课 Canva 演示文稿"
-  default_prompt: "使用 $build-course-canva-deck 将我提供的课程大纲制作成录课 Canva 演示文稿；如我提供模板链接，请先按该模板建立视觉画像。"
+  display_name: "课程大纲/讲稿转 Canva 课件"
+  short_description: "将细纲、粗纲或完整讲稿制作成统一课程体系的录课 Canva 演示文稿"
+  default_prompt: "使用 $build-course-canva-deck 将我提供的课程大纲或完整讲稿制作成录课 Canva 演示文稿；如我提供模板链接，请先按该模板建立视觉画像。"

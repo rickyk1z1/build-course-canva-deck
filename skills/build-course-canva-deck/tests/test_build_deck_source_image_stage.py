@@ -23,11 +23,11 @@ def main() -> int:
         raise AssertionError("generated-image pages must use the same case-image stage as source images")
 
     match = re.search(
-        r"imagePosition:\s*\{\s*left:\s*\d+,\s*top:\s*\d+,\s*width:\s*(\d+),\s*height:\s*(\d+)\s*\}",
+        r"const imageFrame = \{ left: \d+, top: \d+, width: (\d+), height: (\d+),",
         source,
     )
     if not match:
-        raise AssertionError("caseImageStageLayout must declare imagePosition with numeric width/height")
+        raise AssertionError("caseImageStageLayout must declare a numeric shared imageFrame")
     width, height = map(int, match.groups())
     if width * height < MIN_CASE_STAGE_AREA:
         raise AssertionError(
@@ -36,6 +36,22 @@ def main() -> int:
         )
 
     helper_body = source.split("function caseImageStageLayout", 1)[1].split("function addExplanation", 1)[0]
+    if "function insetPosition" not in source:
+        raise AssertionError("case-image stage must have an inset helper for inner breathing room")
+    if "imageContentPosition: insetPosition(imageFrame" not in helper_body:
+        raise AssertionError("case-image stage must render images inside an inset content area")
+    for phrase in [
+        "function caseImageStageInset",
+        "plan.case_stage_inner_padding",
+        "composition.case_stage_inner_padding",
+        "proportionalDefault",
+    ]:
+        if phrase not in source:
+            raise AssertionError(f"case-image breathing room must be design-adjustable, missing {phrase}")
+    if "const renderImagePosition = imageContentPosition || imagePosition" not in source:
+        raise AssertionError("image rendering must use the inset content area when present")
+    if "splitImagePanels(renderImagePosition" not in source:
+        raise AssertionError("multi-image panels must split the inset content area, not the outer stage")
     if "perImagePanelBackgrounds: false" not in helper_body:
         raise AssertionError("case-image stage must not draw separate backing rectangles under each image")
     if "textPanel: null" not in helper_body:
