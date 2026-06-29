@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import math
 import re
 import sys
 import zipfile
@@ -62,9 +63,14 @@ VISUAL_ASSET_TYPES = {
 IMAGE_ASSET_TYPES = {"source-image", "redrawn-source-image", "generated-image"}
 VISUAL_LAYOUTS = {*IMAGE_LAYOUTS, "comparison", "table", "roadmap"}
 FORBIDDEN_VISUAL_INTEGRATIONS = {"standalone-stage", "asset-list", "production-note", "later", "future-task"}
-GENERATED_IMAGE_ROUTES = {"gpt-image-2", "imagegen", "deterministic-svg", "user-provided"}
+GENERATED_IMAGE_ROUTES = {"gpt-image-2"}
 GENERATION_ATTEMPT_STATUSES = {"success", "failed", "unavailable"}
 NO_SOURCE_GENERATION_MIN_SLIDES = 4
+NO_SOURCE_NON_GENERATED_RUN_MAX = 2
+NO_SOURCE_GENERATED_SLIDES_PER = 3
+ELLIPSIS_RE = re.compile(r"…|\.{3}")
+SECTION_CUE_MAX_CHARS = 34
+SECTION_CUE_LIST_MARK_RE = re.compile(r"[·•；;]|[、，,](?=.)")
 GENERIC_GENERATED_CASE_BYPASS_PATTERNS = [
     "可编辑图解比模型场景图更清楚",
     "可编辑结构图比表格更适配",
@@ -132,6 +138,67 @@ def visible_text(slide: dict[str, Any]) -> str:
     return "\n".join(flatten_text(values))
 
 
+def learner_text_quality_errors(label: str, slide: dict[str, Any], text: str) -> list[str]:
+    errors: list[str] = []
+    if ELLIPSIS_RE.search(text):
+        errors.append(
+            f"{label} contains visible ellipsis/truncated learner copy; split/rewrite the slide "
+            "instead of rendering clipped text"
+        )
+    screen = slide.get("screen") or {}
+    block_headings: dict[str, str] = {}
+    for block_index, block in enumerate(screen.get("blocks") or [], start=1):
+        if not isinstance(block, dict):
+            continue
+        heading = str(block.get("heading", "")).strip()
+        normalized = normalized_match_text(heading)
+        if not normalized or len(normalized) < 2:
+            continue
+        previous = block_headings.get(normalized)
+        if previous:
+            errors.append(
+                f"{label} repeats the same visible block/card heading ({heading}); "
+                "merge the repeated idea or give each card a distinct learner-facing role"
+            )
+            break
+        block_headings[normalized] = heading
+    bullet_seen: dict[str, str] = {}
+    for bullet in screen.get("bullets") or []:
+        value = str(bullet.get("text") if isinstance(bullet, dict) else bullet).strip()
+        normalized = normalized_match_text(value)
+        if not normalized or len(normalized) < 4:
+            continue
+        previous = bullet_seen.get(normalized)
+        if previous:
+            errors.append(
+                f"{label} repeats the same visible bullet ({value}); remove duplicate screen copy"
+            )
+            break
+        bullet_seen[normalized] = value
+    return errors
+
+
+def section_cue_errors(label: str, cue: str) -> list[str]:
+    errors: list[str] = []
+    if ELLIPSIS_RE.search(cue):
+        errors.append(
+            f"{label} section-cover cue contains ellipsis/truncation: {cue}; "
+            "use a short agenda label or split the section"
+        )
+    compact = normalized_match_text(cue)
+    if len(compact) > SECTION_CUE_MAX_CHARS:
+        errors.append(
+            f"{label} section-cover cue is too content-heavy for a chapter divider: {cue}; "
+            "section covers need compact agenda labels, not full knowledge statements"
+        )
+    if len(SECTION_CUE_LIST_MARK_RE.findall(cue)) >= 2 or cue.count("/") >= 3:
+        errors.append(
+            f"{label} section-cover cue looks like a dense list: {cue}; "
+            "move the list to normal knowledge pages"
+        )
+    return errors
+
+
 def negative_scope_leaks(text: str) -> list[str]:
     compact = normalized_match_text(text)
     pattern = re.compile(f"{NEGATIVE_SCOPE_VERBS}.{{0,16}}(?:{NEGATIVE_SCOPE_OBJECTS})", re.I)
@@ -155,7 +222,7 @@ def generation_attempt_errors(
     errors: list[str] = []
     route = str(visual_plan.get("generation_route", "")).strip()
     if route not in GENERATED_IMAGE_ROUTES:
-        return [f"{label} generated image must record a supported generation route"]
+        return [f"{label} generated image must use generation_route gpt-image-2 only"]
 
     if not task:
         errors.append(f"{label} generated image must have a matching course.image_generation_tasks entry")
@@ -166,65 +233,29 @@ def generation_attempt_errors(
     attempts = visual_plan.get("generation_attempts")
     if not isinstance(attempts, list) or not attempts:
         attempts = task.get("generation_attempts")
-    fallback_reason_type = str(
-        visual_plan.get("fallback_reason_type")
-        or task.get("fallback_reason_type")
-        or ""
-    ).strip()
-    diagram_clearer_fallback = route == "deterministic-svg" and fallback_reason_type == "diagram-clearer"
-
-    if route != "user-provided":
-        if not isinstance(attempts, list) or not attempts:
-            if not diagram_clearer_fallback:
-                errors.append(f"{label} generated image must record generation_attempts for the route chain")
-            attempts = []
-        for index, attempt in enumerate(attempts, start=1):
-            if not isinstance(attempt, dict):
-                errors.append(f"{label} generation_attempts[{index}] must be an object")
-                continue
-            attempt_route = str(attempt.get("route", "")).strip()
-            status = str(attempt.get("status", "")).strip()
-            evidence = str(attempt.get("evidence", "")).strip()
-            if attempt_route not in {"gpt-image-2", "imagegen"}:
-                errors.append(f"{label} generation_attempts[{index}] has unsupported route {attempt_route or '<empty>'}")
-            if status not in GENERATION_ATTEMPT_STATUSES:
-                errors.append(f"{label} generation_attempts[{index}] has unsupported status {status or '<empty>'}")
-            if not evidence:
-                errors.append(f"{label} generation_attempts[{index}] must record tool result, error, or reason")
+    if not isinstance(attempts, list) or not attempts:
+        errors.append(f"{label} generated image must record a successful gpt-image-2 generation_attempt")
+        attempts = []
+    for index, attempt in enumerate(attempts, start=1):
+        if not isinstance(attempt, dict):
+            errors.append(f"{label} generation_attempts[{index}] must be an object")
+            continue
+        attempt_route = str(attempt.get("route", "")).strip()
+        status = str(attempt.get("status", "")).strip()
+        evidence = str(attempt.get("evidence", "")).strip()
+        if attempt_route != "gpt-image-2":
+            errors.append(
+                f"{label} generation_attempts[{index}] must use gpt-image-2 only, "
+                f"not {attempt_route or '<empty>'}"
+            )
+        if status not in GENERATION_ATTEMPT_STATUSES:
+            errors.append(f"{label} generation_attempts[{index}] has unsupported status {status or '<empty>'}")
+        if not evidence:
+            errors.append(f"{label} generation_attempts[{index}] must record tool result, error, or reason")
 
     gpt_status = generation_attempt_status(attempts if isinstance(attempts, list) else [], "gpt-image-2")
-    imagegen_status = generation_attempt_status(attempts if isinstance(attempts, list) else [], "imagegen")
-    if route == "gpt-image-2":
-        if gpt_status != "success":
-            errors.append(f"{label} gpt-image-2 route requires a successful gpt-image-2 attempt")
-    elif route == "imagegen":
-        if gpt_status not in {"failed", "unavailable"}:
-            errors.append(f"{label} imagegen route requires failed/unavailable gpt-image-2 attempt first")
-        if imagegen_status != "success":
-            errors.append(f"{label} imagegen route requires a successful imagegen attempt")
-    elif route == "deterministic-svg":
-        fallback_reason = str(
-            visual_plan.get("fallback_reason")
-            or task.get("fallback_reason")
-            or ""
-        ).strip()
-        if not fallback_reason:
-            errors.append(f"{label} deterministic-svg fallback must record fallback_reason")
-        if fallback_reason_type not in {"route-failed", "diagram-clearer"}:
-            errors.append(f"{label} deterministic-svg fallback must set fallback_reason_type route-failed or diagram-clearer")
-        elif fallback_reason_type == "route-failed":
-            if gpt_status not in {"failed", "unavailable"}:
-                errors.append(f"{label} deterministic-svg fallback requires failed/unavailable gpt-image-2 attempt")
-            if imagegen_status not in {"failed", "unavailable"}:
-                errors.append(f"{label} deterministic-svg fallback requires failed/unavailable imagegen attempt")
-    elif route == "user-provided":
-        user_provided = visual_plan.get("user_provided_asset") is True or task.get("user_provided_asset") is True
-        source = str(visual_plan.get("user_asset_source") or task.get("user_asset_source") or "").strip()
-        if not user_provided or not source:
-            errors.append(
-                f"{label} user-provided route is only valid for an actual user-supplied/selected asset "
-                "with user_provided_asset and user_asset_source"
-            )
+    if gpt_status != "success":
+        errors.append(f"{label} gpt-image-2 route requires a successful gpt-image-2 attempt")
     return errors
 
 
@@ -324,6 +355,31 @@ def teaching_expansion_errors(label: str, screen: dict[str, Any], text: str, mod
 
 def normalized_match_text(value: Any) -> str:
     return re.sub(r"\s+", "", str(value or "")).lower()
+
+
+def reusable_content_phrases(slide: dict[str, Any]) -> list[tuple[str, str]]:
+    phrases: list[tuple[str, str]] = []
+    candidates = [str(slide.get("title") or "").strip()]
+    candidates.extend(visible_teaching_points(slide))
+    for item in slide.get("source_node_treatments") or []:
+        if isinstance(item, dict):
+            candidates.append(str(item.get("screen_evidence") or "").strip())
+    seen: set[str] = set()
+    for phrase in candidates:
+        normalized = normalized_match_text(phrase)
+        if not normalized or len(normalized) < 2 or normalized in seen:
+            continue
+        seen.add(normalized)
+        phrases.append((normalized, phrase))
+    return phrases
+
+
+def section_cover_reuses_content(cover_normalized: str, normal_normalized: str) -> bool:
+    if not cover_normalized or not normal_normalized:
+        return False
+    if normal_normalized in cover_normalized and cover_normalized != normal_normalized:
+        return True
+    return cover_normalized == normal_normalized and len(cover_normalized) >= 6
 
 
 def pptx_text(path: Path) -> tuple[int, list[str], str]:
@@ -557,6 +613,7 @@ def main() -> int:
                 errors.append(
                     f"course.chapter_spine contains overlapping chapters: {section_id} is an ancestor of {other_id}"
                 )
+
     for image in source_images:
         image_id = str(image.get("id") or "").strip()
         anchor_id = str(image.get("source_node_id") or "").strip()
@@ -581,6 +638,25 @@ def main() -> int:
     actual_numbers = [slide.get("number") for slide in slides]
     if actual_numbers != expected_numbers:
         errors.append("slide numbers must be contiguous and match list order")
+
+    normal_phrases_by_section: dict[str, list[tuple[int, str, str]]] = {}
+    for phrase_slide_index, phrase_slide in enumerate(slides, start=1):
+        if phrase_slide.get("layout") not in KNOWLEDGE_LAYOUTS:
+            continue
+        phrase_node_ids = [str(value) for value in (phrase_slide.get("source_node_ids") or [])]
+        phrase_sections = {
+            section_for(node_id, top_section_ids, parent_by_id)
+            for node_id in phrase_node_ids
+            if node_id in source_ids
+        }
+        phrase_sections = {section_id for section_id in phrase_sections if section_id}
+        if len(phrase_sections) != 1:
+            continue
+        phrase_section_id = next(iter(phrase_sections))
+        for normalized, raw in reusable_content_phrases(phrase_slide):
+            normal_phrases_by_section.setdefault(phrase_section_id, []).append(
+                (phrase_slide_index, normalized, raw)
+            )
 
     if slides:
         non_cover_slides = [
@@ -667,16 +743,46 @@ def main() -> int:
                             else:
                                 preview_evidence.append(normalized_evidence)
                         section_bullets = [
-                            normalized_match_text(value)
+                            str(value.get("text") if isinstance(value, dict) else value).strip()
                             for value in (slide.get("screen") or {}).get("bullets", [])
-                            if normalized_match_text(value)
+                            if str(value.get("text") if isinstance(value, dict) else value).strip()
                         ]
-                        for bullet in section_bullets:
+                        for cue_index, cue in enumerate(
+                            [*section_bullets, *[str(item.get("screen_evidence", "")).strip() for item in preview_items if isinstance(item, dict)]],
+                            start=1,
+                        ):
+                            errors.extend(section_cue_errors(f"slide {index} cue {cue_index}", cue))
+                        for bullet in [normalized_match_text(value) for value in section_bullets]:
                             if not any(bullet in evidence or evidence in bullet for evidence in preview_evidence):
                                 errors.append(
                                     f"slide {index} section-cover bullets must be approved chapter child preview items, not conclusions"
                                 )
                                 break
+                        cover_phrases = [
+                            (normalized_match_text(cue), cue)
+                            for cue in section_bullets
+                            if normalized_match_text(cue)
+                        ]
+                        cover_phrases.extend(
+                            (evidence, str(item.get("screen_evidence", "")).strip())
+                            for evidence, item in [
+                                (normalized_match_text(str(entry.get("screen_evidence", "")).strip()), entry)
+                                for entry in preview_items
+                                if isinstance(entry, dict)
+                            ]
+                            if evidence
+                        )
+                        for cover_normalized, cover_raw in cover_phrases:
+                            for normal_slide, normal_normalized, normal_raw in normal_phrases_by_section.get(section_id, []):
+                                if normal_slide <= index:
+                                    continue
+                                if section_cover_reuses_content(cover_normalized, normal_normalized):
+                                    errors.append(
+                                        f"slide {index} section-cover repeats normal knowledge-page learner copy "
+                                        f"from slide {normal_slide}: {normal_raw}; use compact agenda cues on "
+                                        "section covers and keep teachable statements for normal pages"
+                                    )
+                                    break
                 continue
             if layout in {"cover", "lesson-overview", "summary"}:
                 continue
@@ -702,6 +808,7 @@ def main() -> int:
     no_source_knowledge_slide_count = 0
     generated_image_slide_count = 0
     no_source_non_generated_slides: list[int] = []
+    no_source_visual_events: list[tuple[int, str | None, bool]] = []
 
     for index, slide in enumerate(slides, start=1):
         label = f"slide {index}"
@@ -709,6 +816,7 @@ def main() -> int:
         if layout not in ALLOWED_LAYOUTS:
             errors.append(f"{label} uses unsupported layout: {layout}")
         text = visible_text(slide)
+        errors.extend(learner_text_quality_errors(label, slide, text))
         lower = text.lower()
         for term in FORBIDDEN:
             if term.lower() in lower:
@@ -974,6 +1082,14 @@ def main() -> int:
                     and not (isinstance(visual_plan.get("source_image_ids"), list) and visual_plan.get("source_image_ids"))
                 ):
                     no_source_knowledge_slide_count += 1
+                    slide_section_ids = {
+                        section_for(node_id, top_section_ids, parent_by_id)
+                        for node_id in node_ids
+                        if node_id in source_ids
+                    }
+                    slide_section_ids = {section_id for section_id in slide_section_ids if section_id}
+                    slide_section_key = next(iter(slide_section_ids)) if len(slide_section_ids) == 1 else None
+                    no_source_visual_events.append((index, slide_section_key, asset_type == "generated-image"))
                     if asset_type != "generated-image":
                         no_source_non_generated_slides.append(index)
                         bypass = str(
@@ -1161,6 +1277,44 @@ def main() -> int:
             "flow instead of bypassing every no-source page. Non-generated no-source slides include: "
             + ", ".join(str(value) for value in no_source_non_generated_slides[:20])
         )
+    if no_source_knowledge_slide_count >= NO_SOURCE_GENERATION_MIN_SLIDES:
+        required_generated = math.ceil(no_source_knowledge_slide_count / NO_SOURCE_GENERATED_SLIDES_PER)
+        if generated_image_slide_count < required_generated:
+            errors.append(
+                f"deck has {no_source_knowledge_slide_count} normal knowledge slides without source images "
+                f"but only {generated_image_slide_count} generated-image slide(s); need at least "
+                f"{required_generated} generated case-image page(s) or split/reclassify no-source pages with "
+                "specific per-page visual reasons"
+            )
+
+    run: list[int] = []
+    run_section: str | None = None
+
+    def flush_no_source_run() -> None:
+        if len(run) > NO_SOURCE_NON_GENERATED_RUN_MAX:
+            errors.append(
+                f"slides {run[0]}-{run[-1]} are a consecutive no-source non-generated run "
+                f"({len(run)} pages); after {NO_SOURCE_NON_GENERATED_RUN_MAX} such pages, create a "
+                "generated case-image page or use a source/redrawn case image instead of continuing "
+                "text/diagram-only bypasses"
+            )
+
+    event_by_slide = {slide_number: (section_key, generated) for slide_number, section_key, generated in no_source_visual_events}
+    for index, slide in enumerate(slides, start=1):
+        event = event_by_slide.get(index)
+        if slide.get("layout") not in KNOWLEDGE_LAYOUTS or event is None or event[1] is True:
+            flush_no_source_run()
+            run = []
+            run_section = None
+            continue
+        section_key, _generated = event
+        if run and section_key == run_section:
+            run.append(index)
+        else:
+            flush_no_source_run()
+            run = [index]
+            run_section = section_key
+    flush_no_source_run()
 
     missing = [node_id for node_id in source_ids if node_id not in mapped]
     if missing:
@@ -1181,6 +1335,10 @@ def main() -> int:
         for term in FORBIDDEN:
             if term.lower() in lower:
                 errors.append(f"PPTX contains forbidden visible text: {term}")
+        if ELLIPSIS_RE.search(text):
+            errors.append(
+                "PPTX contains visible ellipsis/truncated learner copy; split or rewrite slides before delivery"
+            )
         for index, slide in enumerate(slides, start=1):
             if index > len(pptx_slide_texts):
                 continue

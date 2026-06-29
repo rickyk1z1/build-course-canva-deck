@@ -114,11 +114,11 @@ The deck sequence is part of the teaching, not a styling layer added after writi
 
 1. Optional `cover` page for the course title.
 2. Exactly one `lesson-overview` page as the first non-cover page. It introduces what this lesson solves, covers the root and any non-chapter wrapper/framing nodes, and previews the approved chapter nodes in order.
-3. For each approved `chapter_spine` node, create exactly one `section-cover` page before any content from that chapter. This page behaves like a chapter or subsection divider embedded in the presentation, not a decorative title slide. Its small text previews that chapter's direct child headings or adjacent child-heading groups as the knowledge points about to be taught; it does not state the chapter's conclusions.
+3. For each approved `chapter_spine` node, create exactly one `section-cover` page before any content from that chapter. This page behaves like a chapter or subsection divider embedded in the presentation, not a decorative title slide. Its small text previews that chapter's direct child headings or adjacent child-heading groups as compact agenda cues; it does not state the chapter's conclusions and does not reuse the exact learner-facing wording that will appear as a normal page title, evidence phrase, shortcut list, bullet, block heading, or explanation.
 4. After each section cover, place that chapter's descendant content pages in source path and sibling order. Page layouts may vary inside a section according to teaching relationship and visual need.
 5. End with exactly one `summary` page that consolidates the lesson's key takeaways across sections.
 
-Do not flatten source headings into ordinary knowledge pages to save page count. Do not begin teaching a chapter before its section-cover page. Do not mix two approved chapters on one normal knowledge slide. Do not use section-cover bullets for conclusions, takeaways, promises, or value judgments such as "这一节先解决..." when those phrases are not source child headings. The layout system may repeat fixed structural pages (`lesson-overview`, `section-cover`, `summary`) because they signal course structure; layout variety is expected inside the content pages of each section.
+Do not flatten source headings into ordinary knowledge pages to save page count. Do not begin teaching a chapter before its section-cover page. Do not mix two approved chapters on one normal knowledge slide. Do not use section-cover bullets for conclusions, takeaways, promises, value judgments, dense shortcut lists, or full child-page teaching copy. If a child heading is itself a complete operation string or teaching statement, rewrite the section-cover preview as a shorter agenda label while preserving the child node in `section_preview_items`; teach the full phrase on the normal knowledge page only. The layout system may repeat fixed structural pages (`lesson-overview`, `section-cover`, `summary`) because they signal course structure; layout variety is expected inside the content pages of each section.
 
 ## Source intake
 
@@ -162,6 +162,8 @@ Coverage mapping for structural pages: the `lesson-overview` page covers the roo
 
 Use `source_node_ids` instead of `source_node_id` only when one preview bullet deliberately groups adjacent child headings; keep grouped IDs in source order.
 
+Section preview evidence is allowed to be a compact agenda label, not necessarily the full source-node text, but it must be visible on the section-cover page and must stay shorter than the later knowledge-page copy. Never use ellipses (`…` or `...`) to squeeze a child list into a section cover. If the cue needs multiple verbs, shortcuts, or slash-separated operations, split it into normal content pages and leave only the group label on the cover.
+
 ## Framework progress footer
 
 Normal content pages use the left footer as a knowledge-framework progress label, not as a generic courseware stamp. Set `framework_progress_label` to the current approved chapter heading for the page's mapped knowledge nodes. Example: if `chapter_spine` selects `选题方向规划`, pages under that chapter use `选题方向规划` even if it is depth 3 or 4 in the extracted source.
@@ -178,6 +180,7 @@ Do not render `线上录课课件` as the left footer. Structural pages (`cover`
 - Give each knowledge page one clear teaching point with enough visible points to preserve the branch; do not add filler to hit a count.
 - Use comparison/table/two-panel layouts only when the content relationship is real and named in learner-facing labels.
 - Keep pages readable without narration.
+- Keep every visible phrase complete. Do not manually or automatically shorten learner copy with `…` or `...`; split the slide or rewrite the sentence instead.
 - Keep production evidence and scope exclusions off the screen: source paths, hierarchy proof, coverage notes, planning labels, and negative boundary phrases such as "不进入/不讲/不涉及 X" belong in spec fields or review files, never in learner-facing title/explanation/bullets/caption/blocks.
 - Do not invent a teaching label unanchored to the current node, an ancestor path, or a stated relationship. Generic labels such as `对比 A`, `结构顺序 A`, `左侧`, `方案 A/B` are failed copy.
 

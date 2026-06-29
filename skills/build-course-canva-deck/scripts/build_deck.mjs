@@ -99,9 +99,14 @@ const EDITABLE_DIAGRAM_PATTERNS = [
   "visual-band",
   "side-rail",
 ];
-const GENERATED_IMAGE_ROUTES = new Set(["gpt-image-2", "imagegen", "deterministic-svg", "user-provided"]);
+const GENERATED_IMAGE_ROUTES = new Set(["gpt-image-2"]);
 const GENERATION_ATTEMPT_STATUSES = new Set(["success", "failed", "unavailable"]);
 const NO_SOURCE_GENERATION_MIN_SLIDES = 4;
+const NO_SOURCE_NON_GENERATED_RUN_MAX = 2;
+const NO_SOURCE_GENERATED_SLIDES_PER = 3;
+const ELLIPSIS_RE = /…|\.{3}/;
+const SECTION_CUE_MAX_CHARS = 34;
+const SECTION_CUE_LIST_MARK_RE = /[·•；;]|[、，,](?=.)/g;
 const GENERIC_GENERATED_CASE_BYPASS_PATTERNS = [
   "可编辑图解比模型场景图更清楚",
   "可编辑结构图比表格更适配",
@@ -156,6 +161,113 @@ function screenTextForValidation(item) {
 
 function compactText(value) {
   return String(value || "").replace(/\s+/g, "");
+}
+
+function normalizedForDuplicate(value) {
+  return compactText(value).toLowerCase();
+}
+
+function sectionCueTexts(item) {
+  const screen = screenFor(item);
+  const bullets = Array.isArray(screen.bullets)
+    ? screen.bullets.map((entry) => String(typeof entry === "string" ? entry : entry?.text || "").trim()).filter(Boolean)
+    : [];
+  const previewEvidence = Array.isArray(item.section_preview_items)
+    ? item.section_preview_items.map((entry) => String(entry?.screen_evidence || "").trim()).filter(Boolean)
+    : [];
+  return [...bullets, ...previewEvidence];
+}
+
+function reusableContentPhrases(item) {
+  const phrases = [String(item.title || "").trim(), ...visibleTeachingPoints(item)];
+  for (const treatment of Array.isArray(item.source_node_treatments) ? item.source_node_treatments : []) {
+    phrases.push(String(treatment?.screen_evidence || "").trim());
+  }
+  const seen = new Set();
+  return phrases
+    .map((raw) => ({ raw, normalized: normalizedForDuplicate(raw) }))
+    .filter(({ normalized }) => {
+      if (!normalized || normalized.length < 2 || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
+}
+
+function sectionCoverReusesContent(coverNormalized, normalNormalized) {
+  if (!coverNormalized || !normalNormalized) return false;
+  if (normalNormalized.includes(coverNormalized) && coverNormalized !== normalNormalized) return false;
+  if (normalNormalized.includes(coverNormalized)) return coverNormalized.length >= 6;
+  return coverNormalized.includes(normalNormalized);
+}
+
+function validateLearnerCopyQuality(item, visibleText) {
+  const slideLabel = `slide ${item.number || "?"}`;
+  if (ELLIPSIS_RE.test(visibleText)) {
+    throw new Error(`${slideLabel} contains visible ellipsis/truncated learner copy; split or rewrite before rendering`);
+  }
+  const screen = screenFor(item);
+  const headings = new Set();
+  for (const block of Array.isArray(screen.blocks) ? screen.blocks : []) {
+    const heading = String(block?.heading || "").trim();
+    const normalized = normalizedForDuplicate(heading);
+    if (!normalized || normalized.length < 2) continue;
+    if (headings.has(normalized)) {
+      throw new Error(`${slideLabel} repeats the same visible block/card heading (${heading}); merge the repeated idea or give each card a distinct role`);
+    }
+    headings.add(normalized);
+  }
+  const bullets = new Set();
+  for (const bullet of Array.isArray(screen.bullets) ? screen.bullets : []) {
+    const value = String(typeof bullet === "string" ? bullet : bullet?.text || "").trim();
+    const normalized = normalizedForDuplicate(value);
+    if (!normalized || normalized.length < 4) continue;
+    if (bullets.has(normalized)) {
+      throw new Error(`${slideLabel} repeats the same visible bullet (${value}); remove duplicate screen copy`);
+    }
+    bullets.add(normalized);
+  }
+}
+
+function validateSectionCoverCues(item) {
+  const slideLabel = `slide ${item.number || "?"}`;
+  for (const cue of sectionCueTexts(item)) {
+    if (ELLIPSIS_RE.test(cue)) {
+      throw new Error(`${slideLabel} section-cover cue contains ellipsis/truncation (${cue}); use a compact agenda label`);
+    }
+    if (normalizedForDuplicate(cue).length > SECTION_CUE_MAX_CHARS) {
+      throw new Error(`${slideLabel} section-cover cue is too content-heavy (${cue}); move full knowledge statements to normal pages`);
+    }
+    const listMarks = (cue.match(SECTION_CUE_LIST_MARK_RE) || []).length;
+    if (listMarks >= 2 || (cue.match(/\//g) || []).length >= 3) {
+      throw new Error(`${slideLabel} section-cover cue looks like a dense list (${cue}); move the list to normal knowledge pages`);
+    }
+  }
+}
+
+function validateSectionCoverDoesNotReuseContent(slides) {
+  for (let index = 0; index < slides.length; index += 1) {
+    const item = slides[index];
+    if (String(item.layout || "") !== "section-cover") continue;
+    const nextStructuralIndex = slides.findIndex((candidate, candidateIndex) => (
+      candidateIndex > index
+      && ["section-cover", "summary"].includes(String(candidate.layout || ""))
+    ));
+    const end = nextStructuralIndex === -1 ? slides.length : nextStructuralIndex;
+    const coverCues = sectionCueTexts(item).map((cue) => ({ raw: cue, normalized: normalizedForDuplicate(cue) })).filter((cue) => cue.normalized);
+    const contentSlides = slides.slice(index + 1, end).filter((candidate) => !STRUCTURAL_LAYOUTS.has(String(candidate.layout || "")));
+    for (const cue of coverCues) {
+      for (const content of contentSlides) {
+        for (const phrase of reusableContentPhrases(content)) {
+          if (sectionCoverReusesContent(cue.normalized, phrase.normalized)) {
+            throw new Error(
+              `slide ${item.number || "?"} section-cover repeats normal knowledge-page learner copy from slide ${content.number || "?"}: ${phrase.raw}; `
+              + "use compact agenda cues on section covers and keep teachable statements for normal pages",
+            );
+          }
+        }
+      }
+    }
+  }
 }
 
 function visibleTeachingPoints(item) {
@@ -255,7 +367,7 @@ function validateGeneratedImageRoute(item, deckSpec) {
   const visualPlan = item.visual_plan || {};
   const route = String(visualPlan.generation_route || "").trim();
   if (!GENERATED_IMAGE_ROUTES.has(route)) {
-    throw new Error(`${slideLabel} generated-image must use gpt-image-2, imagegen, deterministic-svg, or true user-provided route`);
+    throw new Error(`${slideLabel} generated-image must use gpt-image-2 only`);
   }
   const task = generationTaskForSlide(deckSpec, item.number);
   if (!task) {
@@ -270,64 +382,27 @@ function validateGeneratedImageRoute(item, deckSpec) {
     : Array.isArray(task.generation_attempts)
       ? task.generation_attempts
       : [];
-  const fallbackReasonType = String(visualPlan.fallback_reason_type || task.fallback_reason_type || "").trim();
-  const diagramClearerFallback = route === "deterministic-svg" && fallbackReasonType === "diagram-clearer";
-  if (route !== "user-provided") {
-    if (!attempts.length && !diagramClearerFallback) {
-      throw new Error(`${slideLabel} generated-image must record generation_attempts for gpt-image-2/imagegen route chain`);
+  if (!attempts.length) {
+    throw new Error(`${slideLabel} generated-image must record a successful gpt-image-2 generation_attempt`);
+  }
+  for (const [index, attempt] of attempts.entries()) {
+    const attemptRoute = String(attempt?.route || "").trim();
+    const status = String(attempt?.status || "").trim();
+    const evidence = String(attempt?.evidence || "").trim();
+    if (attemptRoute !== "gpt-image-2") {
+      throw new Error(`${slideLabel} generation_attempts[${index + 1}] must use gpt-image-2 only, not ${attemptRoute || "<empty>"}`);
     }
-    for (const [index, attempt] of attempts.entries()) {
-      const attemptRoute = String(attempt?.route || "").trim();
-      const status = String(attempt?.status || "").trim();
-      const evidence = String(attempt?.evidence || "").trim();
-      if (!["gpt-image-2", "imagegen"].includes(attemptRoute)) {
-        throw new Error(`${slideLabel} generation_attempts[${index + 1}] has unsupported route ${attemptRoute || "<empty>"}`);
-      }
-      if (!GENERATION_ATTEMPT_STATUSES.has(status)) {
-        throw new Error(`${slideLabel} generation_attempts[${index + 1}] has unsupported status ${status || "<empty>"}`);
-      }
-      if (!evidence) {
-        throw new Error(`${slideLabel} generation_attempts[${index + 1}] must record tool result, error, or reason`);
-      }
+    if (!GENERATION_ATTEMPT_STATUSES.has(status)) {
+      throw new Error(`${slideLabel} generation_attempts[${index + 1}] has unsupported status ${status || "<empty>"}`);
+    }
+    if (!evidence) {
+      throw new Error(`${slideLabel} generation_attempts[${index + 1}] must record tool result, error, or reason`);
     }
   }
 
   const gptStatus = attemptStatus(attempts, "gpt-image-2");
-  const imagegenStatus = attemptStatus(attempts, "imagegen");
   if (route === "gpt-image-2" && gptStatus !== "success") {
     throw new Error(`${slideLabel} gpt-image-2 route requires a successful gpt-image-2 attempt`);
-  }
-  if (route === "imagegen") {
-    if (!["failed", "unavailable"].includes(gptStatus)) {
-      throw new Error(`${slideLabel} imagegen route requires failed/unavailable gpt-image-2 attempt first`);
-    }
-    if (imagegenStatus !== "success") {
-      throw new Error(`${slideLabel} imagegen route requires a successful imagegen attempt`);
-    }
-  }
-  if (route === "deterministic-svg") {
-    const fallbackReason = String(visualPlan.fallback_reason || task.fallback_reason || "").trim();
-    if (!fallbackReason) {
-      throw new Error(`${slideLabel} deterministic-svg fallback must record fallback_reason`);
-    }
-    if (!["route-failed", "diagram-clearer"].includes(fallbackReasonType)) {
-      throw new Error(`${slideLabel} deterministic-svg fallback must set fallback_reason_type route-failed or diagram-clearer`);
-    }
-    if (fallbackReasonType === "route-failed") {
-      if (!["failed", "unavailable"].includes(gptStatus)) {
-        throw new Error(`${slideLabel} deterministic-svg fallback requires failed/unavailable gpt-image-2 attempt`);
-      }
-      if (!["failed", "unavailable"].includes(imagegenStatus)) {
-        throw new Error(`${slideLabel} deterministic-svg fallback requires failed/unavailable imagegen attempt`);
-      }
-    }
-  }
-  if (route === "user-provided") {
-    const userProvided = visualPlan.user_provided_asset === true || task.user_provided_asset === true;
-    const source = String(visualPlan.user_asset_source || task.user_asset_source || "").trim();
-    if (!userProvided || !source) {
-      throw new Error(`${slideLabel} user-provided route is only valid for an actual user-supplied/selected asset`);
-    }
   }
 }
 
@@ -389,9 +464,12 @@ function validateSpecBeforeBuild(deckSpec) {
   let noSourceKnowledgeSlideCount = 0;
   let generatedImageSlideCount = 0;
   const noSourceNonGeneratedSlides = [];
+  const noSourceVisualEvents = [];
+  validateSectionCoverDoesNotReuseContent(deckSpec.slides || []);
   for (const item of deckSpec.slides || []) {
     const slideLabel = `slide ${item.number || "?"}`;
     const visibleText = screenTextForValidation(item);
+    validateLearnerCopyQuality(item, visibleText);
     const compact = visibleText.replace(/\s+/g, "");
     const scopeLeak = compact.match(NEGATIVE_SCOPE_RE);
     if (scopeLeak) {
@@ -403,6 +481,9 @@ function validateSpecBeforeBuild(deckSpec) {
     }
 
     const layout = String(item.layout || "");
+    if (layout === "section-cover") {
+      validateSectionCoverCues(item);
+    }
     if (STRUCTURAL_LAYOUTS.has(layout)) continue;
     validateTeachingExpansion(item, visibleText, courseMode);
 
@@ -417,10 +498,15 @@ function validateSpecBeforeBuild(deckSpec) {
         throw new Error(`${slideLabel} declares ${assetType} but has no renderable diagram/table pattern or visual asset`);
       }
     }
-    if (!NON_SOURCE_VISUAL_TYPES.has(assetType)) continue;
     const hasSourceImages = Array.isArray(visualPlan.source_image_ids) && visualPlan.source_image_ids.length > 0;
     if (hasSourceImages) continue;
+    if (![...NON_SOURCE_VISUAL_TYPES, "generated-image"].includes(assetType)) continue;
     noSourceKnowledgeSlideCount += 1;
+    noSourceVisualEvents.push({
+      number: Number(item.number) || 0,
+      generated: assetType === "generated-image",
+    });
+    if (assetType === "generated-image") continue;
     const bypass = String(
       visualPlan.generated_case_bypass_reason
       || visualPlan.no_generated_case_reason
@@ -439,6 +525,36 @@ function validateSpecBeforeBuild(deckSpec) {
       + `run the generated case-image decision flow instead of bypassing every no-source page. Non-generated no-source slides include: ${noSourceNonGeneratedSlides.slice(0, 20).join(", ")}`,
     );
   }
+  if (noSourceKnowledgeSlideCount >= NO_SOURCE_GENERATION_MIN_SLIDES) {
+    const requiredGenerated = Math.ceil(noSourceKnowledgeSlideCount / NO_SOURCE_GENERATED_SLIDES_PER);
+    if (generatedImageSlideCount < requiredGenerated) {
+      throw new Error(
+        `deck has ${noSourceKnowledgeSlideCount} normal knowledge slides without source images but only ${generatedImageSlideCount} generated-image slide(s); `
+        + `need at least ${requiredGenerated} generated case-image page(s) or split/reclassify no-source pages with specific per-page visual reasons`,
+      );
+    }
+  }
+  let run = [];
+  const eventsByNumber = new Map(noSourceVisualEvents.map((event) => [event.number, event]));
+  const flushRun = () => {
+    if (run.length > NO_SOURCE_NON_GENERATED_RUN_MAX) {
+      throw new Error(
+        `slides ${run[0]}-${run[run.length - 1]} are a consecutive no-source non-generated run (${run.length} pages); `
+        + `after ${NO_SOURCE_NON_GENERATED_RUN_MAX} such pages, create a generated case-image page or use a source/redrawn case image`,
+      );
+    }
+  };
+  for (const item of deckSpec.slides || []) {
+    const layout = String(item.layout || "");
+    const event = eventsByNumber.get(Number(item.number) || 0);
+    if (STRUCTURAL_LAYOUTS.has(layout) || !event || event.generated) {
+      flushRun();
+      run = [];
+      continue;
+    }
+    run.push(Number(item.number) || 0);
+  }
+  flushRun();
 }
 
 validateSpecBeforeBuild(spec);
@@ -684,13 +800,70 @@ async function imageInfo(visual) {
   const bytes = await fs.readFile(resolved);
   const ext = path.extname(resolved).toLowerCase();
   const contentType = ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : ext === ".webp" ? "image/webp" : "image/png";
-  return { bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), contentType, alt: visual.alt || "课程案例图" };
+  return {
+    bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    contentType,
+    alt: visual.alt || "课程案例图",
+    ...imageDimensions(bytes, contentType),
+  };
 }
 
-async function addImage(slide, visual, position, fit = "cover") {
-  const info = await imageInfo(visual);
+async function addImage(slide, visual, position, fit = "cover", preloadedInfo = null) {
+  const info = preloadedInfo || await imageInfo(visual);
   if (!info) return null;
   return slide.images.add({ blob: info.bytes, contentType: info.contentType, alt: info.alt, fit, position });
+}
+
+function imageDimensions(bytes, contentType) {
+  try {
+    if (contentType === "image/png" && bytes.length >= 24 && bytes.toString("ascii", 1, 4) === "PNG") {
+      return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+    }
+    if (contentType === "image/jpeg") {
+      let offset = 2;
+      while (offset < bytes.length - 9) {
+        if (bytes[offset] !== 0xff) {
+          offset += 1;
+          continue;
+        }
+        const marker = bytes[offset + 1];
+        const length = bytes.readUInt16BE(offset + 2);
+        if (marker >= 0xc0 && marker <= 0xc3) {
+          return { width: bytes.readUInt16BE(offset + 7), height: bytes.readUInt16BE(offset + 5) };
+        }
+        offset += 2 + length;
+      }
+    }
+    if (contentType === "image/webp" && bytes.length >= 30 && bytes.toString("ascii", 0, 4) === "RIFF") {
+      const chunk = bytes.toString("ascii", 12, 16);
+      if (chunk === "VP8X") {
+        return {
+          width: 1 + bytes.readUIntLE(24, 3),
+          height: 1 + bytes.readUIntLE(27, 3),
+        };
+      }
+    }
+  } catch {
+    return {};
+  }
+  return {};
+}
+
+function aspectForInfo(info) {
+  if (!info?.width || !info?.height) return null;
+  return info.width / info.height;
+}
+
+function containFillRatio(area, info) {
+  const aspect = aspectForInfo(info);
+  if (!aspect) return 1;
+  const areaAspect = area.width / area.height;
+  if (aspect > areaAspect) {
+    const renderedHeight = area.width / aspect;
+    return (area.width * renderedHeight) / (area.width * area.height);
+  }
+  const renderedWidth = area.height * aspect;
+  return (renderedWidth * area.height) / (area.width * area.height);
 }
 
 function splitImagePanels(area, count) {
@@ -710,6 +883,46 @@ function splitImagePanels(area, count) {
     width: panelWidth,
     height: area.height,
   }));
+}
+
+function caseImagePanels(area, imageInfos, arrangement = "") {
+  const count = Math.min(imageInfos.length || 1, 3);
+  if (count <= 1) return [area];
+  const gap = 22;
+  const aspects = imageInfos.slice(0, count).map(aspectForInfo).map((value) => value || 1.6);
+  const varied = Math.max(...aspects) / Math.max(0.01, Math.min(...aspects)) > 1.45;
+  const requested = String(arrangement || "").trim();
+  if (count === 2 && requested !== "side-by-side") {
+    if (requested === "vertical-stack" || varied && aspects.some((value) => value < 1)) {
+      const mainHeight = Math.round(area.height * 0.56);
+      return [
+        { left: area.left, top: area.top, width: Math.round(area.width * 0.58), height: area.height },
+        {
+          left: area.left + Math.round(area.width * 0.58) + gap,
+          top: area.top + Math.round(area.height * 0.08),
+          width: area.width - Math.round(area.width * 0.58) - gap,
+          height: mainHeight,
+        },
+      ];
+    }
+    const leftWidth = Math.round(area.width * 0.49);
+    const rightWidth = area.width - leftWidth - gap;
+    return [
+      { left: area.left, top: area.top + Math.round(area.height * 0.16), width: leftWidth, height: Math.round(area.height * 0.50) },
+      { left: area.left + leftWidth + gap, top: area.top + Math.round(area.height * 0.04), width: rightWidth, height: Math.round(area.height * 0.58) },
+    ];
+  }
+  if (count === 3 && requested !== "three-even") {
+    const mainWidth = Math.round(area.width * 0.56);
+    const sideWidth = area.width - mainWidth - gap;
+    const sideHeight = Math.round((area.height - gap) / 2);
+    return [
+      { left: area.left, top: area.top + Math.round(area.height * 0.08), width: mainWidth, height: Math.round(area.height * 0.76) },
+      { left: area.left + mainWidth + gap, top: area.top, width: sideWidth, height: sideHeight },
+      { left: area.left + mainWidth + gap, top: area.top + sideHeight + gap, width: sideWidth, height: sideHeight },
+    ];
+  }
+  return splitImagePanels(area, count);
 }
 
 function insetPosition(area, inset) {
@@ -747,22 +960,40 @@ function caseImageStageInset(item, imageFrame, visualCount) {
   return Math.round(clampNumber(authored ?? defaultInset, 14, 42));
 }
 
-function caseImageStageLayout(theme, variant, item, visualCount = 1) {
+function caseImageStageLayout(theme, variant, item, visualCount = 1, imageInfos = []) {
   const dark = theme === "dark";
   const imageFrame = { left: 56, top: 168, width: 1168, height: 474, fill: dark ? C.cream : C.white };
   const innerPadding = caseImageStageInset(item, imageFrame, visualCount);
+  const composition = item.visual_plan?.composition || {};
+  const contentPosition = insetPosition(imageFrame, innerPadding);
+  const singleFillRatio = visualCount === 1 ? containFillRatio(contentPosition, imageInfos[0]) : 1;
+  const supportText = visualCount === 1 && (
+    composition.case_text_mode === "supporting-text"
+    || composition.small_source_image_strategy === "supporting-text"
+    || singleFillRatio < 0.48
+  );
   return {
     imagePosition: imageFrame,
-    imageContentPosition: insetPosition(imageFrame, innerPadding),
+    imageContentPosition: supportText
+      ? { left: 76, top: 196, width: 690, height: 382 }
+      : contentPosition,
     imageInnerPadding: innerPadding,
-    captionPosition: { left: 76, top: 650, width: 900, height: 28 },
-    explanationPosition: { left: 882, top: 214, width: 304, height: 98 },
-    bulletsPosition: { left: 882, top: 342, width: 304, height: 172 },
+    captionPosition: supportText
+      ? { left: 76, top: 594, width: 690, height: 48 }
+      : { left: 76, top: 650, width: 900, height: 28 },
+    explanationPosition: supportText
+      ? { left: 812, top: 210, width: 340, height: 112 }
+      : { left: 882, top: 214, width: 304, height: 98 },
+    bulletsPosition: supportText
+      ? { left: 812, top: 350, width: 340, height: 190 }
+      : { left: 882, top: 342, width: 304, height: 172 },
     textPanel: null,
     imageFrame,
     textTheme: dark ? "dark" : "light",
     textPanelAfterImages: false,
     perImagePanelBackgrounds: false,
+    caseTextMode: supportText ? "supporting-text" : "caption-only",
+    multiImageArrangement: composition.multi_image_arrangement || "",
     renderedPattern: variant || "case-image-stage",
   };
 }
@@ -915,6 +1146,7 @@ async function buildImageSlide(presentation, item) {
   addHeader(slide, item, theme);
   const visuals = (item.visuals || []).filter((visual) => visual?.path);
   const visual = visuals[0];
+  const visualInfos = await Promise.all(visuals.map((entry) => imageInfo(entry)));
   const imageLeft = imageSideFor(item.layout) === "left";
   let imagePosition = imageLeft
     ? { left: 72, top: 205, width: 620, height: 355 }
@@ -927,6 +1159,8 @@ async function buildImageSlide(presentation, item) {
   let textPanelAfterImages = false;
   let perImagePanelBackgrounds = true;
   let imageContentPosition = null;
+  let caseTextMode = "caption-only";
+  let multiImageArrangement = "";
   let imageFrame = dark ? {
     left: imagePosition.left - 16,
     top: imagePosition.top - 16,
@@ -956,7 +1190,7 @@ async function buildImageSlide(presentation, item) {
     imageFrame = dark ? { left: imagePosition.left - 14, top: 186, width: imagePosition.width + 28, height: imagePosition.height + 28, fill: C.cream } : null;
     textTheme = dark ? "dark" : "light";
   } else if (variant === "source-pair-large") {
-    const caseStage = caseImageStageLayout(theme, variant, item, visuals.length || 1);
+    const caseStage = caseImageStageLayout(theme, variant, item, visuals.length || 1, visualInfos);
     imagePosition = caseStage.imagePosition;
     captionPosition = caseStage.captionPosition;
     explanationPosition = caseStage.explanationPosition;
@@ -966,6 +1200,8 @@ async function buildImageSlide(presentation, item) {
     imageFrame = caseStage.imageFrame;
     textPanelAfterImages = caseStage.textPanelAfterImages;
     perImagePanelBackgrounds = caseStage.perImagePanelBackgrounds;
+    caseTextMode = caseStage.caseTextMode;
+    multiImageArrangement = caseStage.multiImageArrangement;
     textTheme = caseStage.textTheme;
   } else if (variant === "center-anchor") {
     imagePosition = { left: 270, top: 214, width: 740, height: 265 };
@@ -1023,7 +1259,7 @@ async function buildImageSlide(presentation, item) {
   }
 
   if (caseImagePage && variant !== "source-pair-large") {
-    const caseStage = caseImageStageLayout(theme, variant, item, visuals.length || 1);
+    const caseStage = caseImageStageLayout(theme, variant, item, visuals.length || 1, visualInfos);
     imagePosition = caseStage.imagePosition;
     captionPosition = caseStage.captionPosition;
     explanationPosition = caseStage.explanationPosition;
@@ -1033,13 +1269,18 @@ async function buildImageSlide(presentation, item) {
     imageFrame = caseStage.imageFrame;
     textPanelAfterImages = caseStage.textPanelAfterImages;
     perImagePanelBackgrounds = caseStage.perImagePanelBackgrounds;
+    caseTextMode = caseStage.caseTextMode;
+    multiImageArrangement = caseStage.multiImageArrangement;
     textTheme = caseStage.textTheme;
   }
 
   if (textPanel && !textPanelAfterImages) addBox(slide, { ...textPanel, name: `text-field-${variant}-${item.number}` });
   if (imageFrame) addBox(slide, { ...imageFrame, name: `image-field-${variant}-${item.number}` });
   const renderImagePosition = imageContentPosition || imagePosition;
-  const imagePanels = splitImagePanels(renderImagePosition, Math.min(visuals.length || 1, 3));
+  const panelInfos = visualInfos.length ? visualInfos : new Array(Math.min(visuals.length || 1, 3)).fill(null);
+  const imagePanels = caseImagePage
+    ? caseImagePanels(renderImagePosition, panelInfos, multiImageArrangement)
+    : splitImagePanels(renderImagePosition, Math.min(visuals.length || 1, 3));
   if (visuals.length > 1) {
     for (const [index, panel] of imagePanels.entries()) {
       const panelVisual = visuals[index];
@@ -1054,18 +1295,18 @@ async function buildImageSlide(presentation, item) {
           name: `image-panel-${item.number}-${index + 1}`,
         });
       }
-      await addImage(slide, panelVisual, panel, panelVisual.fit || "contain");
+      await addImage(slide, panelVisual, panel, panelVisual.fit || "contain", visualInfos[index]);
     }
   } else {
-    await addImage(slide, visual, renderImagePosition, visual?.fit || "contain");
+    await addImage(slide, visual, renderImagePosition, visual?.fit || "contain", visualInfos[0]);
   }
   if (textPanel && textPanelAfterImages) addBox(slide, { ...textPanel, name: `text-field-${variant}-${item.number}` });
   addCaption(slide, item, textTheme, captionPosition);
-  if (!caseImagePage) {
+  if (!caseImagePage || caseTextMode === "supporting-text") {
     addExplanation(slide, item, textTheme, explanationPosition);
     const pointColumns = variant === "center-anchor" ? 3 : 1;
     addPointList(slide, bulletsFor(item), textTheme, bulletsPosition, {
-      max: variant === "center-anchor" ? 3 : 4,
+      max: caseTextMode === "supporting-text" ? 3 : variant === "center-anchor" ? 3 : 4,
       columns: pointColumns,
       numbered: false,
       compact: true,

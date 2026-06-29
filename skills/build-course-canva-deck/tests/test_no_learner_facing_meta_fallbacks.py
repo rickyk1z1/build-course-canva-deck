@@ -44,18 +44,12 @@ def main() -> int:
     if "script-distillation" in build_source:
         raise AssertionError("build_deck.mjs must not support script-mode teaching expansion")
     if "function validateGeneratedImageRoute" not in build_source:
-        raise AssertionError("build_deck.mjs must validate generated-image route chains before rendering")
-    for phrase in [
-        "gpt-image-2",
-        "imagegen",
-        "deterministic-svg",
-        "fallback_reason_type",
-        "diagram-clearer",
-        "user_provided_asset",
-        "user_asset_source",
-    ]:
-        if phrase not in build_source:
-            raise AssertionError(f"build_deck.mjs must enforce generated-image route field: {phrase}")
+        raise AssertionError("build_deck.mjs must validate generated-image routes before rendering")
+    if "gpt-image-2" not in build_source:
+        raise AssertionError("build_deck.mjs must enforce gpt-image-2 as the only generated-image route")
+    for phrase in ["imagegen", "deterministic-svg", "fallback_reason_type", "diagram-clearer", "user_provided_asset", "user_asset_source"]:
+        if phrase in build_source:
+            raise AssertionError(f"build_deck.mjs must not allow generated-image fallback route field: {phrase}")
 
     for phrase in ["整节课怎么展开", "构建课件", "课件思路", "制作思路", "根据讲稿", "这一段讲的是"]:
         if phrase not in audit_source:

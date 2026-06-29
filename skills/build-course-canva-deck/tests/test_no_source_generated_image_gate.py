@@ -102,15 +102,15 @@ def deck(bypasses: list[str]) -> dict:
             "source_node_ids": ["n2"],
             "screen": {
                 "explanation": "chapter",
-                "bullets": ["point 1", "point 2", "point 3", "point 4"],
+                "bullets": ["agenda 1", "agenda 2", "agenda 3", "agenda 4"],
                 "caption": "",
                 "blocks": [],
             },
             "section_preview_items": [
-                {"source_node_id": "n3", "screen_evidence": "point 1"},
-                {"source_node_id": "n4", "screen_evidence": "point 2"},
-                {"source_node_id": "n5", "screen_evidence": "point 3"},
-                {"source_node_id": "n6", "screen_evidence": "point 4"},
+                {"source_node_id": "n3", "screen_evidence": "agenda 1"},
+                {"source_node_id": "n4", "screen_evidence": "agenda 2"},
+                {"source_node_id": "n5", "screen_evidence": "agenda 3"},
+                {"source_node_id": "n6", "screen_evidence": "agenda 4"},
             ],
             "source_node_treatments": [
                 {"source_node_id": "n2", "coverage_status": "section-heading", "screen_evidence": "chapter"}
@@ -200,22 +200,24 @@ def main() -> int:
         generated["visual_plan"].update(
             {
                 "asset_type": "generated-image",
-                "generation_route": "deterministic-svg",
-                "fallback_reason_type": "diagram-clearer",
-                "fallback_reason": "point 1 的操作路径用确定性图示能稳定呈现步骤关系。",
+                "generation_route": "gpt-image-2",
+                "generation_attempts": [
+                    {"route": "gpt-image-2", "status": "success", "evidence": "saved asset"}
+                ],
                 "case_visual_map": [
                     {"screen_evidence": "point 1 path", "visible_detail": "step path"}
                 ],
             }
         )
-        generated["visuals"] = [{"path": "assets/generated/point-1.svg", "alt": "point 1"}]
+        generated["visuals"] = [{"path": "assets/generated/point-1.png", "alt": "point 1"}]
         mixed["course"]["image_generation_tasks"] = [
             {
                 "slide": 3,
-                "route": "deterministic-svg",
-                "asset_path": "assets/generated/point-1.svg",
-                "fallback_reason_type": "diagram-clearer",
-                "fallback_reason": "point 1 的操作路径用确定性图示能稳定呈现步骤关系。",
+                "route": "gpt-image-2",
+                "asset_path": "assets/generated/point-1.png",
+                "generation_attempts": [
+                    {"route": "gpt-image-2", "status": "success", "evidence": "saved asset"}
+                ],
                 "knowledge_anchor": "point 1",
                 "observable_teaching_detail": "step path",
                 "instant_takeaway": "point 1",
@@ -224,6 +226,44 @@ def main() -> int:
                 ],
             }
         ]
+        report = run_audit(root, mixed)
+        if report["ok"]:
+            raise AssertionError(report)
+        if not any("only 1 generated-image slide" in err or "consecutive no-source non-generated run" in err for err in report["errors"]):
+            raise AssertionError(report)
+
+        second_generated = mixed["slides"][4]
+        second_generated["layout"] = "image-right"
+        second_generated["screen"]["caption"] = "point 3 path"
+        second_generated["visual_plan"].update(
+            {
+                "asset_type": "generated-image",
+                "generation_route": "gpt-image-2",
+                "generation_attempts": [
+                    {"route": "gpt-image-2", "status": "success", "evidence": "saved asset"}
+                ],
+                "case_visual_map": [
+                    {"screen_evidence": "point 3 path", "visible_detail": "step path"}
+                ],
+            }
+        )
+        second_generated["visuals"] = [{"path": "assets/generated/point-3.png", "alt": "point 3"}]
+        mixed["course"]["image_generation_tasks"].append(
+            {
+                "slide": 5,
+                "route": "gpt-image-2",
+                "asset_path": "assets/generated/point-3.png",
+                "generation_attempts": [
+                    {"route": "gpt-image-2", "status": "success", "evidence": "saved asset"}
+                ],
+                "knowledge_anchor": "point 3",
+                "observable_teaching_detail": "step path",
+                "instant_takeaway": "point 3",
+                "case_visual_map": [
+                    {"screen_evidence": "point 3 path", "visible_detail": "step path"}
+                ],
+            }
+        )
         report = run_audit(root, mixed)
         if not report["ok"]:
             raise AssertionError(report)

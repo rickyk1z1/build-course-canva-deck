@@ -21,6 +21,15 @@ def main() -> int:
         raise AssertionError("build_deck.mjs must detect case-image pages before layout execution")
     if not re.search(r"generated-image", source):
         raise AssertionError("generated-image pages must use the same case-image stage as source images")
+    for phrase in [
+        "function imageDimensions",
+        "function containFillRatio",
+        "function caseImagePanels",
+        "caseTextMode",
+        "supporting-text",
+    ]:
+        if phrase not in source:
+            raise AssertionError(f"case-image pages must adapt to source image footprint, missing {phrase}")
 
     match = re.search(
         r"const imageFrame = \{ left: \d+, top: \d+, width: (\d+), height: (\d+),",
@@ -38,7 +47,7 @@ def main() -> int:
     helper_body = source.split("function caseImageStageLayout", 1)[1].split("function addExplanation", 1)[0]
     if "function insetPosition" not in source:
         raise AssertionError("case-image stage must have an inset helper for inner breathing room")
-    if "imageContentPosition: insetPosition(imageFrame" not in helper_body:
+    if "const contentPosition = insetPosition(imageFrame" not in helper_body or "imageContentPosition:" not in helper_body or "contentPosition" not in helper_body:
         raise AssertionError("case-image stage must render images inside an inset content area")
     for phrase in [
         "function caseImageStageInset",
@@ -50,17 +59,27 @@ def main() -> int:
             raise AssertionError(f"case-image breathing room must be design-adjustable, missing {phrase}")
     if "const renderImagePosition = imageContentPosition || imagePosition" not in source:
         raise AssertionError("image rendering must use the inset content area when present")
+    if "caseImagePanels(renderImagePosition" not in source:
+        raise AssertionError("case-image multi-image panels must use adaptive panels from the inset content area")
     if "splitImagePanels(renderImagePosition" not in source:
-        raise AssertionError("multi-image panels must split the inset content area, not the outer stage")
+        raise AssertionError("ordinary multi-image panels must still split the chosen image render area")
     if "perImagePanelBackgrounds: false" not in helper_body:
         raise AssertionError("case-image stage must not draw separate backing rectangles under each image")
     if "textPanel: null" not in helper_body:
         raise AssertionError("case-image stage must not draw a separate text backing panel over the image")
+    if "multiImageArrangement: composition.multi_image_arrangement" not in helper_body:
+        raise AssertionError("visual plans must be able to request a specific multi-image arrangement")
+    if "small_source_image_strategy" not in helper_body:
+        raise AssertionError("small source images must trigger an adaptive supporting-text strategy")
+    if "singleFillRatio < 0.48" not in helper_body:
+        raise AssertionError("case-image stage must detect when a contain-fit single image leaves too much empty space")
 
     if "if (perImagePanelBackgrounds)" not in source:
         raise AssertionError("multi-image panel backing must be conditional, not unconditional")
-    if "if (!caseImagePage)" not in source:
-        raise AssertionError("case-image pages must not render explanation/bullets over the image stage")
+    if 'caseTextMode === "supporting-text"' not in source:
+        raise AssertionError("small case-image pages must be allowed to render supporting learner text outside the image")
+    if "caseTextMode === \"supporting-text\" ? 3" not in source:
+        raise AssertionError("supporting text on case-image pages must stay compact")
 
     print("case image stage builder regression passed")
     return 0

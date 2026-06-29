@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression test: generated-image pages must prove the required route chain."""
+"""Regression test: generated-image pages must use GPT Image 2 only."""
 
 from __future__ import annotations
 
@@ -43,8 +43,11 @@ def base_deck() -> dict:
             "image_generation_tasks": [
                 {
                     "slide": 3,
-                    "route": "user-provided",
-                    "asset_path": "assets/generated/local-fallback.png",
+                    "route": "gpt-image-2",
+                    "asset_path": "assets/generated/gpt-image-2.png",
+                    "generation_attempts": [
+                        {"route": "gpt-image-2", "status": "success", "evidence": "saved asset"}
+                    ],
                     "knowledge_anchor": "point",
                     "observable_teaching_detail": "visible contrast",
                     "instant_takeaway": "point",
@@ -108,7 +111,10 @@ def base_deck() -> dict:
                     "source_node_id": "n3",
                     "source_image_ids": [],
                     "labels_as_slide_text": True,
-                    "generation_route": "user-provided",
+                    "generation_route": "gpt-image-2",
+                    "generation_attempts": [
+                        {"route": "gpt-image-2", "status": "success", "evidence": "saved asset"}
+                    ],
                     "knowledge_anchor": "point",
                     "observable_teaching_detail": "visible contrast",
                     "instant_takeaway": "point",
@@ -116,7 +122,7 @@ def base_deck() -> dict:
                         {"screen_evidence": "visible point", "visible_detail": "visible contrast"}
                     ],
                 },
-                "visuals": [{"path": "assets/generated/local-fallback.png", "alt": "case"}],
+                "visuals": [{"path": "assets/generated/gpt-image-2.png", "alt": "case"}],
                 "added_content": [
                     {
                         "source_node_id": "n3",
@@ -146,7 +152,28 @@ def main() -> int:
         deck_path = root / "deck.json"
         report_path = root / "report.json"
         write(source_path, base_source())
+        valid_gpt = base_deck()
+        write(deck_path, valid_gpt)
+        result = subprocess.run(
+            [
+                "python3",
+                str(AUDIT),
+                "--deck-spec",
+                str(deck_path),
+                "--source-map",
+                str(source_path),
+                "--report",
+                str(report_path),
+            ],
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            raise AssertionError(result.stdout + result.stderr)
+
         invalid_user_provided = base_deck()
+        invalid_user_provided["slides"][2]["visual_plan"]["generation_route"] = "user-provided"
+        invalid_user_provided["course"]["image_generation_tasks"][0]["route"] = "user-provided"
         write(deck_path, invalid_user_provided)
         result = subprocess.run(
             [
@@ -165,27 +192,17 @@ def main() -> int:
         if result.returncode == 0:
             raise AssertionError(result.stdout)
         report = json.loads(report_path.read_text(encoding="utf-8"))
-        if not any("user-provided route is only valid" in err for err in report["errors"]):
+        if not any("must use generation_route gpt-image-2 only" in err for err in report["errors"]):
             raise AssertionError(report)
 
-        diagram_clearer = base_deck()
-        slide = diagram_clearer["slides"][2]
-        task = diagram_clearer["course"]["image_generation_tasks"][0]
-        slide["visual_plan"].update(
-            {
-                "generation_route": "deterministic-svg",
-                "fallback_reason_type": "diagram-clearer",
-                "fallback_reason": "本页教学对象是可控关系图；确定性 SVG 比模型图更清楚。",
-            }
-        )
-        task.update(
-            {
-                "route": "deterministic-svg",
-                "fallback_reason_type": "diagram-clearer",
-                "fallback_reason": "本页教学对象是可控关系图；确定性 SVG 比模型图更清楚。",
-            }
-        )
-        write(deck_path, diagram_clearer)
+        invalid_imagegen_attempt = base_deck()
+        invalid_imagegen_attempt["slides"][2]["visual_plan"]["generation_attempts"] = [
+            {"route": "imagegen", "status": "success", "evidence": "not allowed"}
+        ]
+        invalid_imagegen_attempt["course"]["image_generation_tasks"][0]["generation_attempts"] = [
+            {"route": "imagegen", "status": "success", "evidence": "not allowed"}
+        ]
+        write(deck_path, invalid_imagegen_attempt)
         result = subprocess.run(
             [
                 "python3",
@@ -200,9 +217,36 @@ def main() -> int:
             text=True,
             capture_output=True,
         )
-        if result.returncode != 0:
-            raise AssertionError(report_path.read_text(encoding="utf-8"))
-    print("generated image route audit regression passed")
+        if result.returncode == 0:
+            raise AssertionError(result.stdout)
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        if not any("must use gpt-image-2 only" in err for err in report["errors"]):
+            raise AssertionError(report)
+
+        invalid_svg_route = base_deck()
+        invalid_svg_route["slides"][2]["visual_plan"]["generation_route"] = "deterministic-svg"
+        invalid_svg_route["course"]["image_generation_tasks"][0]["route"] = "deterministic-svg"
+        write(deck_path, invalid_svg_route)
+        result = subprocess.run(
+            [
+                "python3",
+                str(AUDIT),
+                "--deck-spec",
+                str(deck_path),
+                "--source-map",
+                str(source_path),
+                "--report",
+                str(report_path),
+            ],
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode == 0:
+            raise AssertionError(result.stdout)
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        if not any("must use generation_route gpt-image-2 only" in err for err in report["errors"]):
+            raise AssertionError(report)
+    print("generated image GPT Image 2 route audit regression passed")
     return 0
 
 
