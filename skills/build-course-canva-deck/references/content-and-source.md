@@ -6,9 +6,9 @@ This reference covers source intake, the detailed/sparse mode contract, optional
 
 Write for zero-basis self-media editing learners who need a fast, directionally correct mental model. Prefer familiar objects, visible relationships, and plain language over terminology debates. Keep technical statements accurate enough to guide action without turning an introductory lesson into an advanced workflow.
 
-Screen copy carries the knowledge. Each normal knowledge slide must be understandable without narration and contains a conclusion-style title, a self-contained explanation, enough structured points/comparisons/steps to preserve the current source branch without filler, and a visual interpretation when an image is present. Do not create a separate lecture-notes deliverable. Optional `speaker_notes` may exist only as short transition reminders; they may be empty. Never use notes to carry knowledge required for comprehension, and never render notes, source-order proof, coverage metadata, curriculum exclusions, or production metadata on a slide.
+Screen copy carries the knowledge, but it is produced in two rounds. Phase 1 creates a rich teaching draft: enough definitions, relationships, examples, misconceptions, visual observations, and judgment cues to understand the source node deeply. Phase 2 selects and compresses that draft into final slide text: conclusion-style title, self-contained explanation, enough structured points/comparisons/steps to preserve the current source branch without filler, and visual interpretation when an image is present. Do not create a separate lecture-notes deliverable. Optional `speaker_notes` may exist only as short transition reminders; they may be empty. Never use notes to carry knowledge required for comprehension, and never render notes, source-order proof, coverage metadata, curriculum exclusions, or production metadata on a slide.
 
-Before layout, create `screen.teaching_expansion` for every normal knowledge slide:
+Before layout, create `screen.teaching_expansion` for every normal knowledge slide. In Phase 1 this object can be generous: it is the learner-facing source of possible on-slide material, examples, and visual prompts. In Phase 2, the visible slide fields select from it and the source text; unused good material may stay in the object as non-rendered support, but final visible copy must still be complete and readable.
 
 ```json
 {
@@ -21,7 +21,7 @@ Before layout, create `screen.teaching_expansion` for every normal knowledge sli
 }
 ```
 
-The visible `title`, `screen.explanation`, `screen.bullets`, `screen.blocks`, and `screen.caption` are selected from this learner-facing expansion and the source text. They must not be selected from worker briefs, source ledger fields, scope notes, audit errors, or curriculum exclusions. If a layout has empty text space, fill it with a useful definition, cause, relationship, example, misconception, judgment cue, or image interpretation from `teaching_expansion`; otherwise leave the space open or choose a more image-led layout. Empty space is never a reason to display construction/process wording such as "先知道整节课怎么展开" or boundary wording such as "不进入软件按钮".
+The visible `title`, `screen.explanation`, `screen.bullets`, `screen.blocks`, and `screen.caption` are selected from this learner-facing expansion and the source text during Phase 2. They must not be selected from worker briefs, source ledger fields, scope notes, audit errors, or curriculum exclusions. If a layout has empty text space, fill it with a useful definition, cause, relationship, example, misconception, judgment cue, or image interpretation from `teaching_expansion`; otherwise leave the space open only when the page has a deliberate dominant case image, or choose a more image-led layout. Empty space is never a reason to display construction/process wording such as "先知道整节课怎么展开" or boundary wording such as "不进入软件按钮". Audit errors are not copy prompts: do not paste audit wording into the learner page.
 
 Preserve user-supplied examples and metaphors instead of replacing them with more technical ones. Keep the direction of the explanation correct; ask before altering a metaphor that may reverse the intended logic.
 
@@ -56,9 +56,9 @@ Keep an internal `课程体系关联说明.md` in the output folder recording th
 
 The user explicitly replies `细纲` or `粗纲`. Never infer the mode from length, hierarchy, file type, or apparent detail.
 
-**`细纲` / detailed** — preserve the source path, level hierarchy, sibling order, examples, metaphors, claims, and scope. Improve sentence clarity, grouping, wording, and visuals only. Screen copy may add connective phrasing, definitions already implied by the source, observation cues for source images, and cleaner peer labels, but may not introduce concepts, workflows, software operations, or adjacent branches the source did not develop. Do not treat the outline as a loose material pool. Verify unstable facts when necessary, but flag a substantive conflict for the user instead of silently expanding. Use the accepted `影像基础参数` deck as the depth baseline.
+**`细纲` / detailed** — preserve the source path, level hierarchy, sibling order, examples, metaphors, claims, and scope. Phase 1 may draft clearer explanations, observation cues, and richer examples that are already implied by the source; Phase 2 keeps only what remains source-faithful and fits the page. Improve sentence clarity, grouping, wording, and visuals only. Screen copy may add connective phrasing, definitions already implied by the source, observation cues for source images, and cleaner peer labels, but may not introduce concepts, workflows, software operations, or adjacent branches the source did not develop. Do not treat the outline as a loose material pool. Verify unstable facts when necessary, but flag a substantive conflict for the user instead of silently expanding. Use the accepted `影像基础参数` deck as the depth baseline.
 
-**`粗纲` / sparse** — produce more detailed content than the baseline while staying faithful to the supplied tree. Expand vertically inside each existing node with: a direct definition; why it matters or what causes it; its relationship to sibling/parent nodes; a familiar example or analogy; a common misconception when useful; a practical boundary. Do not expand horizontally. These expansions are meant to become learner-facing page content, not hidden notes: use them to replace empty layout areas with concrete teaching value. For every addition: map it to one original source node, classify it with an allowed kind (`definition`, `cause`, `relationship`, `example`, `misconception`, `boundary`), mark relevance `direct`, record authoritative HTTPS evidence, and remove it if explaining it requires a new branch, if it belongs to `excluded_neighbor_topics`, or if it conflicts with `course_role`.
+**`粗纲` / sparse** — produce more detailed content than the baseline while staying faithful to the supplied tree. Phase 1 should expand vertically inside each existing node with: a direct definition; why it matters or what causes it; its relationship to sibling/parent nodes; a familiar example or analogy; a common misconception when useful; a practical boundary; and possible visual teaching cases. Do not expand horizontally. Phase 2 chooses which of those expansions become visible slide content, generated-image prompts, diagrams, or split pages. These expansions are learner-facing material, not hidden notes: use them to replace empty layout areas with concrete teaching value or to drive a stronger case image. For every addition: map it to one original source node, classify it with an allowed kind (`definition`, `cause`, `relationship`, `example`, `misconception`, `boundary`), mark relevance `direct`, record authoritative HTTPS evidence when the claim depends on external facts, and remove it if explaining it requires a new branch, if it belongs to `excluded_neighbor_topics`, or if it conflicts with `course_role`.
 
 ## Optional lecture-script reference
 
@@ -170,7 +170,17 @@ Normal content pages use the left footer as a knowledge-framework progress label
 
 Do not render `线上录课课件` as the left footer. Structural pages (`cover`, `lesson-overview`, `section-cover`, `summary`) may omit the left-footer progress label because they already signal deck structure. If a structural page does include it, it must not use the static courseware stamp.
 
-## Authoring standard
+## Two-Round Authoring Standard
+
+Phase 1 creative draft:
+
+- Preserve source order and mapping while letting the model propose the strongest teaching expression for each node.
+- Draft enough explanation, examples, visual observations, misconceptions, and judgment cues that the director can choose the best final page.
+- For no-source pages, propose concrete GPT Image 2 cases when a learner could understand faster by seeing a situation, consequence, before/after state, or workflow artifact.
+- Do not write bypass reasons as the first response. A bypass is a Phase 2 conclusion after a stronger visual alternative has been considered and rejected.
+- Do not optimize for page count, audit thresholds, or a fixed layout bank before the teaching idea is clear.
+
+Phase 2 convergence:
 
 - Preserve source order before optimizing transitions; preserve every source node before adding vertical explanation.
 - Preserve the deck spine before optimizing page count or visual rhythm: total overview, section cover, section content, next section cover, final summary.

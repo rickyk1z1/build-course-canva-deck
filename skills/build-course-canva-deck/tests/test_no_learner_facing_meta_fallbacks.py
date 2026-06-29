@@ -35,8 +35,8 @@ def main() -> int:
         raise AssertionError("lesson overview caption block must be omitted when no learner caption is authored")
     if "NEGATIVE_SCOPE_RE" not in build_source:
         raise AssertionError("build_deck.mjs must reject learner-facing negative scope wording before rendering")
-    if "generated_case_bypass_reason" not in build_source:
-        raise AssertionError("build_deck.mjs must require a generated-image decision for no-source knowledge pages")
+    if "generated_case_bypass_reason" not in audit_source:
+        raise AssertionError("audit_deck.py must require a generated-image decision during phase-2 convergence")
     if "function validateTeachingExpansion" not in build_source:
         raise AssertionError("build_deck.mjs must validate learner-facing teaching expansion before rendering")
     if "screen.teaching_expansion" not in build_source or "display_priority" not in build_source:

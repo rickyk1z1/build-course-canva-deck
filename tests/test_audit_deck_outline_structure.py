@@ -80,7 +80,7 @@ def slide(
             "integration": "knowledge-page",
             "source_node_id": node_ids[0] if node_ids else "n0",
             "labels_as_slide_text": True,
-            "text_only_exception_reason": "结构测试夹具不验证案例图质量，真实课件应优先考虑案例图或图解。",
+            "text_only_exception_reason": f"{title} 的结构测试页需要保留 {evidence} 的关系和顺序，文字清单比生成案例图更清楚。",
         },
     }
     if framework_progress_label is not None:

@@ -101,9 +101,6 @@ const EDITABLE_DIAGRAM_PATTERNS = [
 ];
 const GENERATED_IMAGE_ROUTES = new Set(["gpt-image-2"]);
 const GENERATION_ATTEMPT_STATUSES = new Set(["success", "failed", "unavailable"]);
-const NO_SOURCE_GENERATION_MIN_SLIDES = 4;
-const NO_SOURCE_NON_GENERATED_RUN_MAX = 2;
-const NO_SOURCE_GENERATED_SLIDES_PER = 3;
 const ELLIPSIS_RE = /…|\.{3}/;
 const SECTION_CUE_MAX_CHARS = 34;
 const SECTION_CUE_LIST_MARK_RE = /[·•；;]|[、，,](?=.)/g;
@@ -461,10 +458,6 @@ function validateSpecBeforeBuild(deckSpec) {
       throw new Error("course.reference_script must be non-authoritative screen-copy-reference-only metadata");
     }
   }
-  let noSourceKnowledgeSlideCount = 0;
-  let generatedImageSlideCount = 0;
-  const noSourceNonGeneratedSlides = [];
-  const noSourceVisualEvents = [];
   validateSectionCoverDoesNotReuseContent(deckSpec.slides || []);
   for (const item of deckSpec.slides || []) {
     const slideLabel = `slide ${item.number || "?"}`;
@@ -490,7 +483,6 @@ function validateSpecBeforeBuild(deckSpec) {
     const visualPlan = item.visual_plan || {};
     const assetType = String(visualPlan.asset_type || "").trim();
     if (assetType === "generated-image") {
-      generatedImageSlideCount += 1;
       validateGeneratedImageRoute(item, deckSpec);
     }
     if (assetType === "editable-diagram" || assetType === "editable-table") {
@@ -498,63 +490,7 @@ function validateSpecBeforeBuild(deckSpec) {
         throw new Error(`${slideLabel} declares ${assetType} but has no renderable diagram/table pattern or visual asset`);
       }
     }
-    const hasSourceImages = Array.isArray(visualPlan.source_image_ids) && visualPlan.source_image_ids.length > 0;
-    if (hasSourceImages) continue;
-    if (![...NON_SOURCE_VISUAL_TYPES, "generated-image"].includes(assetType)) continue;
-    noSourceKnowledgeSlideCount += 1;
-    noSourceVisualEvents.push({
-      number: Number(item.number) || 0,
-      generated: assetType === "generated-image",
-    });
-    if (assetType === "generated-image") continue;
-    const bypass = String(
-      visualPlan.generated_case_bypass_reason
-      || visualPlan.no_generated_case_reason
-        || visualPlan.text_only_exception_reason
-        || "",
-      ).trim();
-    if (!bypass) {
-      throw new Error(`${slideLabel} has no source image and uses ${assetType}; create a generated-image task or record why a generated case image would teach worse`);
-    }
-    noSourceNonGeneratedSlides.push(item.number || "?");
-    validateGeneratedCaseBypass(item, bypass);
   }
-  if (noSourceKnowledgeSlideCount >= NO_SOURCE_GENERATION_MIN_SLIDES && generatedImageSlideCount === 0) {
-    throw new Error(
-      `deck has ${noSourceKnowledgeSlideCount} normal knowledge slides without source images but no generated-image slides/image_generation_tasks; `
-      + `run the generated case-image decision flow instead of bypassing every no-source page. Non-generated no-source slides include: ${noSourceNonGeneratedSlides.slice(0, 20).join(", ")}`,
-    );
-  }
-  if (noSourceKnowledgeSlideCount >= NO_SOURCE_GENERATION_MIN_SLIDES) {
-    const requiredGenerated = Math.ceil(noSourceKnowledgeSlideCount / NO_SOURCE_GENERATED_SLIDES_PER);
-    if (generatedImageSlideCount < requiredGenerated) {
-      throw new Error(
-        `deck has ${noSourceKnowledgeSlideCount} normal knowledge slides without source images but only ${generatedImageSlideCount} generated-image slide(s); `
-        + `need at least ${requiredGenerated} generated case-image page(s) or split/reclassify no-source pages with specific per-page visual reasons`,
-      );
-    }
-  }
-  let run = [];
-  const eventsByNumber = new Map(noSourceVisualEvents.map((event) => [event.number, event]));
-  const flushRun = () => {
-    if (run.length > NO_SOURCE_NON_GENERATED_RUN_MAX) {
-      throw new Error(
-        `slides ${run[0]}-${run[run.length - 1]} are a consecutive no-source non-generated run (${run.length} pages); `
-        + `after ${NO_SOURCE_NON_GENERATED_RUN_MAX} such pages, create a generated case-image page or use a source/redrawn case image`,
-      );
-    }
-  };
-  for (const item of deckSpec.slides || []) {
-    const layout = String(item.layout || "");
-    const event = eventsByNumber.get(Number(item.number) || 0);
-    if (STRUCTURAL_LAYOUTS.has(layout) || !event || event.generated) {
-      flushRun();
-      run = [];
-      continue;
-    }
-    run.push(Number(item.number) || 0);
-  }
-  flushRun();
 }
 
 validateSpecBeforeBuild(spec);
@@ -891,9 +827,27 @@ function caseImagePanels(area, imageInfos, arrangement = "") {
   const gap = 22;
   const aspects = imageInfos.slice(0, count).map(aspectForInfo).map((value) => value || 1.6);
   const varied = Math.max(...aspects) / Math.max(0.01, Math.min(...aspects)) > 1.45;
-  const requested = String(arrangement || "").trim();
+  const requested = String(arrangement || "").trim().replace(/_/g, "-");
   if (count === 2 && requested !== "side-by-side") {
-    if (requested === "vertical-stack" || varied && aspects.some((value) => value < 1)) {
+    if (requested === "vertical-stack" || requested === "vertical-stack-wide-ui") {
+      const topHeight = Math.round((area.height - gap) * 0.48);
+      const bottomHeight = area.height - topHeight - gap;
+      return [
+        { left: area.left, top: area.top, width: area.width, height: topHeight },
+        { left: area.left, top: area.top + topHeight + gap, width: area.width, height: bottomHeight },
+      ];
+    }
+    if (requested === "top-strip-plus-main-panel" || requested === "main-secondary") {
+      const stripHeight = Math.round(area.height * 0.30);
+      const mainTop = area.top + stripHeight + gap;
+      const mainHeight = area.height - stripHeight - gap;
+      const mainWidth = Math.round(area.width * 0.58);
+      return [
+        { left: area.left, top: area.top, width: area.width, height: stripHeight },
+        { left: area.left + Math.round((area.width - mainWidth) / 2), top: mainTop, width: mainWidth, height: mainHeight },
+      ];
+    }
+    if (varied && aspects.some((value) => value < 1)) {
       const mainHeight = Math.round(area.height * 0.56);
       return [
         { left: area.left, top: area.top, width: Math.round(area.width * 0.58), height: area.height },
@@ -989,7 +943,7 @@ function caseImageStageLayout(theme, variant, item, visualCount = 1, imageInfos 
       : { left: 882, top: 342, width: 304, height: 172 },
     textPanel: null,
     imageFrame,
-    textTheme: dark ? "dark" : "light",
+    textTheme: "light",
     textPanelAfterImages: false,
     perImagePanelBackgrounds: false,
     caseTextMode: supportText ? "supporting-text" : "caption-only",

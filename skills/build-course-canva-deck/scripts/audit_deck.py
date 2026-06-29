@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Audit deck-spec, source coverage, scope records, and optional PPTX text.
 
-This audit is a deterministic guard for structural hard errors only. It does
-NOT judge teaching quality, layout rhythm, or whether a generated image teaches
-its point; those are the director's learner review (see
-references/non-regression-checklist.md). The script deliberately avoids length
-thresholds and magic ratios so that agents design human-readable courseware
-instead of filling fields to pass a number.
+This audit is the phase-2 convergence gate for deck-spec, source coverage,
+scope records, generated-image authenticity, no-source visual distribution,
+and optional PPTX text. It catches recurring mechanical failures before
+Canva delivery. It does NOT replace the director's full learner review (see
+references/non-regression-checklist.md): contact-sheet rhythm, image teaching
+quality, and overall design judgment still need human inspection.
 """
 
 from __future__ import annotations
@@ -85,6 +85,11 @@ GENERIC_GENERATED_CASE_BYPASS_PATTERNS = [
 BYPASS_STRUCTURE_TERMS = {
     "流程", "步骤", "顺序", "路径", "关系", "层级", "矩阵", "表格",
     "参数", "快捷键", "操作", "轴", "分类", "对比", "清单", "标签",
+}
+LOW_DENSITY_TEXT_FRAME_PATTERNS = {
+    "side-rail",
+    "side-panel",
+    "modules",
 }
 NEGATIVE_SCOPE_VERBS = "不(?:进入|讲|涉及|展开|复讲|教学|教|做)"
 NEGATIVE_SCOPE_OBJECTS = (
@@ -318,6 +323,61 @@ def visible_teaching_points(slide: dict[str, Any]) -> list[str]:
             if value:
                 points.append(value)
     return points
+
+
+def planned_pattern(slide: dict[str, Any]) -> str:
+    visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+    ref = visual_plan.get("template_reference") if isinstance(visual_plan.get("template_reference"), dict) else {}
+    slide_ref = slide.get("template_reference") if isinstance(slide.get("template_reference"), dict) else {}
+    return str(
+        visual_plan.get("rendered_pattern")
+        or visual_plan.get("thumbnail_pattern")
+        or visual_plan.get("layout_variant")
+        or visual_plan.get("composition_variant")
+        or ref.get("rendered_pattern")
+        or ref.get("thumbnail_pattern")
+        or ref.get("layout_variant")
+        or ref.get("composition_family")
+        or slide_ref.get("rendered_pattern")
+        or slide_ref.get("thumbnail_pattern")
+        or slide_ref.get("layout_variant")
+        or slide_ref.get("composition_family")
+        or ""
+    )
+
+
+def no_source_text_frame_errors(label: str, slide: dict[str, Any]) -> list[str]:
+    visual_plan = slide.get("visual_plan") if isinstance(slide.get("visual_plan"), dict) else {}
+    asset_type = str(visual_plan.get("asset_type", "")).strip()
+    if asset_type in IMAGE_ASSET_TYPES:
+        return []
+    pattern = planned_pattern(slide)
+    if not any(marker in pattern for marker in LOW_DENSITY_TEXT_FRAME_PATTERNS):
+        return []
+    visuals = slide.get("visuals")
+    has_visual_asset = isinstance(visuals, list) and any(
+        isinstance(visual, dict) and str(visual.get("path") or visual.get("src") or "").strip()
+        for visual in visuals
+    )
+    blocks = (slide.get("screen") or {}).get("blocks") or []
+    has_structured_blocks = (
+        isinstance(blocks, list)
+        and len(blocks) >= 2
+        and all(
+            isinstance(block, dict)
+            and str(block.get("heading", "")).strip()
+            and any(str(item.get("text") if isinstance(item, dict) else item).strip() for item in (block.get("items") or []))
+            for block in blocks
+        )
+    )
+    point_count = len(visible_teaching_points(slide))
+    if has_visual_asset or has_structured_blocks or point_count >= 3:
+        return []
+    return [
+        f"{label} uses {pattern or 'side-rail/modules'} without a source/generated case image "
+        f"and has only {point_count} visible teaching point(s); this creates empty card/rail space. "
+        "Add a real case image, redesign as a dense flow/table/relationship page, or split/rewrite the slide."
+    ]
 
 
 def teaching_expansion_errors(label: str, screen: dict[str, Any], text: str, mode: str) -> list[str]:
@@ -919,6 +979,7 @@ def main() -> int:
                 plan_node = visual_plan.get("source_node_id")
                 if asset_type not in VISUAL_ASSET_TYPES:
                     errors.append(f"{label} visual_plan.asset_type is unsupported")
+                errors.extend(no_source_text_frame_errors(label, slide))
                 if integration != "knowledge-page" or integration in FORBIDDEN_VISUAL_INTEGRATIONS:
                     errors.append(f"{label} visual_plan must integrate the visual into the knowledge page")
                 if plan_node not in source_ids:

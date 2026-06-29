@@ -10,14 +10,14 @@ ROOT = Path(__file__).resolve().parents[1]
 AUDIT = ROOT / "skills/build-course-canva-deck/scripts/audit_deck.py"
 
 
-def wrapper_source_map():
+def wrapper_source_map(with_images=False):
     """A source tree whose real chapters sit below a wrapper level.
 
     root(n0) is the lesson title. n1 is a framing/wrapper node (root child)
     that is NOT a chapter. The real teaching chapters are n2 and n5, both
     children of the wrapper n1 — i.e. depth 2, not root children.
     """
-    return {
+    source = {
         "outline_mode": "detailed",
         "mode_declared_by_user": True,
         "nodes": [
@@ -32,6 +32,12 @@ def wrapper_source_map():
         ],
         "images": [],
     }
+    if with_images:
+        source["images"] = [
+            {"id": f"img-{node_id}", "path": f"images/{node_id}.png", "source_node_id": node_id}
+            for node_id in ("n3", "n4", "n6", "n7")
+        ]
+    return source
 
 
 def treatment(node_id, evidence, status="preserved"):
@@ -42,18 +48,41 @@ def treatment(node_id, evidence, status="preserved"):
     }
 
 
-def knowledge_slide(number, title, node_ids, branch, framework_progress_label, evidence=None):
+def knowledge_slide(number, title, node_ids, branch, framework_progress_label, evidence=None, source_image_id=None):
     evidence = evidence or title
+    layout = "image-left" if source_image_id else "light"
+    visual_plan = {
+        "asset_type": "text-only-exception",
+        "integration": "knowledge-page",
+        "source_node_id": node_ids[0],
+        "labels_as_slide_text": True,
+        "text_only_exception_reason": f"{title} 的结构测试页需要保留 {evidence} 的关系和顺序，文字清单比生成案例图更清楚。",
+    }
+    visuals = []
+    caption = ""
+    if source_image_id:
+        visual_plan = {
+            "asset_type": "source-image",
+            "integration": "knowledge-page",
+            "source_node_id": node_ids[0],
+            "source_image_ids": [source_image_id],
+            "labels_as_slide_text": True,
+            "case_visual_map": [
+                {"screen_evidence": "可读要点", "visible_detail": f"{title} 案例画面呈现对应结构要点。"}
+            ],
+        }
+        visuals = [{"source_image_id": source_image_id, "path": f"images/{node_ids[0]}.png"}]
+        caption = f"{title} 的案例画面帮助定位当前结构。"
     return {
         "number": number,
-        "layout": "light",
+        "layout": layout,
         "title": title,
         "section": "测试课",
         "framework_progress_label": framework_progress_label,
         "screen": {
             "explanation": evidence,
             "bullets": ["可读要点"],
-            "caption": "",
+            "caption": caption,
             "blocks": [],
             "teaching_expansion": {
                 "mode_handling": "detailed-clarification",
@@ -70,13 +99,8 @@ def knowledge_slide(number, title, node_ids, branch, framework_progress_label, e
             for index, node_id in enumerate(node_ids)
         ],
         "scope_check": {"status": "within-branch", "branch_node_id": branch},
-        "visual_plan": {
-            "asset_type": "text-only-exception",
-            "integration": "knowledge-page",
-            "source_node_id": node_ids[0],
-            "labels_as_slide_text": True,
-            "text_only_exception_reason": "结构测试夹具不验证案例图质量。",
-        },
+        "visual_plan": visual_plan,
+        "visuals": visuals,
     }
 
 
@@ -139,6 +163,17 @@ def deck(slides, chapter_spine=None):
     }
     if chapter_spine is not None:
         course["chapter_spine"] = chapter_spine
+    source_image_ids = [
+        image_id
+        for slide in slides
+        for image_id in ((slide.get("visual_plan") or {}).get("source_image_ids") or [])
+    ]
+    if source_image_ids:
+        course["source_image_coverage"] = [
+            {"source_image_id": image_id, "status": "used", "slide": slide.get("number")}
+            for slide in slides
+            for image_id in ((slide.get("visual_plan") or {}).get("source_image_ids") or [])
+        ]
     return {"course": course, "slides": slides}
 
 
@@ -184,19 +219,19 @@ class ChapterSpineAuditTests(unittest.TestCase):
                 {"source_node_id": "n3", "screen_evidence": "选题方法"},
                 {"source_node_id": "n4", "screen_evidence": "选题误区"},
             ]),
-            knowledge_slide(0, "选题方法", ["n3"], "n2", "选题方向规划"),
-            knowledge_slide(0, "选题误区", ["n4"], "n2", "选题方向规划"),
+            knowledge_slide(0, "选题方法", ["n3"], "n2", "选题方向规划", source_image_id="img-n3"),
+            knowledge_slide(0, "选题误区", ["n4"], "n2", "选题方向规划", source_image_id="img-n4"),
             section_cover(0, "内容结构", "n5", [
                 {"source_node_id": "n6", "screen_evidence": "开头钩子"},
                 {"source_node_id": "n7", "screen_evidence": "中段推进"},
             ]),
-            knowledge_slide(0, "开头钩子", ["n6"], "n5", "内容结构"),
-            knowledge_slide(0, "中段推进", ["n7"], "n5", "内容结构"),
+            knowledge_slide(0, "开头钩子", ["n6"], "n5", "内容结构", source_image_id="img-n6"),
+            knowledge_slide(0, "中段推进", ["n7"], "n5", "内容结构", source_image_id="img-n7"),
             summary(),
         ])
         code, report = run_audit(
             deck(slides, chapter_spine=["n2", "n5"]),
-            wrapper_source_map(),
+            wrapper_source_map(with_images=True),
         )
         self.assertEqual(report["errors"], [])
         self.assertEqual(code, 0)

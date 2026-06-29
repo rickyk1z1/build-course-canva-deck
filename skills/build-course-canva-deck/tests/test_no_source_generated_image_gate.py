@@ -60,7 +60,7 @@ def knowledge_slide(number: int, node_id: str, title: str, bypass: str) -> dict:
         "framework_progress_label": "chapter",
         "screen": {
             "explanation": f"{title} uses a visible operation path.",
-            "bullets": [f"{title} path"],
+            "bullets": [f"{title} path", f"{title} sequence", f"{title} decision cue"],
             "caption": "",
             "blocks": [],
             "teaching_expansion": teaching_expansion(title),
@@ -205,7 +205,9 @@ def main() -> int:
                     {"route": "gpt-image-2", "status": "success", "evidence": "saved asset"}
                 ],
                 "case_visual_map": [
-                    {"screen_evidence": "point 1 path", "visible_detail": "step path"}
+                    {"screen_evidence": "point 1 path", "visible_detail": "step path"},
+                    {"screen_evidence": "point 1 sequence", "visible_detail": "ordered steps"},
+                    {"screen_evidence": "point 1 decision cue", "visible_detail": "decision marker"},
                 ],
             }
         )
@@ -222,7 +224,9 @@ def main() -> int:
                 "observable_teaching_detail": "step path",
                 "instant_takeaway": "point 1",
                 "case_visual_map": [
-                    {"screen_evidence": "point 1 path", "visible_detail": "step path"}
+                    {"screen_evidence": "point 1 path", "visible_detail": "step path"},
+                    {"screen_evidence": "point 1 sequence", "visible_detail": "ordered steps"},
+                    {"screen_evidence": "point 1 decision cue", "visible_detail": "decision marker"},
                 ],
             }
         ]
@@ -243,7 +247,9 @@ def main() -> int:
                     {"route": "gpt-image-2", "status": "success", "evidence": "saved asset"}
                 ],
                 "case_visual_map": [
-                    {"screen_evidence": "point 3 path", "visible_detail": "step path"}
+                    {"screen_evidence": "point 3 path", "visible_detail": "step path"},
+                    {"screen_evidence": "point 3 sequence", "visible_detail": "ordered steps"},
+                    {"screen_evidence": "point 3 decision cue", "visible_detail": "decision marker"},
                 ],
             }
         )
@@ -260,7 +266,9 @@ def main() -> int:
                 "observable_teaching_detail": "step path",
                 "instant_takeaway": "point 3",
                 "case_visual_map": [
-                    {"screen_evidence": "point 3 path", "visible_detail": "step path"}
+                    {"screen_evidence": "point 3 path", "visible_detail": "step path"},
+                    {"screen_evidence": "point 3 sequence", "visible_detail": "ordered steps"},
+                    {"screen_evidence": "point 3 decision cue", "visible_detail": "decision marker"},
                 ],
             }
         )

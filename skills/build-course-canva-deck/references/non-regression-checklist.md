@@ -1,6 +1,6 @@
 # Non-regression checklist
 
-These are the failure modes that have recurred across many rounds of this skill. They are written in plain language a human verifies on the rendered deck, not as fields or numbers. The audit script does not check these; the director does.
+These are the failure modes that have recurred across many rounds of this skill. They are written in plain language a human verifies on the rendered deck, not only as fields or numbers. The phase-2 audit script checks some recurring mechanical failures, but it cannot approve teaching quality, visual usefulness, rhythm, or overall design judgment. The director still performs this review against the rendered contact sheet and full-size pages.
 
 Before delivering any deck, the director goes through every item below against the actual contact sheet and full-size pages, and records the result in `交付前自检.md` in the output folder: for each item, write the slide numbers checked and either "无问题" or the concrete problem found. A checklist with empty or generic answers is not a completed review.
 

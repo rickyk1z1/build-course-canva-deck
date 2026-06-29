@@ -30,7 +30,13 @@ Allowed `asset_type`: `source-image`, `redrawn-source-image`, `generated-image`,
 
 ## Per-slide visual asset decision
 
-The visual pass is made per normal knowledge slide. Do not decide that "the deck already has enough images" and then leave image-less pages as text-heavy diagrams. For each normal knowledge slide:
+The visual pass is made per normal knowledge slide in two phases.
+
+Phase 1 is the creative teaching draft. The storyboarder should first ask, "What would make this point clearest to a zero-basis learner?" and propose the strongest learner-facing page: concrete case image, before/after state, wrong/right example, metaphor, workflow artifact, editable relationship diagram, or table. Do not start by asking how to pass the audit, how to minimize generation work, or how to write a bypass reason. The draft may be ambitious; convergence will trim it.
+
+Phase 2 is convergence. The director reviews the draft against source anchoring, generated-image route, empty-space risk, local no-source runs, contact-sheet geometry, and learner readability. Pages that became sparse side-rail/module cards, text-heavy diagrams, or abstract placeholders are revised with GPT Image 2 case images, source/redrawn images, denser editable structures, or split pages. Bypass reasons are accepted only after this creative pass has produced and rejected the stronger visual alternative for a page-specific reason.
+
+Do not decide that "the deck already has enough images" and then leave image-less pages as text-heavy diagrams. For each normal knowledge slide:
 
 1. If the source node has anchored source images, use or redraw those source images first.
 2. If no anchored source image exists, default to asking what concrete case image would make the point visible to a zero-basis learner. Use `generated-image` for judgment examples, before/after states, wrong/right choices, metaphors, consequences, user reactions, visible workflow artifacts, or any point where a learner benefits from seeing the situation.
@@ -38,7 +44,7 @@ The visual pass is made per normal knowledge slide. Do not decide that "the deck
 4. Use `editable-table` only for factual comparisons, grids, or category matrices that must remain editable.
 5. Use `text-only-exception` only when a case image or diagram would make the point less clear; record the concrete bypass reason.
 
-The final visual plan must leave a trace of this decision. For every normal knowledge slide without `source-image` / `redrawn-source-image`, record either a `generated-image` plan plus a matching `course.image_generation_tasks` entry, or a positive `generated_case_bypass_reason` explaining why `editable-diagram`, `editable-table`, or `text-only-exception` teaches better than a generated case image. The reason must be page-specific: it names the current title or visible teaching point and the exact structure (flow, sequence, relationship, axis, table, parameter, shortcut, operation path, etc.) that would become less clear as a generated case image. Generic bypass language such as "本页是连续源节点整理", "可编辑图解比模型场景图更清楚", or "更适配当前信息量" is not valid. The builder rejects no-source knowledge pages that choose diagram/table/text-only without this reason. It also rejects long local bypass runs: after two consecutive no-source non-generated knowledge pages, the next no-source page must use a generated/source/redrawn case-image treatment or the visual plan must be redesigned.
+The final visual plan must leave a trace of this decision. For every normal knowledge slide without `source-image` / `redrawn-source-image`, record either a `generated-image` plan plus a matching `course.image_generation_tasks` entry, or a positive `generated_case_bypass_reason` explaining why `editable-diagram`, `editable-table`, or `text-only-exception` teaches better than a generated case image. The reason must be page-specific: it names the current title or visible teaching point and the exact structure (flow, sequence, relationship, axis, table, parameter, shortcut, operation path, etc.) that would become less clear as a generated case image. Generic bypass language such as "本页是连续源节点整理", "可编辑图解比模型场景图更清楚", or "更适配当前信息量" is not valid. The final audit rejects no-source knowledge pages that choose diagram/table/text-only without this reason. It also rejects long local bypass runs: after two consecutive no-source non-generated knowledge pages, the next no-source page must use a generated/source/redrawn case-image treatment or the visual plan must be redesigned. These checks belong to convergence, not to the first creative draft.
 
 ## Structural layout system
 
