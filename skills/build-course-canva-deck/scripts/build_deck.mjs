@@ -567,6 +567,38 @@ function splitPoint(item) {
   return { head: "", body: raw };
 }
 
+function textMeasureUnits(text) {
+  let units = 0;
+  for (const char of String(text || "")) {
+    if (/\s/.test(char)) units += 0.35;
+    else if (/[\u0000-\u007f]/.test(char)) units += 0.58;
+    else units += 1;
+  }
+  return units;
+}
+
+function estimatedLineCount(text, width, size) {
+  const unitsPerLine = Math.max(6, width / Math.max(1, size * 0.92));
+  return String(text || "")
+    .split(/\n+/)
+    .reduce((total, paragraph) => total + Math.max(1, Math.ceil(textMeasureUnits(paragraph) / unitsPerLine)), 0);
+}
+
+function adaptiveTextSize(text, position, options = {}) {
+  const {
+    min = 18,
+    max = 26,
+    lineSpacing = 1.2,
+    heightUse = 0.94,
+  } = options;
+  if (!String(text || "").trim()) return min;
+  for (let size = max; size >= min; size -= 1) {
+    const lines = estimatedLineCount(text, position.width, size);
+    if (lines * size * lineSpacing <= position.height * heightUse) return size;
+  }
+  return min;
+}
+
 function addAccentMark(slide, { left, top, width = 46, height = 8, fill = C.orange, name }) {
   addBox(slide, { left, top, width, height, fill, name });
 }
@@ -617,12 +649,20 @@ function addPointList(slide, items, theme, position, options = {}) {
     } else {
       addAccentMark(slide, { left, top: top + 2, name: `point-mark-${index}` });
     }
-    addText(slide, point.body || point.head, {
+    const bodyPosition = {
       left: label && numbered && !point.head ? left + 56 : left,
       top: label ? top + (point.head ? 26 : 2) : top + 16,
       width: label && numbered && !point.head ? colWidth - 56 : colWidth,
       height: rowHeight - (point.head ? 30 : 4),
-      size: compact ? 16 : 17,
+    };
+    const bodySize = adaptiveTextSize(point.body || point.head, bodyPosition, {
+      min: compact ? 18 : 19,
+      max: compact ? 22 : 24,
+      lineSpacing: 1.18,
+    });
+    addText(slide, point.body || point.head, {
+      ...bodyPosition,
+      size: bodySize,
       color: dark ? C.white : C.black,
       typeface: F.body,
       lineSpacing: 1.18,
@@ -914,6 +954,82 @@ function caseImageStageInset(item, imageFrame, visualCount) {
   return Math.round(clampNumber(authored ?? defaultInset, 14, 42));
 }
 
+function caseTextPlacement(item, visualCount, singleFillRatio, imageInfos = []) {
+  const composition = item.visual_plan?.composition || {};
+  const authored = String(
+    composition.case_text_placement
+    || composition.supporting_text_placement
+    || composition.text_placement
+    || "auto",
+  ).trim().replace(/_/g, "-");
+  const allowed = new Set(["side-right", "side-left", "bottom-band", "top-band"]);
+  if (allowed.has(authored)) return authored;
+  if (visualCount > 1) return "side-right";
+  const aspect = aspectForInfo(imageInfos[0]) || 1.6;
+  if (singleFillRatio < 0.58 || aspect < 1.1) return "side-right";
+  if (aspect > 1.9) return "bottom-band";
+  return "side-right";
+}
+
+function caseStageTextLayout(contentPosition, placement, hasCaption, bulletCount) {
+  const gap = 26;
+  const captionHeight = hasCaption ? 78 : 0;
+  const bulletHeight = bulletCount ? 112 : 0;
+  const bulletGap = bulletCount ? 20 : 0;
+  if (placement === "bottom-band" || placement === "top-band") {
+    const bandHeight = Math.min(132, Math.max(92, Math.round(contentPosition.height * 0.25)));
+    const band = placement === "top-band"
+      ? { left: contentPosition.left, top: contentPosition.top, width: contentPosition.width, height: bandHeight }
+      : { left: contentPosition.left, top: contentPosition.top + contentPosition.height - bandHeight, width: contentPosition.width, height: bandHeight };
+    const imageArea = placement === "top-band"
+      ? { left: contentPosition.left, top: contentPosition.top + bandHeight + gap, width: contentPosition.width, height: contentPosition.height - bandHeight - gap }
+      : { left: contentPosition.left, top: contentPosition.top, width: contentPosition.width, height: contentPosition.height - bandHeight - gap };
+    const captionWidth = hasCaption ? Math.min(520, Math.round(band.width * 0.45)) : 0;
+    const explanationLeft = hasCaption ? band.left + captionWidth + 34 : band.left;
+    const explanationHeight = Math.max(34, band.height - 20 - bulletHeight - bulletGap);
+    return {
+      imageArea,
+      caption: { left: band.left, top: band.top + 8, width: captionWidth || band.width, height: hasCaption ? band.height - 16 : 0 },
+      explanation: {
+        left: explanationLeft,
+        top: band.top + 10,
+        width: band.left + band.width - explanationLeft,
+        height: explanationHeight,
+      },
+      bullets: { left: explanationLeft, top: band.top + band.height - bulletHeight, width: band.left + band.width - explanationLeft, height: bulletHeight },
+    };
+  }
+
+  const laneWidth = Math.min(350, Math.max(310, Math.round(contentPosition.width * 0.31)));
+  const laneGap = 42;
+  const lane = placement === "side-left"
+    ? { left: contentPosition.left, top: contentPosition.top + 10, width: laneWidth, height: contentPosition.height - 20 }
+    : { left: contentPosition.left + contentPosition.width - laneWidth, top: contentPosition.top + 10, width: laneWidth, height: contentPosition.height - 20 };
+  const imageArea = placement === "side-left"
+    ? {
+        left: lane.left + lane.width + laneGap,
+        top: contentPosition.top,
+        width: contentPosition.width - lane.width - laneGap,
+        height: contentPosition.height,
+      }
+    : {
+        left: contentPosition.left,
+        top: contentPosition.top,
+        width: contentPosition.width - lane.width - laneGap,
+        height: contentPosition.height,
+      };
+  const captionBlockHeight = hasCaption ? Math.min(104, Math.max(70, Math.round(lane.height * 0.24))) : 0;
+  const captionGap = hasCaption ? 22 : 0;
+  const explanationTop = lane.top + captionBlockHeight + captionGap;
+  const explanationHeight = Math.max(120, lane.height - captionBlockHeight - captionGap - bulletHeight - bulletGap);
+  return {
+    imageArea,
+    caption: { left: lane.left, top: lane.top, width: lane.width, height: captionBlockHeight || 0 },
+    explanation: { left: lane.left, top: explanationTop, width: lane.width, height: explanationHeight },
+    bullets: { left: lane.left, top: lane.top + lane.height - bulletHeight, width: lane.width, height: bulletHeight },
+  };
+}
+
 function caseImageStageLayout(theme, variant, item, visualCount = 1, imageInfos = []) {
   const dark = theme === "dark";
   const imageFrame = { left: 56, top: 168, width: 1168, height: 474, fill: dark ? C.cream : C.white };
@@ -921,25 +1037,41 @@ function caseImageStageLayout(theme, variant, item, visualCount = 1, imageInfos 
   const composition = item.visual_plan?.composition || {};
   const contentPosition = insetPosition(imageFrame, innerPadding);
   const singleFillRatio = visualCount === 1 ? containFillRatio(contentPosition, imageInfos[0]) : 1;
-  const supportText = visualCount === 1 && (
+  const hasCaption = Boolean(String(screenFor(item).caption || "").trim());
+  const bulletCount = bulletsFor(item).length;
+  const requestedSupportText = (
     composition.case_text_mode === "supporting-text"
     || composition.small_source_image_strategy === "supporting-text"
-    || singleFillRatio < 0.48
   );
+  const supportText = requestedSupportText || (visualCount === 1 && singleFillRatio < 0.48);
+  const placement = supportText ? caseTextPlacement(item, visualCount, singleFillRatio, imageInfos) : "";
+  const stageText = supportText ? caseStageTextLayout(contentPosition, placement, hasCaption, bulletCount) : null;
+  const captionBandHeight = hasCaption ? 58 : 0;
+  const captionOnlyImagePosition = hasCaption
+    ? { ...contentPosition, height: Math.max(1, contentPosition.height - captionBandHeight) }
+    : contentPosition;
+  const captionOnlyCaptionPosition = hasCaption
+    ? {
+        left: contentPosition.left,
+        top: contentPosition.top + contentPosition.height - captionBandHeight + 4,
+        width: Math.min(900, contentPosition.width),
+        height: captionBandHeight - 6,
+      }
+    : { left: 76, top: 650, width: 900, height: 28 };
   return {
     imagePosition: imageFrame,
     imageContentPosition: supportText
-      ? { left: 76, top: 196, width: 690, height: 382 }
-      : contentPosition,
+      ? stageText.imageArea
+      : captionOnlyImagePosition,
     imageInnerPadding: innerPadding,
     captionPosition: supportText
-      ? { left: 76, top: 594, width: 690, height: 48 }
-      : { left: 76, top: 650, width: 900, height: 28 },
+      ? stageText.caption
+      : captionOnlyCaptionPosition,
     explanationPosition: supportText
-      ? { left: 812, top: 210, width: 340, height: 112 }
+      ? stageText.explanation
       : { left: 882, top: 214, width: 304, height: 98 },
     bulletsPosition: supportText
-      ? { left: 812, top: 350, width: 340, height: 190 }
+      ? stageText.bullets
       : { left: 882, top: 342, width: 304, height: 172 },
     textPanel: null,
     imageFrame,
@@ -948,16 +1080,21 @@ function caseImageStageLayout(theme, variant, item, visualCount = 1, imageInfos 
     perImagePanelBackgrounds: false,
     caseTextMode: supportText ? "supporting-text" : "caption-only",
     multiImageArrangement: composition.multi_image_arrangement || "",
+    caseTextPlacement: placement,
     renderedPattern: variant || "case-image-stage",
   };
 }
 
-function addExplanation(slide, item, theme, position) {
+function addExplanation(slide, item, theme, position, options = {}) {
   const text = screenFor(item).explanation || "";
-  const size = text.length > 150 ? 16 : text.length > 105 ? 17 : 18;
+  const size = adaptiveTextSize(text, position, {
+    min: options.minSize || 18,
+    max: options.maxSize || 26,
+    lineSpacing: options.lineSpacing || 1.22,
+  });
   addText(slide, text, {
     ...position, size, color: theme === "dark" ? C.white : C.black,
-    typeface: F.body, lineSpacing: 1.22, name: `explanation-${item.number}`,
+    typeface: F.body, lineSpacing: options.lineSpacing || 1.22, name: `explanation-${item.number}`,
   });
 }
 
@@ -973,16 +1110,21 @@ function addCaption(slide, item, theme, position) {
     fill: C.orange,
     name: `caption-mark-${item.number}`,
   });
-  addText(slide, caption, {
+  const textPosition = {
     left: position.left,
     top: position.top + 13,
     width: position.width,
     height: Math.max(34, position.height - 13),
-    size: 15,
+  };
+  const size = adaptiveTextSize(caption, textPosition, { min: 17, max: 20, lineSpacing: 1.15 });
+  addText(slide, caption, {
+    ...textPosition,
+    size,
     color: dark ? C.white : C.black,
     typeface: F.deco,
     bold: true,
     valign: "top",
+    lineSpacing: 1.15,
     name: `caption-${item.number}`,
   });
 }
@@ -1000,13 +1142,13 @@ async function buildCover(presentation, item) {
   });
   const screen = screenFor(item);
   addText(slide, screen.explanation || "", {
-    left: 72, top: 330, width: 650, height: 160, size: 24, color: C.white,
+    left: 72, top: 330, width: 650, height: 160, size: 26, color: C.white,
     typeface: F.secondary, lineSpacing: 1.35,
   });
   addBox(slide, { left: 860, top: -40, width: 300, height: 800, fill: C.orange, name: "cover-orange" });
   addBox(slide, { left: 758, top: 210, width: 470, height: 310, fill: C.cream, name: "cover-focus" });
   addText(slide, bulletText(screen.bullets || [], 6), {
-    left: 800, top: 275, width: 390, height: 190, size: 22, color: C.black,
+    left: 800, top: 275, width: 390, height: 190, size: 24, color: C.black,
     typeface: F.deco, bold: true, align: "center", valign: "middle", lineSpacing: 1.45,
   });
   addFooter(slide, item, "dark");
@@ -1027,13 +1169,13 @@ async function buildLessonOverview(presentation, item) {
     name: `overview-title-${item.number}`,
   });
   addText(slide, screen.explanation || "", {
-    left: 72, top: 260, width: 640, height: 130, size: 22, color: C.black,
+    left: 72, top: 260, width: 640, height: 130, size: 24, color: C.black,
     typeface: F.body, lineSpacing: 1.28, name: `overview-explanation-${item.number}`,
   });
   const points = bulletsFor(item);
   addBox(slide, { left: 790, top: 95, width: 338, height: 438, fill: C.cream, name: `overview-index-field-${item.number}` });
   addText(slide, "本节结构", {
-    left: 826, top: 132, width: 260, height: 38, size: 26, color: C.black,
+    left: 826, top: 132, width: 260, height: 38, size: 30, color: C.black,
     typeface: F.title, bold: true,
   });
   addPointList(slide, points.slice(0, 6), "light", { left: 826, top: 190, width: 265, height: 285 }, {
@@ -1046,7 +1188,7 @@ async function buildLessonOverview(presentation, item) {
   if (overviewCaption) {
     addBox(slide, { left: 72, top: 505, width: 640, height: 54, fill: C.black, name: `overview-anchor-${item.number}` });
     addText(slide, overviewCaption, {
-      left: 104, top: 522, width: 575, height: 24, size: 18, color: C.white,
+      left: 104, top: 518, width: 575, height: 30, size: 20, color: C.white,
       typeface: F.deco, bold: true,
     });
   }
@@ -1073,7 +1215,7 @@ async function buildSectionCover(presentation, item) {
     name: `section-title-${item.number}`,
   });
   addText(slide, screenFor(item).explanation || "", {
-    left: 410, top: 348, width: 650, height: 92, size: 23, color: C.white,
+    left: 410, top: 348, width: 650, height: 92, size: 25, color: C.white,
     typeface: F.secondary, lineSpacing: 1.28, name: `section-explanation-${item.number}`,
   });
   const points = bulletsFor(item);
@@ -1281,9 +1423,9 @@ async function buildComparison(presentation, item) {
   const right = blocks[1] || { heading: "", items: bulletsFor(item).slice(3) };
   addBox(slide, { left: 72, top: 330, width: 520, height: 250, fill: C.black, name: `compare-left-${item.number}` });
   addBox(slide, { left: 628, top: 330, width: 520, height: 250, fill: C.orange, name: `compare-right-${item.number}` });
-  addText(slide, left.heading || "", { left: 104, top: 360, width: 456, height: 38, size: 28, color: C.orange, typeface: F.title, bold: true });
+  addText(slide, left.heading || "", { left: 104, top: 356, width: 456, height: 44, size: 32, color: C.orange, typeface: F.title, bold: true });
   addPointList(slide, left.items || [], "dark", { left: 104, top: 418, width: 430, height: 120 }, { max: 3, numbered: false, compact: true, context: `slide ${item.number} left comparison block` });
-  addText(slide, right.heading || "", { left: 660, top: 360, width: 456, height: 38, size: 28, color: C.black, typeface: F.title, bold: true });
+  addText(slide, right.heading || "", { left: 660, top: 356, width: 456, height: 44, size: 32, color: C.black, typeface: F.title, bold: true });
   addPointList(slide, right.items || [], "light", { left: 660, top: 418, width: 430, height: 120 }, { max: 3, numbered: false, accent: C.black, compact: true, context: `slide ${item.number} right comparison block` });
   addFooter(slide, item, "light");
   return slide;
@@ -1314,7 +1456,7 @@ async function buildTable(presentation, item) {
     addBox(slide, { left: colLeft, top, width: colWidth, height: 250, fill: col % 2 === 0 ? C.black : C.orange, name: `table-col-${item.number}-${col}` });
     addText(slide, block.heading || "", {
       left: colLeft + 22, top: top + 16, width: colWidth - 44, height: 28,
-      size: 20, color: col % 2 === 0 ? C.orange : C.black, typeface: F.title, bold: true,
+      size: 22, color: col % 2 === 0 ? C.orange : C.black, typeface: F.title, bold: true,
       name: `table-head-${item.number}-${col}`,
     });
     (block.items || []).forEach((entry, row) => {
@@ -1323,7 +1465,7 @@ async function buildTable(presentation, item) {
         top: top + headerHeight + row * rowHeight + 8,
         width: colWidth - 44,
         height: rowHeight - 10,
-        size: maxRows >= 4 ? 15 : 16,
+        size: maxRows >= 4 ? 17 : 18,
         color: col % 2 === 0 ? C.white : C.black,
         typeface: F.body,
         lineSpacing: 1.15,
@@ -1401,7 +1543,7 @@ async function buildTextSlide(presentation, item) {
         top: railTop + 64,
         width: nodeWidth - 36,
         height: nodeHeight - 94,
-        size: 16,
+        size: 18,
         color: nodeTheme === "dark" ? C.white : C.black,
         typeface: F.body,
         lineSpacing: 1.15,
@@ -1423,7 +1565,7 @@ async function buildTextSlide(presentation, item) {
       top: 258,
       width: 578,
       height: 210,
-      size: 24,
+      size: 26,
       color: fieldFill === C.black ? C.white : C.black,
       typeface: F.title,
       bold: true,
@@ -1458,7 +1600,7 @@ async function buildTextSlide(presentation, item) {
       top: 250,
       width: 190,
       height: 220,
-      size: 22,
+      size: 24,
       color: sideFill === C.black ? C.white : C.black,
       typeface: F.title,
       bold: true,

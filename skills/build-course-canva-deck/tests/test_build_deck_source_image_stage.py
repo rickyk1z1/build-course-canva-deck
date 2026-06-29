@@ -69,6 +69,18 @@ def main() -> int:
         raise AssertionError("case-image stage must not draw a separate text backing panel over the image")
     if "multiImageArrangement: composition.multi_image_arrangement" not in helper_body:
         raise AssertionError("visual plans must be able to request a specific multi-image arrangement")
+    for phrase in [
+        "function caseTextPlacement",
+        "composition.case_text_placement",
+        "supporting_text_placement",
+        "bottom-band",
+        "top-band",
+        "side-right",
+        "side-left",
+        "function caseStageTextLayout",
+    ]:
+        if phrase not in source:
+            raise AssertionError(f"case-image supporting text must support varied in-stage placements, missing {phrase}")
     if "small_source_image_strategy" not in helper_body:
         raise AssertionError("small source images must trigger an adaptive supporting-text strategy")
     if "singleFillRatio < 0.48" not in helper_body:

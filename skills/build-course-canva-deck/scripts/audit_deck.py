@@ -105,6 +105,14 @@ COMPOSITE_IMAGE_MARKERS = {
     "collage",
     "stitched",
 }
+CONTENT_TEXT_SAFE_BOTTOM = 668
+LAYOUT_CONTENT_TEXT_PREFIXES = (
+    "caption-",
+    "explanation-",
+    "point-body-",
+    "flow-node-text-",
+    "table-cell-",
+)
 SOURCE_COVERAGE_STATUSES = {
     "preserved",
     "clarified",
@@ -489,6 +497,58 @@ def layout_geometry_signature(slide: dict[str, Any]) -> tuple:
         bullet_count,
         block_count,
     )
+
+
+def layout_text_safety_errors(layout_path: Path, raw: str) -> list[str]:
+    errors: list[str] = []
+    try:
+        layout = json.loads(raw)
+    except json.JSONDecodeError:
+        return errors
+    for element in layout.get("elements", []):
+        if not isinstance(element, dict):
+            continue
+        name = str(element.get("name") or "")
+        text = str(element.get("text") or element.get("textPreview") or "").strip()
+        bbox = element.get("bbox")
+        if (
+            not text
+            or not name.startswith(LAYOUT_CONTENT_TEXT_PREFIXES)
+            or not isinstance(bbox, list)
+            or len(bbox) < 4
+        ):
+            continue
+        try:
+            left, top, width, height = [float(value) for value in bbox[:4]]
+        except (TypeError, ValueError):
+            continue
+        bottom = top + height
+        right = left + width
+        if left < 0 or top < 0 or right > 1280 or bottom > 720:
+            errors.append(f"{layout_path.name} content text box leaves slide bounds: {name}")
+        if bottom > CONTENT_TEXT_SAFE_BOTTOM:
+            errors.append(
+                f"{layout_path.name} content text crosses bottom safety zone: {name} bottom={bottom:.0f}"
+            )
+        if name.startswith("explanation-"):
+            font_size = element.get("resolvedFontSize")
+            if font_size is None:
+                font_size = (element.get("resolvedTextStyle") or {}).get("fontSize")
+            line_count = (element.get("textLayout") or {}).get("lineCount")
+            try:
+                font_size = float(font_size)
+            except (TypeError, ValueError):
+                font_size = 0
+            try:
+                line_count = int(line_count)
+            except (TypeError, ValueError):
+                line_count = 0
+            if font_size and font_size < 22 and height >= 90 and line_count and line_count <= 3 and len(text) <= 120:
+                errors.append(
+                    f"{layout_path.name} small explanation text leaves underused frame: "
+                    f"{name} font={font_size:.0f}, lines={line_count}, height={height:.0f}"
+                )
+    return errors
 
 
 def ancestors_for(node_id: str, parent_by_id: dict[str, str | None]) -> list[str]:
@@ -1427,6 +1487,7 @@ def main() -> int:
                 errors.append(f"layout reports overflow: {path.name}")
             if re.search(r'"(?:unintendedOverlap|overlapWarning)"\s*:\s*true', raw, re.I):
                 errors.append(f"layout reports unintended overlap: {path.name}")
+            errors.extend(layout_text_safety_errors(path, raw))
 
     # Geometry-repetition signal: this is a warning, not a hard gate. The audit
     # cannot judge layout aesthetics, but it can flag where the contact sheet is
